@@ -21,6 +21,7 @@
     </properties>
 
     <dependencies>
+        <!-- dove framework. Network supports.-->
         <dependency>
             <groupId>com.jay</groupId>
             <artifactId>dove</artifactId>
