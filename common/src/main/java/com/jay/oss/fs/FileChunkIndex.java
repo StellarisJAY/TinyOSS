@@ -15,11 +15,11 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class FileChunkMeta {
+public class FileChunkIndex {
     /**
      * chunk 文件路径
      */
-    private String path;
+    private int chunkId;
     /**
      * 该文件数据的offset
      */

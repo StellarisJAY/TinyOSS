@@ -40,6 +40,10 @@ public class Chunk {
     private int size;
 
     /**
+     * chunk id
+     */
+    private int id;
+    /**
      * chunk size 128 MB = 4KB * 1024 * 32
      * 为了最大程度优化磁盘IO，Chunk文件的大小应该是磁盘块大小的整数倍。
      * Linux系统下，I/O Block大小是 4KB， 所以Chunk文件大小为4KB整数倍
@@ -48,7 +52,7 @@ public class Chunk {
     /**
      * 文件索引列表
      */
-    private final LinkedList<FileChunkMeta> files = new LinkedList<>();
+    private final LinkedList<FileChunkIndex> files = new LinkedList<>();
 
     public Chunk(int chunkId) {
         this.path = "D:/oss/chunk_"+chunkId;
@@ -64,11 +68,11 @@ public class Chunk {
 
     /**
      * 向chunk文件写入数据
-     * @param meta {@link FileChunkMeta} 写入数据信息
+     * @param meta {@link FileChunkIndex} 写入数据信息
      * @param in {@link ByteBuf} 数据 buffer
      * @throws IOException IOException
      */
-    public void write(FileChunkMeta meta, ByteBuf in) throws IOException {
+    public void write(FileChunkIndex meta, ByteBuf in) throws IOException {
         FileLock lock = null;
         try{
             // 加排他锁
@@ -93,11 +97,11 @@ public class Chunk {
 
     /**
      * 从chunk文件读取数据
-     * @param meta {@link FileChunkMeta} 待读取数据索引信息
+     * @param meta {@link FileChunkIndex} 待读取数据索引信息
      * @param out {@link ByteBuf} 目标buffer
      * @throws IOException IOException
      */
-    public void read(FileChunkMeta meta, ByteBuf out) throws IOException {
+    public void read(FileChunkIndex meta, ByteBuf out) throws IOException {
         if(files.contains(meta) && !meta.isRemoved()){
             out.writeBytes(fileChannel, meta.getOffset(), meta.getSize());
         }
@@ -105,9 +109,9 @@ public class Chunk {
 
     /**
      * 删除数据信息
-     * @param meta {@link FileChunkMeta}
+     * @param meta {@link FileChunkIndex}
      */
-    public void remove(FileChunkMeta meta){
+    public void remove(FileChunkIndex meta){
         if(files.contains(meta)){
             meta.setRemoved(true);
         }
@@ -127,10 +131,10 @@ public class Chunk {
             // 已经删除的大小，用于改变后续文件的偏移量
             int removedSize = 0;
             int totalRemovedSize = 0;
-            Iterator<FileChunkMeta> iterator = files.iterator();
+            Iterator<FileChunkIndex> iterator = files.iterator();
             // 遍历文件列表
             while(iterator.hasNext()){
-                FileChunkMeta meta = iterator.next();
+                FileChunkIndex meta = iterator.next();
                 // 更新文件偏移量
                 meta.setOffset(meta.getOffset() - totalRemovedSize);
                 // 判断是否被删除
