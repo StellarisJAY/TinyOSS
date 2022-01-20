@@ -1,6 +1,7 @@
 package com.jay.oss.common.remoting;
 
 import com.jay.dove.transport.HeartBeatTrigger;
+import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandHandler;
 import com.jay.dove.transport.protocol.Protocol;
 import com.jay.dove.transport.protocol.ProtocolCode;
@@ -23,6 +24,11 @@ public class FastOssProtocol implements Protocol {
     private final ProtocolDecoder decoder = new FastOssProtocolDecoder();
     private final ProtocolEncoder encoder = new FastOssProtocolEncoder();
 
+    public static final CommandCode UPLOAD_FILE_HEADER = new CommandCode((short)101);
+    public static final CommandCode UPLOAD_FILE_PARTS = new CommandCode((short)102);
+    public static final CommandCode RESPONSE_UPLOAD_DONE = new CommandCode((short)103);
+
+    private CommandHandler commandHandler;
     @Override
     public ProtocolEncoder getEncoder() {
         return encoder;
@@ -40,7 +46,11 @@ public class FastOssProtocol implements Protocol {
 
     @Override
     public CommandHandler getCommandHandler() {
-        return null;
+        return commandHandler;
+    }
+
+    public void setCommandHandler(CommandHandler commandHandler){
+        this.commandHandler = commandHandler;
     }
 
     @Override
