@@ -3,6 +3,7 @@ package com.jay.oss.fs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -23,6 +24,7 @@ import java.util.LinkedList;
  */
 @Slf4j
 @Getter
+@ToString
 public class Chunk {
     /**
      * chunk file path
@@ -42,7 +44,7 @@ public class Chunk {
     /**
      * chunk id
      */
-    private int id;
+    private final int id;
     /**
      * chunk size 128 MB = 4KB * 1024 * 32
      * 为了最大程度优化磁盘IO，Chunk文件的大小应该是磁盘块大小的整数倍。
@@ -57,6 +59,7 @@ public class Chunk {
     public Chunk(int chunkId) {
         this.path = "D:/oss/chunk_"+chunkId;
         File file = new File(path);
+        this.id = chunkId;
         try{
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             this.fileChannel = randomAccessFile.getChannel();
@@ -168,5 +171,9 @@ public class Chunk {
             }
         }
 
+    }
+
+    public void incrementSize(int delta){
+        this.size += delta;
     }
 }
