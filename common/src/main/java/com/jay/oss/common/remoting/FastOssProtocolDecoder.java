@@ -3,6 +3,7 @@ package com.jay.oss.common.remoting;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.protocol.ProtocolDecoder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.List;
@@ -26,9 +27,8 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
         if(proto != FastOssProtocol.PROTOCOL_CODE.value()){
             throw new RuntimeException("Invalid protocol for FastOssProtocolDecoder, code: " + proto);
         }
-
         /*
-            Read Headers
+            读取协议HEADER
          */
         int length = in.readInt();
         int id = in.readInt();
@@ -47,17 +47,34 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
 
         // 检查buffer中内容是否完整，避免TCP拆包
         if(in.readableBytes() >= length - FastOssProtocol.HEADER_LENGTH){
-            // 读 content，此处的逻辑有待改进，对于文件数据可以用零拷贝提高性能
+            // 读 content
             if(length - FastOssProtocol.HEADER_LENGTH > 0){
-                byte[] content = new byte[length - FastOssProtocol.HEADER_LENGTH];
-                in.readBytes(content);
-                commandBuilder.content(content);
+                // 如果该报文是上传文件分片，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
+                if(code == FastOssProtocol.UPLOAD_FILE_PARTS.value()){
+                    ByteBuf data = copyByteBuf(in, length - FastOssProtocol.HEADER_LENGTH);
+                    commandBuilder.data(data);
+                }else{
+                    byte[] content = new byte[length - FastOssProtocol.HEADER_LENGTH];
+                    in.readBytes(content);
+                    commandBuilder.content(content);
+                }
             }
             out.add(commandBuilder.build());
         }else{
             // 有 TCP 拆包，重置readerIndex
             in.resetReaderIndex();
         }
+    }
 
+    /**
+     *  拷贝一定长度的数据到新的byteBuf中，该过程使用直接内存和readBytes零拷贝完成
+     * @param in {@link ByteBuf} src
+     * @param length copied length
+     * @return {@link ByteBuf} copied parts of the original buffer
+     */
+    private ByteBuf copyByteBuf(ByteBuf in, int length){
+        ByteBuf buffer = Unpooled.directBuffer(length);
+        in.readBytes(buffer, length);
+        return buffer;
     }
 }
