@@ -1,4 +1,4 @@
-package com.jay.oss.fs;
+package com.jay.oss.common.fs;
 
 import lombok.Getter;
 import lombok.Setter;

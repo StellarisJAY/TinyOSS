@@ -1,4 +1,4 @@
-package com.jay.oss.fs;
+package com.jay.oss.common.fs;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

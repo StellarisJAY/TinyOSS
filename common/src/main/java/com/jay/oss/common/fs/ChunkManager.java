@@ -1,6 +1,6 @@
-package com.jay.oss.fs;
+package com.jay.oss.common.fs;
 
-import com.jay.oss.entity.FileMeta;
+import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,10 +36,10 @@ public final class ChunkManager {
     private final Object mutex = new Object();
     /**
      * 获取一个大小足够容纳FileMeta的chunk
-     * @param meta {@link FileMeta}
+     * @param meta {@link FileMetaWithChunkInfo}
      * @return {@link Chunk}
      */
-    public Chunk getChunkBySize(FileMeta meta){
+    public Chunk getChunkBySize(FileMetaWithChunkInfo meta){
         // 获取所有的剩余大小比当前文件大小大的chunk队列
         SortedMap<Integer, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(meta.getSize());
         Chunk chunk;

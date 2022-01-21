@@ -1,6 +1,5 @@
-package com.jay.oss.entity;
+package com.jay.oss.common.entity;
 
-import com.jay.oss.fs.FileChunkIndex;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -10,13 +9,14 @@ import lombok.Getter;
  * </p>
  *
  * @author Jay
- * @date 2022/01/18 13:05
+ * @date 2022/01/20 14:15
  */
-@Getter
 @Builder
+@Getter
 public class FileMeta {
+    private String key;
     private String filename;
     private int size;
     private long createTime;
-    private FileChunkIndex chunkIndex;
+    private String ownerId;
 }
