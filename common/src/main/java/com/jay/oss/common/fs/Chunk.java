@@ -1,5 +1,8 @@
 package com.jay.oss.common.fs;
 
+import com.jay.oss.common.entity.FileMeta;
+import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.entity.FilePart;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
@@ -11,8 +14,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.Map;
 
 /**
  * <p>
@@ -54,7 +58,7 @@ public class Chunk {
     /**
      * 文件索引列表
      */
-    private final LinkedList<FileChunkIndex> files = new LinkedList<>();
+    private final HashMap<String, FileChunkIndex> files = new HashMap<>(128);
 
     public Chunk(int chunkId) {
         this.path = "D:/oss/chunk_"+chunkId;
@@ -70,53 +74,52 @@ public class Chunk {
     }
 
     /**
-     * 向chunk文件写入数据
-     * @param meta {@link FileChunkIndex} 写入数据信息
-     * @param in {@link ByteBuf} 数据 buffer
+     * 向chunk添加文件
+     * @param fileMeta {@link FileMeta} 文件元数据
+     * @return {@link FileMetaWithChunkInfo}
+     */
+    public FileMetaWithChunkInfo addFile(FileMeta fileMeta){
+        // 检查该文件大小是否超出chunk大小
+        if(fileMeta.getSize() + this.size <= MAX_CHUNK_SIZE){
+            // 创建文件的chunk索引
+            FileChunkIndex chunkIndex = new FileChunkIndex();
+            chunkIndex.setChunkId(this.id);
+            chunkIndex.setOffset(this.size);
+            chunkIndex.setSize(fileMeta.getSize());
+            // 记录文件索引
+            this.files.put(fileMeta.getKey(), chunkIndex);
+            // 更新chunk大小
+            this.size += fileMeta.getSize();
+            // 返回带有chunkInfo的文件元数据
+            return FileMetaWithChunkInfo.builder().chunkIndex(chunkIndex)
+                    .filename(fileMeta.getFilename())
+                    .createTime(fileMeta.getCreateTime())
+                    .key(fileMeta.getKey())
+                    .size(fileMeta.getSize())
+                    .build();
+        }
+        return null;
+    }
+
+    /**
+     * 写入文件分片
+     * @param part {@link FilePart}
      * @throws IOException IOException
      */
-    public void write(FileChunkIndex meta, ByteBuf in) throws IOException {
+    public void write(FilePart part) throws IOException {
         FileLock lock = null;
         try{
-            // 加排他锁
             lock = fileChannel.lock();
-            // 检查chunk剩余容量
-            if(size + meta.getSize() <= MAX_CHUNK_SIZE){
-                // 写入文件
-                in.readBytes(fileChannel, size, meta.getSize());
-                // 设置offset和size
-                meta.setOffset(size);
-                size += meta.getSize();
-                files.add(meta);
-            }else{
-                throw new RuntimeException("no enough space in this chunk");
-            }
+            FileChunkIndex chunkIndex = files.get(part.getKey());
+            // 计算该分片的位置
+            int offset = chunkIndex.getOffset() + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
+            ByteBuf data = part.getData();
+            // 写入分片
+            data.readBytes(fileChannel, offset);
         }finally {
             if(lock != null){
-                lock.release();
+                lock.release();;
             }
-        }
-    }
-
-    /**
-     * 从chunk文件读取数据
-     * @param meta {@link FileChunkIndex} 待读取数据索引信息
-     * @param out {@link ByteBuf} 目标buffer
-     * @throws IOException IOException
-     */
-    public void read(FileChunkIndex meta, ByteBuf out) throws IOException {
-        if(files.contains(meta) && !meta.isRemoved()){
-            out.writeBytes(fileChannel, meta.getOffset(), meta.getSize());
-        }
-    }
-
-    /**
-     * 删除数据信息
-     * @param meta {@link FileChunkIndex}
-     */
-    public void remove(FileChunkIndex meta){
-        if(files.contains(meta)){
-            meta.setRemoved(true);
         }
     }
 
@@ -134,10 +137,10 @@ public class Chunk {
             // 已经删除的大小，用于改变后续文件的偏移量
             int removedSize = 0;
             int totalRemovedSize = 0;
-            Iterator<FileChunkIndex> iterator = files.iterator();
+            Iterator<Map.Entry<String, FileChunkIndex>> iterator = files.entrySet().iterator();
             // 遍历文件列表
             while(iterator.hasNext()){
-                FileChunkIndex meta = iterator.next();
+                FileChunkIndex meta = iterator.next().getValue();
                 // 更新文件偏移量
                 meta.setOffset(meta.getOffset() - totalRemovedSize);
                 // 判断是否被删除
