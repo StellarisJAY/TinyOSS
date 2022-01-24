@@ -1,8 +1,10 @@
 package com.jay.oss.storage.command;
 
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.storage.meta.MetaManager;
 import com.jay.oss.storage.processor.FileUploadProcessor;
 
 import java.util.concurrent.ExecutorService;
@@ -18,10 +20,10 @@ import java.util.concurrent.ExecutorService;
  */
 public class StorageNodeCommandHandler extends FastOssCommandHandler {
 
-    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor) {
+    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, ChunkManager chunkManager, MetaManager metaManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor();
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
     }

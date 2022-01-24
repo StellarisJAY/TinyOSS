@@ -36,12 +36,12 @@ public final class ChunkManager {
     private final Object mutex = new Object();
     /**
      * 获取一个大小足够容纳FileMeta的chunk
-     * @param meta {@link FileMetaWithChunkInfo}
+     * @param size file size
      * @return {@link Chunk}
      */
-    public Chunk getChunkBySize(FileMetaWithChunkInfo meta){
+    public Chunk getChunkBySize(int size){
         // 获取所有的剩余大小比当前文件大小大的chunk队列
-        SortedMap<Integer, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(meta.getSize());
+        SortedMap<Integer, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(size);
         Chunk chunk;
         // 遍历有足够空间的chunk
         ArrayList<BlockingQueue<Chunk>> chunkQueues = new ArrayList<>(tailMap.values());
