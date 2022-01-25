@@ -28,6 +28,10 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode UPLOAD_FILE_PARTS = new CommandCode((short)102);
     public static final CommandCode RESPONSE_UPLOAD_DONE = new CommandCode((short)103);
 
+
+    public static final CommandCode ERROR = new CommandCode((short)500);
+    public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
+
     private CommandHandler commandHandler;
     @Override
     public ProtocolEncoder getEncoder() {

@@ -16,7 +16,8 @@ import lombok.Getter;
 public class UploadRequest {
     private String key;
     private String filename;
-    private int size;
+    private String bucket;
+    private long size;
     /**
      * 拥有者id
      */
