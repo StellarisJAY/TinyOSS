@@ -11,13 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date 2022/01/25 14:42
  */
 public class HandlerMapping {
-    private static final ConcurrentHashMap<HttpRequestInfo, HttpRequestHandler> HANDLER_MAP = new ConcurrentHashMap<>(256);
+    private static final ConcurrentHashMap<String, HttpRequestHandler> HANDLER_MAP = new ConcurrentHashMap<>(256);
 
-    public static HttpRequestHandler getHandler(HttpRequestInfo requestInfo){
-        return HANDLER_MAP.get(requestInfo);
+    public static HttpRequestHandler getHandler(String path){
+        return HANDLER_MAP.get(path);
     }
 
-    public static void registerHandler(HttpRequestInfo requestInfo, HttpRequestHandler handler){
-        HANDLER_MAP.putIfAbsent(requestInfo, handler);
+    public static void registerHandler(String path, HttpRequestHandler handler){
+        HANDLER_MAP.putIfAbsent(path, handler);
     }
 }
