@@ -30,7 +30,7 @@ public class FastOssCommandFactory implements CommandFactory {
                     .commandCode(commandCode)
                     .length(FastOssProtocol.HEADER_LENGTH + content.length)
                     .serializer(OssConfigs.DEFAULT_SERIALIZER)
-                    .timeout(10 * 1000)
+                    .timeout(System.currentTimeMillis() + 10 * 1000)
                     .build();
         }
         return null;
