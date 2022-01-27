@@ -7,6 +7,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * <p>
@@ -35,6 +36,7 @@ import lombok.Getter;
  */
 @Builder
 @Getter
+@ToString
 public class FastOssCommand implements RemotingCommand {
 
     private int id;
@@ -59,8 +61,8 @@ public class FastOssCommand implements RemotingCommand {
     }
 
     @Override
-    public Serializer getSerializer() {
-        return SerializerManager.getSerializer(serializer);
+    public byte getSerializer() {
+        return serializer;
     }
 
     @Override
@@ -80,6 +82,6 @@ public class FastOssCommand implements RemotingCommand {
 
     @Override
     public byte[] getContent() {
-        return new byte[0];
+        return content;
     }
 }

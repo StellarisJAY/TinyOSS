@@ -2,6 +2,7 @@ package com.jay.oss.storage.processor;
 
 import com.jay.dove.config.Configs;
 import com.jay.dove.serialize.Serializer;
+import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
@@ -82,7 +83,7 @@ public class FileUploadProcessor extends AbstractProcessor {
         /*
             解压 + 反序列化
          */
-        Serializer serializer = command.getSerializer();
+        Serializer serializer = SerializerManager.getSerializer(command.getSerializer());
         UploadRequest request = serializer.deserialize(content, UploadRequest.class);
         AtomicBoolean duplicateKey = new AtomicBoolean(true);
         /*

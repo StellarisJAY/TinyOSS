@@ -20,7 +20,8 @@ public class FastOssProtocolEncoder implements ProtocolEncoder {
             out.writeInt(command.getLength());
             out.writeInt(command.getId());
             out.writeShort(command.getCommandCode().value());
-            out.writeByte(command.getSerializer().getSerializerCode());
+            out.writeLong(command.getTimeoutMillis());
+            out.writeByte(command.getSerializer());
             out.writeByte(command.getCompressor());
             // 文件分片上传报文需要单独解析
             if(command.getCommandCode().value() == FastOssProtocol.UPLOAD_FILE_PARTS.value()){
