@@ -25,7 +25,7 @@ public final class ChunkManager {
      * chunkSizeMap
      * key为chunk剩余空间大小，value为该空间大小的所有chunk阻塞队列
      */
-    private final SortedMap<Integer, BlockingQueue<Chunk>> chunkSizeMap = Collections.synchronizedSortedMap(new TreeMap<>());
+    private final SortedMap<Long, BlockingQueue<Chunk>> chunkSizeMap = Collections.synchronizedSortedMap(new TreeMap<>());
 
     private final ConcurrentHashMap<Integer, Chunk> chunkMap = new ConcurrentHashMap<>();
     /**
@@ -39,9 +39,9 @@ public final class ChunkManager {
      * @param size file size
      * @return {@link Chunk}
      */
-    public Chunk getChunkBySize(int size){
+    public Chunk getChunkBySize(long size){
         // 获取所有的剩余大小比当前文件大小大的chunk队列
-        SortedMap<Integer, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(size);
+        SortedMap<Long, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(size);
         Chunk chunk;
         // 遍历有足够空间的chunk
         ArrayList<BlockingQueue<Chunk>> chunkQueues = new ArrayList<>(tailMap.values());
