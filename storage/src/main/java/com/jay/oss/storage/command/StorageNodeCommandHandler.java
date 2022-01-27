@@ -23,7 +23,7 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
     public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, ChunkManager chunkManager, MetaManager metaManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, commandFactory);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
     }

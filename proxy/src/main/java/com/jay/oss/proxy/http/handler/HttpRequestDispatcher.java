@@ -1,5 +1,6 @@
 package com.jay.oss.proxy.http.handler;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -29,16 +30,26 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if(msg instanceof FullHttpRequest){
             FullHttpRequest request = (FullHttpRequest) msg;
-            HttpRequestInfo requestInfo = new HttpRequestInfo(request.uri(), request.method());
             // 从handlerMapping找到handler
-            HttpRequestHandler handler = HandlerMapping.getHandler(requestInfo);
-            // executor 处理请求
-            executor.submit(()->{
-                handler.handle(ctx, request);
-            });
-            // test responses, to be removed
-            FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-            ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+            HttpRequestHandler handler = HandlerMapping.getHandler(request.uri());
+            if(handler == null){
+                // handler不存在，BAD_REQUEST
+                FullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
+                ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+            }else{
+                // executor 处理请求
+                executor.submit(()->{
+                    try{
+                        // 调用处理器方法
+                        FullHttpResponse response = handler.handle(ctx, request);
+                        ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                    }catch (Exception e){
+                        log.warn("handler execution error, ", e);
+                        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                        ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                    }
+                });
+            }
         }
     }
 }

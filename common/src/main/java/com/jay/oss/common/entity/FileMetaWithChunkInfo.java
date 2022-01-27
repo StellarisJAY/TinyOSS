@@ -17,7 +17,7 @@ import lombok.Getter;
 public class FileMetaWithChunkInfo {
     private String key;
     private String filename;
-    private int size;
+    private long size;
     private long createTime;
     private FileChunkIndex chunkIndex;
 }

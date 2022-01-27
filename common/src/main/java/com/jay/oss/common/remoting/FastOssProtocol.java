@@ -29,10 +29,16 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode RESPONSE_UPLOAD_DONE = new CommandCode((short)103);
 
 
+    public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
     public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
 
     private CommandHandler commandHandler;
+
+    public FastOssProtocol(CommandHandler commandHandler) {
+        this.commandHandler = commandHandler;
+    }
+
     @Override
     public ProtocolEncoder getEncoder() {
         return encoder;

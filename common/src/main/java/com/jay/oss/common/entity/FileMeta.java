@@ -16,7 +16,7 @@ import lombok.Getter;
 public class FileMeta {
     private String key;
     private String filename;
-    private int size;
+    private long size;
     private long createTime;
     private String ownerId;
 }

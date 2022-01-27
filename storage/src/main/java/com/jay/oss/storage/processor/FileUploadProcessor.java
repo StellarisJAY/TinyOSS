@@ -1,11 +1,11 @@
 package com.jay.oss.storage.processor;
 
-import com.jay.dove.compress.Compressor;
-import com.jay.dove.compress.CompressorManager;
 import com.jay.dove.config.Configs;
 import com.jay.dove.serialize.Serializer;
+import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.dove.transport.command.Processor;
+import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
@@ -17,7 +17,9 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -29,7 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Jay
  * @date 2022/01/18 14:45
  */
-public class FileUploadProcessor implements Processor {
+@Slf4j
+public class FileUploadProcessor extends AbstractProcessor {
     /**
      * chunk管理器
      */
@@ -45,9 +48,12 @@ public class FileUploadProcessor implements Processor {
      */
     private final MetaManager metaManager;
 
-    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager) {
+    private final CommandFactory commandFactory;
+
+    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, CommandFactory commandFactory) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
+        this.commandFactory = commandFactory;
     }
 
     @Override
@@ -72,14 +78,11 @@ public class FileUploadProcessor implements Processor {
      */
     private void processUploadRequest(ChannelHandlerContext context, FastOssCommand command){
         byte[] content = command.getContent();
+        log.info("received upload request: {}", content);
         /*
             解压 + 反序列化
          */
         Serializer serializer = command.getSerializer();
-        Compressor compressor = CompressorManager.getCompressor(command.getCompressor());
-        if(compressor != null){
-            content = compressor.decompress(content);
-        }
         UploadRequest request = serializer.deserialize(content, UploadRequest.class);
         AtomicBoolean duplicateKey = new AtomicBoolean(true);
         /*
@@ -105,6 +108,9 @@ public class FileUploadProcessor implements Processor {
         // 没能够成功进行computeIfAbsent的重复的key
         if(duplicateKey.get()){
             // 发送重复回复报文
+        }else{
+            RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.SUCCESS);
+            sendResponse(context, response);
         }
     }
 

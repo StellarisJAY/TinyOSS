@@ -54,7 +54,7 @@ public class Chunk {
      * 为了最大程度优化磁盘IO，Chunk文件的大小应该是磁盘块大小的整数倍。
      * Linux系统下，I/O Block大小是 4KB， 所以Chunk文件大小为4KB整数倍
      */
-    public static final int MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 32;
+    public static final long MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 32;
     /**
      * 文件索引列表
      */
