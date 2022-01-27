@@ -27,7 +27,7 @@ public class FileChunkIndex {
     /**
      * 文件大小
      */
-    private int size;
+    private long size;
 
     /**
      * 文件已被删除
