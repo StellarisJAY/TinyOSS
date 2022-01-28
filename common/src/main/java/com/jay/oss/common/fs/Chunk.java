@@ -35,6 +35,8 @@ public class Chunk {
      */
     private final String path;
 
+    private final RandomAccessFile randomAccessFile;
+
     /**
      * chunk file channel
      */
@@ -65,8 +67,8 @@ public class Chunk {
         File file = new File(path);
         this.id = chunkId;
         try{
-            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
-            this.fileChannel = randomAccessFile.getChannel();
+            randomAccessFile = new RandomAccessFile(file, "rw");
+            fileChannel = randomAccessFile.getChannel();
         }catch (IOException e){
             log.error("error creating chunk file: ", e);
             throw new RuntimeException("can't create a chunk file: " + e);
@@ -107,20 +109,12 @@ public class Chunk {
      * @throws IOException IOException
      */
     public void write(FilePart part) throws IOException {
-        FileLock lock = null;
-        try{
-            lock = fileChannel.lock();
-            FileChunkIndex chunkIndex = files.get(part.getKey());
-            // 计算该分片的位置
-            int offset = chunkIndex.getOffset() + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
-            ByteBuf data = part.getData();
-            // 写入分片
-            data.readBytes(fileChannel, offset);
-        }finally {
-            if(lock != null){
-                lock.release();;
-            }
-        }
+        FileChunkIndex chunkIndex = files.get(part.getKey());
+        // 计算该分片的位置
+        int offset = chunkIndex.getOffset() + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
+        ByteBuf data = part.getData();
+        // 写入分片
+        data.readBytes(fileChannel, offset, data.readableBytes());
     }
 
     /**
@@ -176,7 +170,7 @@ public class Chunk {
 
     }
 
-    public void incrementSize(int delta){
+    public void incrementSize(long delta){
         this.size += delta;
     }
 }
