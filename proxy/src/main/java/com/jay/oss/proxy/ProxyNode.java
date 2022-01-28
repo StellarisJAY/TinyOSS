@@ -53,8 +53,8 @@ public class ProxyNode extends AbstractLifeCycle {
         ConnectionFactory connectionFactory = new FastOssConnectionFactory();
         ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
         // commandHandler执行器线程池
-        ExecutorService commandHandlerExecutor = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() + 1,
-                Runtime.getRuntime().availableProcessors() + 1,
+        ExecutorService commandHandlerExecutor = new ThreadPoolExecutor(2 * Runtime.getRuntime().availableProcessors(),
+                2 * Runtime.getRuntime().availableProcessors(),
                 0, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
                 new NamedThreadFactory("command-handler-thread-", true));

@@ -39,8 +39,8 @@ public class StorageNode extends AbstractLifeCycle {
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
         // commandHandler执行器线程池
-        ExecutorService commandHandlerExecutor = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() + 1,
-                Runtime.getRuntime().availableProcessors() + 1,
+        ExecutorService commandHandlerExecutor = new ThreadPoolExecutor(2 * Runtime.getRuntime().availableProcessors(),
+                2 * Runtime.getRuntime().availableProcessors(),
                 0, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
                 new NamedThreadFactory("command-handler-thread-", true));
