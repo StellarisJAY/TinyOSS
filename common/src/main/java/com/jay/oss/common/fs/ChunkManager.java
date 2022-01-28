@@ -1,7 +1,5 @@
 package com.jay.oss.common.fs;
 
-import com.jay.oss.common.entity.FileMetaWithChunkInfo;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.SortedMap;
@@ -43,9 +41,13 @@ public final class ChunkManager {
         // 获取所有的剩余大小比当前文件大小大的chunk队列
         SortedMap<Long, BlockingQueue<Chunk>> tailMap = chunkSizeMap.tailMap(size);
         Chunk chunk;
-        // 遍历有足够空间的chunk
+        /*
+            逆向遍历所有剩余大小大于等于该文件的chunk。
+            这样使文件落在chunk剩余大小较多的位置，使chunk大小分布更均匀
+         */
         ArrayList<BlockingQueue<Chunk>> chunkQueues = new ArrayList<>(tailMap.values());
-        for (BlockingQueue<Chunk> queue : chunkQueues) {
+        for (int i = chunkQueues.size() - 1; i >= 0; i--) {
+            BlockingQueue<Chunk> queue = chunkQueues.get(i);
             if((chunk = queue.poll()) != null){
                 return chunk;
             }
@@ -63,7 +65,7 @@ public final class ChunkManager {
         // 保证线程安全，只有一个线程能创建新的queue
         if((queue = chunkSizeMap.get(Chunk.MAX_CHUNK_SIZE - chunk.getSize())) == null){
             synchronized (mutex){
-                if((queue = chunkSizeMap.get(chunk.getSize())) == null){
+                if((queue = chunkSizeMap.get((long)chunk.getSize())) == null){
                     queue = new LinkedBlockingQueue<>();
                     chunkSizeMap.put(Chunk.MAX_CHUNK_SIZE - chunk.getSize(), queue);
                 }
