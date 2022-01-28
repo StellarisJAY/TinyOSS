@@ -63,8 +63,9 @@ public class FileReceiver {
     /**
      * 接收文件分片
      * @param part {@link FilePart}
+     * @return 是否已收到所有分片
      */
-    public void receivePart(FilePart part){
+    public boolean receivePart(FilePart part){
         try{
             // 向chunk写入文件分片
             chunk.write(part);
@@ -72,9 +73,12 @@ public class FileReceiver {
             if(remainingParts.decrementAndGet() == 0){
                 // 归还chunk
                 chunkManager.offerChunk(chunk);
+                return true;
             }
+            return false;
         }catch (IOException e){
             // 写入失败，重试
+            throw new RuntimeException("write part failed, part number: " + part.getPartNum(), e);
         }
     }
 }

@@ -22,5 +22,5 @@ public class FilePart {
      */
     private ByteBuf data;
 
-    public static final int DEFAULT_PART_SIZE = 4 * 1024 * 1024;
+    public static final int DEFAULT_PART_SIZE = 40 * 1024 * 1024;
 }

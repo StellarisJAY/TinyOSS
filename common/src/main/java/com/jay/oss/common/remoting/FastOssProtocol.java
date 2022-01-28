@@ -34,9 +34,10 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
 
     private CommandHandler commandHandler;
-
+    private final HeartBeatTrigger heartBeatTrigger;
     public FastOssProtocol(CommandHandler commandHandler) {
         this.commandHandler = commandHandler;
+        this.heartBeatTrigger = new FastOssHeartBeatTrigger();
     }
 
     @Override
@@ -65,6 +66,6 @@ public class FastOssProtocol implements Protocol {
 
     @Override
     public HeartBeatTrigger getHeartBeatTrigger() {
-        return null;
+        return heartBeatTrigger;
     }
 }

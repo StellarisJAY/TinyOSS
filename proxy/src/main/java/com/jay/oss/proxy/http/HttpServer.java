@@ -2,7 +2,7 @@ package com.jay.oss.proxy.http;
 
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.util.NamedThreadFactory;
-import com.jay.oss.common.entity.FilePart;
+import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.proxy.http.handler.HttpRequestDispatcher;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -36,8 +36,12 @@ public class HttpServer extends AbstractLifeCycle {
     /**
      * 请求处理线程池，避免使用IO线程处理请求
      */
-    private final ExecutorService handlerExecutor = new ThreadPoolExecutor(Runtime.getRuntime().availableProcessors() + 1, Runtime.getRuntime().availableProcessors() + 1,
-            0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), new NamedThreadFactory("handler-executor", true));
+    private final ExecutorService handlerExecutor =
+            new ThreadPoolExecutor(2 * Runtime.getRuntime().availableProcessors(),
+            2 * Runtime.getRuntime().availableProcessors(),
+            0, TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<>(),
+                    new NamedThreadFactory("handler-executor", true));
     private ServerBootstrap bootstrap;
     @Override
     public void startup() {
@@ -52,7 +56,7 @@ public class HttpServer extends AbstractLifeCycle {
                         ChannelPipeline pipeline = channel.pipeline();
                         // Http codec
                         pipeline.addLast(new HttpServerCodec());
-                        pipeline.addLast(new HttpObjectAggregator(FilePart.DEFAULT_PART_SIZE + 32));
+                        pipeline.addLast(new HttpObjectAggregator((int)Chunk.MAX_CHUNK_SIZE));
                         // 请求分发器
                         pipeline.addLast(new HttpRequestDispatcher(handlerExecutor));
                     }

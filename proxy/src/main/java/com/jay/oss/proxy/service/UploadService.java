@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * <p>
- *
+ *  Proxy端处理上传请求
  * </p>
  *
  * @author Jay
@@ -31,12 +31,15 @@ import java.util.concurrent.ExecutorService;
  */
 @Slf4j
 public class UploadService {
-
+    /**
+     * 存储节点客户端，其中管理了多个存储节点的连接
+     */
     private final DoveClient storageClient;
 
     public UploadService(DoveClient storageClient) {
         this.storageClient = storageClient;
     }
+
 
     public void putObject(String key, String bucket, String auth, ByteBuf content) throws Exception {
         // 检查桶是否存在，以及是否有访问权限
@@ -55,18 +58,25 @@ public class UploadService {
                     .build();
 
             // 目标存储节点地址，从一致性HASH获取
-            Url url = Url.parseString("127.0.0.1:9000?conn=10");
+            Url url = Url.parseString("127.0.0.1:9999?conn=20");
             // 向存储节点发送文件信息，开启上传任务
             FastOssCommand uploadHeaderResponse = uploadFileHeader(url, request);
+            if(uploadHeaderResponse == null){
+                log.warn("null response");
+                return;
+            }
             CommandCode responseCode = uploadHeaderResponse.getCommandCode();
-            if(FastOssProtocol.ERROR.equals(responseCode) || FastOssProtocol.REQUEST_TIMEOUT.equals(responseCode)){
-                // 上传出现错误 或 超时
-                log.warn("upload header failed");
+            byte[] responseContent = uploadHeaderResponse.getContent();
+            if(FastOssProtocol.ERROR.equals(responseCode)){
+                // 上传出现错误 或
+                log.warn("upload header failed, {}", new String(responseContent, Configs.DEFAULT_CHARSET));
+            }else if (FastOssProtocol.REQUEST_TIMEOUT.equals(responseCode)){
+                // 上传超时
+                log.warn("upload header timeout, {}", new String(responseContent, Configs.DEFAULT_CHARSET));
             }
             else{
                 // 上传文件分片
                 FastOssCommand response = uploadFileParts(url, content, size, parts, key);
-
             }
         }else{
             // 没有上传权限
@@ -98,43 +108,41 @@ public class UploadService {
     private FastOssCommand uploadFileParts(Url url, ByteBuf content, long size, int parts, String key) throws Exception {
         CommandFactory commandFactory = storageClient.getCommandFactory();
         byte[] keyBytes = key.getBytes(Configs.DEFAULT_CHARSET);
-        ByteBuf buffer = Unpooled.directBuffer(FilePart.DEFAULT_PART_SIZE + 8 + keyBytes.length);
+        // 所有分片共享的头信息
+        ByteBuf headBuffer = Unpooled.directBuffer(FilePart.DEFAULT_PART_SIZE + 4 + keyBytes.length);
         try{
             // 写入key长度
-            buffer.writeInt(keyBytes.length);
+            headBuffer.writeInt(keyBytes.length);
             // 写入key
-            buffer.writeBytes(keyBytes);
-            // 写入分片编号
-            buffer.writeInt(parts);
-            buffer.markWriterIndex();
-            buffer.markReaderIndex();
+            headBuffer.writeBytes(keyBytes);
             // future, 等待所有分片上传完成
             CompletableFuture<FastOssCommand> responseFuture = new CompletableFuture<>();
             for(int i = 0; i < parts; i++){
+                ByteBuf fullBuffer = headBuffer.copy();
+                // 写入分片编号
+                fullBuffer.writeInt(i);
                 // buffer写入一个分片
-                buffer.writeBytes(content, i == parts - 1 ? content.readableBytes() : FilePart.DEFAULT_PART_SIZE);
-
+                fullBuffer.writeBytes(content, i == parts - 1 ? content.readableBytes() : FilePart.DEFAULT_PART_SIZE);
                 // 创建请求
-                FastOssCommand request = (FastOssCommand)commandFactory.createRequest(buffer, FastOssProtocol.UPLOAD_FILE_PARTS);
+                FastOssCommand request = (FastOssCommand)commandFactory.createRequest(fullBuffer, FastOssProtocol.UPLOAD_FILE_PARTS);
                 // 发送文件分片，异步方式发送
                 storageClient.sendAsync(url, request, new UploadCallback(responseFuture, i, key));
-                // 回退buffer到header位置
-                buffer.resetReaderIndex();
-                buffer.resetWriterIndex();
             }
-            buffer.release();
             return responseFuture.get();
         }catch (Exception e){
             log.warn("upload file parts failed, cause: ", e);
             throw e;
         } finally {
             // 释放buffer
-            buffer.release();
+            headBuffer.release();
         }
     }
 
 
-    class UploadCallback implements InvokeCallback{
+    /**
+     * 分片上传回调
+     */
+    static class UploadCallback implements InvokeCallback{
         private final CompletableFuture<FastOssCommand> responseFuture;
         private final int partNum;
         private final String key;

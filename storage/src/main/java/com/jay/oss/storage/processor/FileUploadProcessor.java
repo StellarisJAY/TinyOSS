@@ -79,7 +79,7 @@ public class FileUploadProcessor extends AbstractProcessor {
      */
     private void processUploadRequest(ChannelHandlerContext context, FastOssCommand command){
         byte[] content = command.getContent();
-        log.info("received upload request: {}", content);
+
         /*
             解压 + 反序列化
          */
@@ -109,6 +109,8 @@ public class FileUploadProcessor extends AbstractProcessor {
         // 没能够成功进行computeIfAbsent的重复的key
         if(duplicateKey.get()){
             // 发送重复回复报文
+            RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.ERROR);
+            sendResponse(context, response);
         }else{
             RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.SUCCESS);
             sendResponse(context, response);
@@ -130,7 +132,6 @@ public class FileUploadProcessor extends AbstractProcessor {
         String key = new String(keyBytes, Configs.DEFAULT_CHARSET);
         // 读取分片编号
         int partNum = data.readInt();
-
         FilePart filePart = FilePart.builder()
                 .partNum(partNum)
                 .data(data)
@@ -138,7 +139,29 @@ public class FileUploadProcessor extends AbstractProcessor {
                 .build();
         // 通过key找到接收器
         FileReceiver fileReceiver = fileReceivers.get(key);
+        RemotingCommand response = null;
         // 写入分片
-        fileReceiver.receivePart(filePart);
+        try{
+            if(fileReceiver.receivePart(filePart)){
+                // 已收到所有分片
+                response = commandFactory.createResponse(command.getId(), filePart.getKey(), FastOssProtocol.RESPONSE_UPLOAD_DONE);
+            }else{
+                // 收到部分分片
+                response = commandFactory.createResponse(command.getId(), filePart.getKey() + ":" + partNum, FastOssProtocol.SUCCESS);
+            }
+        }catch (Exception e){
+            // 分片接收错误，发送重传请求
+            log.warn("receive part failed, part num: {}", partNum);
+            log.error("error: ", e);
+            response = commandFactory.createResponse(command.getId(), filePart.getKey() + ":" + partNum, FastOssProtocol.ERROR);
+        }finally{
+            // 释放data，避免堆外内存OOM
+            int refCnt = data.refCnt();
+            if(refCnt > 0){
+                data.release(refCnt);
+            }
+            context.channel().writeAndFlush(response);
+        }
+
     }
 }
