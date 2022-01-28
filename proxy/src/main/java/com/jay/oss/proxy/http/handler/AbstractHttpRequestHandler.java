@@ -1,5 +1,6 @@
 package com.jay.oss.proxy.http.handler;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.*;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,13 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
         }catch (Exception e){
             log.error("request handler error: ", e);
             return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        }finally {
+            // 释放content，避免堆外内存OOM
+            ByteBuf content = request.content();
+            int refCnt = content.refCnt();
+            if(refCnt > 0){
+                content.release(refCnt);
+            }
         }
 
     }
