@@ -4,7 +4,6 @@ import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -76,7 +75,7 @@ public class FileReceiver {
                 return true;
             }
             return false;
-        }catch (IOException e){
+        }catch (Exception e){
             // 写入失败，重试
             throw new RuntimeException("write part failed, part number: " + part.getPartNum(), e);
         }

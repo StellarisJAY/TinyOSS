@@ -12,6 +12,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.OssConfigs;
 import com.jay.oss.common.entity.FilePart;
 import com.jay.oss.common.entity.UploadRequest;
+import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import io.netty.buffer.ByteBuf;
@@ -108,23 +109,26 @@ public class UploadService {
     private FastOssCommand uploadFileParts(Url url, ByteBuf content, long size, int parts, String key) throws Exception {
         CommandFactory commandFactory = storageClient.getCommandFactory();
         byte[] keyBytes = key.getBytes(Configs.DEFAULT_CHARSET);
-        // 所有分片共享的头信息
-        ByteBuf headBuffer = Unpooled.directBuffer(FilePart.DEFAULT_PART_SIZE + 4 + keyBytes.length);
+        int keyLength = keyBytes.length;
         try{
-            // 写入key长度
-            headBuffer.writeInt(keyBytes.length);
-            // 写入key
-            headBuffer.writeBytes(keyBytes);
             // future, 等待所有分片上传完成
             CompletableFuture<FastOssCommand> responseFuture = new CompletableFuture<>();
+            log.info("uploading file: {}, size: {} MB, parts: {}", key, size/(1024*1024), parts);
             for(int i = 0; i < parts; i++){
-                ByteBuf fullBuffer = headBuffer.copy();
-                // 写入分片编号
-                fullBuffer.writeInt(i);
-                // buffer写入一个分片
-                fullBuffer.writeBytes(content, i == parts - 1 ? content.readableBytes() : FilePart.DEFAULT_PART_SIZE);
+                // 计算当前分片大小
+                int partSize = i == parts - 1 ? (int) size % FilePart.DEFAULT_PART_SIZE : FilePart.DEFAULT_PART_SIZE;
+                // 封装part
+                FilePartWrapper partWrapper = FilePartWrapper.builder()
+                        .key(keyBytes)
+                        .fullContent(content)
+                        .length(partSize)
+                        .keyLength(keyLength)
+                        .index(i * FilePart.DEFAULT_PART_SIZE)
+                        .partNum(i).build();
+                // 将content refCnt + 1
+                content.retain();
                 // 创建请求
-                FastOssCommand request = (FastOssCommand)commandFactory.createRequest(fullBuffer, FastOssProtocol.UPLOAD_FILE_PARTS);
+                FastOssCommand request = (FastOssCommand)commandFactory.createRequest(partWrapper, FastOssProtocol.UPLOAD_FILE_PARTS);
                 // 发送文件分片，异步方式发送
                 storageClient.sendAsync(url, request, new UploadCallback(responseFuture, i, key));
             }
@@ -132,9 +136,6 @@ public class UploadService {
         }catch (Exception e){
             log.warn("upload file parts failed, cause: ", e);
             throw e;
-        } finally {
-            // 释放buffer
-            headBuffer.release();
         }
     }
 
