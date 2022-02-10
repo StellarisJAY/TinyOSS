@@ -155,11 +155,11 @@ public class FileUploadProcessor extends AbstractProcessor {
             log.error("error: ", e);
             response = commandFactory.createResponse(command.getId(), filePart.getKey() + ":" + partNum, FastOssProtocol.ERROR);
         }finally{
-            // 释放data，避免堆外内存OOM
-            int refCnt = data.refCnt();
-            if(refCnt > 0){
-                data.release(refCnt);
-            }
+            /*
+                释放data，避免堆外内存OOM
+                只release一个refCnt
+             */
+            data.release();
             context.channel().writeAndFlush(response);
         }
 

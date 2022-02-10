@@ -3,6 +3,7 @@ package com.jay.oss.common.entity;
 import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * <p>
@@ -14,7 +15,9 @@ import lombok.Getter;
  */
 @Builder
 @Getter
+@ToString
 public class FilePart {
+    @ToString.Exclude
     private String key;
     private int partNum;
     /**
@@ -22,5 +25,5 @@ public class FilePart {
      */
     private ByteBuf data;
 
-    public static final int DEFAULT_PART_SIZE = 40 * 1024 * 1024;
+    public static final int DEFAULT_PART_SIZE = 16 * 1024 * 1024;
 }

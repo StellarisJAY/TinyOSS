@@ -36,18 +36,9 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
                 FullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
                 ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
             }else{
-                // executor 处理请求
-                executor.submit(()->{
-                    try{
-                        // 调用处理器方法
-                        FullHttpResponse response = handler.handle(ctx, request);
-                        ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-                    }catch (Exception e){
-                        log.warn("handler execution error, ", e);
-                        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
-                        ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-                    }
-                });
+                // 调用处理器方法
+                FullHttpResponse response = handler.handle(ctx, request);
+                ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
             }
         }
     }

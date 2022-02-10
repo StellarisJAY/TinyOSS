@@ -51,7 +51,13 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
             if(length - FastOssProtocol.HEADER_LENGTH > 0){
                 // 如果该报文是上传文件分片，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
                 if(code == FastOssProtocol.UPLOAD_FILE_PARTS.value()){
-                    ByteBuf data = copyByteBuf(in, length - FastOssProtocol.HEADER_LENGTH);
+                    /*
+                        性能瓶颈：copy会复制整个in buffer，buffer大小最大可达16MB，浪费内存空间
+                        使用slice来避免复制，但是需要retain来避免内存泄漏
+                     */
+                    in.retain();
+                    ByteBuf data = in.slice(in.readerIndex(), length - FastOssProtocol.HEADER_LENGTH);
+                    in.readerIndex(in.readerIndex() + length - FastOssProtocol.HEADER_LENGTH);
                     commandBuilder.data(data);
                 }else{
                     byte[] content = new byte[length - FastOssProtocol.HEADER_LENGTH];
