@@ -113,7 +113,6 @@ public class UploadService {
         try{
             // future, 等待所有分片上传完成
             CompletableFuture<FastOssCommand> responseFuture = new CompletableFuture<>();
-            log.info("uploading file: {}, size: {} MB, parts: {}", key, size/(1024*1024), parts);
             for(int i = 0; i < parts; i++){
                 // 计算当前分片大小
                 int partSize = i == parts - 1 ? (int) size % FilePart.DEFAULT_PART_SIZE : FilePart.DEFAULT_PART_SIZE;
