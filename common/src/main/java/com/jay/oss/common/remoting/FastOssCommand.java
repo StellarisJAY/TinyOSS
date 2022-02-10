@@ -4,6 +4,7 @@ import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,6 +49,7 @@ public class FastOssCommand implements RemotingCommand {
 
     private byte[] content;
     private ByteBuf data;
+    private FilePartWrapper filePartWrapper;
 
 
     @Override
