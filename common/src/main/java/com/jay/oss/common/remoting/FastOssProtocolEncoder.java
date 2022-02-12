@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
- *  Fast-OSS in-net protocol encoder
+ *  Fast-OSS TCP通信协议Encoder
  * </p>
  *
  * @author Jay
@@ -41,7 +41,13 @@ public class FastOssProtocolEncoder implements ProtocolEncoder {
                 out.writeBytes(partWrapper.getFullContent(), partWrapper.getIndex(), partWrapper.getLength());
                 // 释放一个 content refCnt
                 partWrapper.getFullContent().release();
-            } else{
+            }
+            else if(command.getCommandCode().equals(FastOssProtocol.DOWNLOAD_RESPONSE)){
+                // 下载返回
+                out.writeBytes(command.getData());
+                command.getData().release();
+            }
+            else{
                 out.writeBytes(command.getContent());
             }
         }

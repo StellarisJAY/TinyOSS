@@ -13,10 +13,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * <p>
@@ -40,7 +40,7 @@ public class Chunk {
     /**
      * chunk file channel
      */
-    private final FileChannel fileChannel;
+    private FileChannel fileChannel;
 
     /**
      * chunk current size
@@ -57,15 +57,20 @@ public class Chunk {
      * Linux系统下，I/O Block大小是 4KB， 所以Chunk文件大小为4KB整数倍
      */
     public static final long MAX_CHUNK_SIZE = 4 * 1024 * 1024 * 32;
+
+    private final ReentrantReadWriteLock readWriteLock;
     /**
      * 文件索引列表
      */
     private final HashMap<String, FileChunkIndex> files = new HashMap<>(128);
 
+    public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
+
     public Chunk(int chunkId) {
-        this.path = "D:/oss/chunk_"+chunkId;
+        this.path = "C:/Users/76040/Documents/oss/chunk_"+chunkId;
         File file = new File(path);
         this.id = chunkId;
+        this.readWriteLock = new ReentrantReadWriteLock();
         try{
             randomAccessFile = new RandomAccessFile(file, "rw");
             fileChannel = randomAccessFile.getChannel();
@@ -109,12 +114,50 @@ public class Chunk {
      * @throws IOException IOException
      */
     public void write(FilePart part) throws IOException {
-        FileChunkIndex chunkIndex = files.get(part.getKey());
-        // 计算该分片的位置
-        int offset = chunkIndex.getOffset() + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
-        ByteBuf data = part.getData();
-        // 写入分片
-        data.readBytes(fileChannel, offset, data.readableBytes());
+        try{
+            readWriteLock.writeLock().lock();
+            FileChunkIndex chunkIndex = files.get(part.getKey());
+            // 计算该分片的位置
+            int offset = chunkIndex.getOffset() + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
+            ByteBuf data = part.getData();
+            // 写入分片
+            data.readBytes(fileChannel, offset, data.readableBytes());
+        }finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * 读取chunk中一个对象的指定范围内的数据
+     * @param key object key
+     * @param position 开始字节
+     * @param length 读取长度
+     * @param buffer output buffer
+     * @throws IOException IOException
+     */
+    public void read(String key, int position, long length, ByteBuf buffer) throws IOException {
+        // 获取object索引信息
+        FileChunkIndex chunkIndex = files.get(key);
+        // 获取object在chunk中的偏移
+        int offset = chunkIndex.getOffset();
+        try{
+            // 加共享锁
+            readWriteLock.readLock().lock();
+            // 从fileChannel写入到buffer
+            buffer.writeBytes(fileChannel, offset + position, (int)length);
+        }finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+    public void closeChannel() throws IOException {
+        this.fileChannel.close();
+    }
+
+    public void ensureChannelOpen(){
+        if(!fileChannel.isOpen()){
+            this.fileChannel = randomAccessFile.getChannel();
+        }
     }
 
     /**
@@ -122,10 +165,9 @@ public class Chunk {
      * @throws IOException IOException
      */
     public void compress() throws IOException {
-        FileLock lock = null;
         try{
-            // 加 文件排他锁
-            lock = fileChannel.lock();
+            // 加 排他锁
+            readWriteLock.writeLock().lock();
             int removeStartOffset = -1;
             int removeEndOffset;
             // 已经删除的大小，用于改变后续文件的偏移量
@@ -163,9 +205,7 @@ public class Chunk {
             }
         }finally {
             // 释放排他锁
-            if(lock != null){
-                lock.release();
-            }
+            readWriteLock.writeLock().unlock();
         }
 
     }

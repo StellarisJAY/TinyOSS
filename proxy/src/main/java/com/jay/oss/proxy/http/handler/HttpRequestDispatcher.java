@@ -4,6 +4,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.*;
+import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
@@ -29,17 +30,26 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if(msg instanceof FullHttpRequest){
             FullHttpRequest request = (FullHttpRequest) msg;
-            // 从handlerMapping找到handler
-            HttpRequestHandler handler = HandlerMapping.getHandler(request.uri());
+            // 获取handler
+            HttpRequestHandler handler = selectHandler(request);
+            FullHttpResponse response;
             if(handler == null){
                 // handler不存在，BAD_REQUEST
-                FullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
-                ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
             }else{
                 // 调用处理器方法
-                FullHttpResponse response = handler.handle(ctx, request);
-                ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                response = handler.handle(ctx, request);
             }
+            ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
+    }
+
+    private HttpRequestHandler selectHandler(FullHttpRequest request){
+        String uri = request.uri();
+        HttpHeaders headers = request.headers();
+        if(!StringUtil.isNullOrEmpty(uri)){
+            return HandlerMapping.getHandler("object");
+        }
+        return HandlerMapping.getHandler("bucket");
     }
 }

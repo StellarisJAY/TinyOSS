@@ -50,7 +50,7 @@ public class UploadService {
             int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (int)(size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
             // 创建上传请求
             UploadRequest request = UploadRequest.builder()
-                    .key(key)
+                    .key(bucket + key)
                     .bucket(bucket)
                     .filename(key)
                     .ownerId(auth)
@@ -77,7 +77,7 @@ public class UploadService {
             }
             else{
                 // 上传文件分片
-                FastOssCommand response = uploadFileParts(url, content, size, parts, key);
+                FastOssCommand response = uploadFileParts(url, content, size, parts, bucket + key);
             }
         }else{
             // 没有上传权限

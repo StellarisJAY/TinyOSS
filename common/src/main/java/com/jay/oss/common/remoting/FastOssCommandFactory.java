@@ -12,14 +12,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
- *
+ *  FastOSS命令工厂
+ *  负责创建OSS命令报文
  * </p>
  *
  * @author Jay
  * @date 2022/01/25 10:47
  */
 public class FastOssCommandFactory implements CommandFactory {
-
+    /**
+     * 报文ID生成
+     */
     private final AtomicInteger requestIdProvider = new AtomicInteger(1);
 
     @Override
@@ -68,6 +71,12 @@ public class FastOssCommandFactory implements CommandFactory {
             byte[] content = (byte[])o;
             return builder.content(content)
                     .length(FastOssProtocol.HEADER_LENGTH + content.length)
+                    .build();
+        }
+        else if(o instanceof ByteBuf){
+            ByteBuf data = (ByteBuf) o;
+            return builder.data(data)
+                    .length(data.readableBytes() + FastOssProtocol.HEADER_LENGTH)
                     .build();
         }
         else{
