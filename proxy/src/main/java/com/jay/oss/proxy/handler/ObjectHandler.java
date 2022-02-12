@@ -2,6 +2,7 @@ package com.jay.oss.proxy.handler;
 
 import com.jay.oss.proxy.http.handler.AbstractHttpRequestHandler;
 import com.jay.oss.proxy.service.DownloadService;
+import com.jay.oss.proxy.service.ObjectService;
 import com.jay.oss.proxy.service.UploadService;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -22,9 +23,12 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
 
     private final UploadService uploadService;
     private final DownloadService downloadService;
-    public ObjectHandler(UploadService uploadService, DownloadService downloadService) {
+    private final ObjectService objectService;
+
+    public ObjectHandler(UploadService uploadService, DownloadService downloadService, ObjectService objectService) {
         this.uploadService = uploadService;
         this.downloadService = downloadService;
+        this.objectService = objectService;
     }
 
     @Override
@@ -62,5 +66,16 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
             }
         }
         return downloadService.getObject(key, bucket, startByte, endByte);
+    }
+
+    @Override
+    public FullHttpResponse handleDelete(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+        String key = request.uri();
+        HttpHeaders headers = request.headers();
+        String host = headers.get("Host");
+        String bucket = host.trim().substring(0, host.indexOf("."));
+
+        return objectService.deleteObject(key, bucket);
+
     }
 }
