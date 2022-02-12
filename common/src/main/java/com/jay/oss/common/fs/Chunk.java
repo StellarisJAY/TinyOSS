@@ -16,6 +16,7 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -64,8 +65,13 @@ public class Chunk {
      */
     private final HashMap<String, FileChunkIndex> files = new HashMap<>(128);
 
-    public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
+    /**
+     * 未压缩标记
+     */
+    private final AtomicBoolean uncompressed = new AtomicBoolean(false);
 
+    public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
+    public static final long CHUNK_COMPRESSION_PERIOD = 30 * 1000;
     public Chunk(int chunkId) {
         this.path = "C:/Users/76040/Documents/oss/chunk_"+chunkId;
         File file = new File(path);
@@ -89,10 +95,7 @@ public class Chunk {
         // 检查该文件大小是否超出chunk大小
         if(fileMeta.getSize() + this.size <= MAX_CHUNK_SIZE){
             // 创建文件的chunk索引
-            FileChunkIndex chunkIndex = new FileChunkIndex();
-            chunkIndex.setChunkId(this.id);
-            chunkIndex.setOffset(this.size);
-            chunkIndex.setSize(fileMeta.getSize());
+            FileChunkIndex chunkIndex = new FileChunkIndex(id, this.size, fileMeta.getSize(), false);
             // 记录文件索引
             this.files.put(fileMeta.getKey(), chunkIndex);
             // 更新chunk大小
@@ -150,6 +153,30 @@ public class Chunk {
         }
     }
 
+    /**
+     * 删除文件，仅设置删除标记
+     * 磁盘的删除工作由compressor线程异步完成
+     * @param key object key
+     * @return 是否删除成功
+     */
+    public boolean delete(String key){
+        try{
+            // 加排他锁
+            readWriteLock.writeLock().lock();
+            FileChunkIndex remove = files.get(key);
+            if(remove != null){
+                // 设置该文件的删除标记
+                remove.setRemoved(true);
+                // 设置chunk文件待压缩标记
+                this.uncompressed.set(true);
+            }
+            return remove != null;
+        }
+        finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
     public void closeChannel() throws IOException {
         this.fileChannel.close();
     }
@@ -164,7 +191,7 @@ public class Chunk {
      * 压缩chunk文件
      * @throws IOException IOException
      */
-    public void compress() throws IOException {
+    public void compress()  {
         try{
             // 加 排他锁
             readWriteLock.writeLock().lock();
@@ -203,11 +230,19 @@ public class Chunk {
                     this.size -= removedSize;
                 }
             }
-        }finally {
+        }catch (IOException e){
+            log.error("compression error: ", e);
+        } finally {
+            // 重置待压缩标记
+            this.uncompressed.set(false);
             // 释放排他锁
             readWriteLock.writeLock().unlock();
         }
 
+    }
+
+    public boolean isUncompressed(){
+        return this.uncompressed.get();
     }
 
     public void incrementSize(long delta){

@@ -21,6 +21,7 @@ import com.jay.oss.proxy.handler.ObjectHandler;
 import com.jay.oss.proxy.http.HttpServer;
 import com.jay.oss.proxy.http.handler.HandlerMapping;
 import com.jay.oss.proxy.service.DownloadService;
+import com.jay.oss.proxy.service.ObjectService;
 import com.jay.oss.proxy.service.UploadService;
 
 import java.util.concurrent.ExecutorService;
@@ -48,6 +49,7 @@ public class ProxyNode extends AbstractLifeCycle {
     private final DoveClient storageClient;
     private final UploadService uploadService;
     private final DownloadService downloadService;
+    private final ObjectService objectService;
 
     private final CommandHandler commandHandler;
     public ProxyNode() {
@@ -67,6 +69,7 @@ public class ProxyNode extends AbstractLifeCycle {
         storageClient = new DoveClient(connectionManager, commandFactory);
         uploadService = new UploadService(storageClient);
         downloadService = new DownloadService(storageClient);
+        objectService = new ObjectService(storageClient);
     }
 
     private void init(){
@@ -75,7 +78,7 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册FastOSS协议
         ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
         // 注册handler
-        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService));
+        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
         HandlerMapping.registerHandler("bucket", new BucketHandler());
     }
 

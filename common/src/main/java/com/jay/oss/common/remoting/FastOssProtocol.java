@@ -54,10 +54,13 @@ public class FastOssProtocol implements Protocol {
      */
     public static final CommandCode DOWNLOAD_RANGED = new CommandCode((short)105);
     public static final CommandCode DOWNLOAD_RESPONSE = new CommandCode((short)106);
+
+
+    public static final CommandCode DELETE_OBJECT = new CommandCode((short)107);
     /**
      * 对象不存在返回
      */
-    public static final CommandCode OBJECT_NOT_FOUND = new CommandCode((short)107);
+    public static final CommandCode OBJECT_NOT_FOUND = new CommandCode((short)110);
 
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);

@@ -4,6 +4,16 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -22,9 +32,9 @@ public class MetaManager {
      * 元数据缓存
      */
     private final ConcurrentHashMap<String, FileMetaWithChunkInfo> fileMetaCache = new ConcurrentHashMap<>(256);
-
     /**
      * 桶缓存
+     * bucketKey: bucketName + ownerId
      */
     private final ConcurrentHashMap<String, Bucket> bucketCache = new ConcurrentHashMap<>(256);
 
@@ -34,6 +44,10 @@ public class MetaManager {
 
     public void computeIfAbsent(String key, Function<String, ?extends FileMetaWithChunkInfo> function){
         fileMetaCache.computeIfAbsent(key, function);
+    }
+
+    public FileMetaWithChunkInfo delete(String key){
+        return fileMetaCache.remove(key);
     }
 
     public boolean fileExists(String key){
@@ -46,5 +60,9 @@ public class MetaManager {
 
     public Bucket getBucket(String bucketKey){
         return bucketCache.get(bucketKey);
+    }
+
+    public List<FileMetaWithChunkInfo> snapshot(){
+        return new ArrayList<>(fileMetaCache.values());
     }
 }

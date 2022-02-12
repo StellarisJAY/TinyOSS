@@ -5,6 +5,7 @@ import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.processor.FileDeleteProcessor;
 import com.jay.oss.storage.processor.FileDownloadProcessor;
 import com.jay.oss.storage.processor.FileUploadProcessor;
 
@@ -26,9 +27,12 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         // 文件上传处理器
         FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, commandFactory);
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, commandFactory);
+        FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, commandFactory);
+        // 注册处理器
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
+        this.registerProcessor(FastOssProtocol.DELETE_OBJECT, fileDeleteProcessor);
     }
 }
