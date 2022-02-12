@@ -70,7 +70,7 @@ public class FileDownloadProcessor extends AbstractProcessor {
             int readLength = (int)(request.isFull() ? chunkIndex.getSize() : request.getLength());
             // 从chunk读取数据
             ByteBuf data = Unpooled.directBuffer(readLength);
-            chunk.read(key, chunkIndex.getOffset() + start, readLength, data);
+            chunk.read(key, start, readLength, data);
             response = (FastOssCommand) commandFactory.createResponse(requestId, data, FastOssProtocol.DOWNLOAD_RESPONSE);
         }catch (Exception e){
             log.error("process download request error: ", e);
