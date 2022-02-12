@@ -10,7 +10,7 @@ import java.util.List;
 
 /**
  * <p>
- *  Fast-OSS inet protocol decoder
+ *  Fast-OSS TCP通信协议Decoder
  * </p>
  *
  * @author Jay
@@ -49,8 +49,8 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
         if(in.readableBytes() >= length - FastOssProtocol.HEADER_LENGTH){
             // 读 content
             if(length - FastOssProtocol.HEADER_LENGTH > 0){
-                // 如果该报文是上传文件分片，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
-                if(code == FastOssProtocol.UPLOAD_FILE_PARTS.value()){
+                // 如果该报文是文件传输，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
+                if(code == FastOssProtocol.UPLOAD_FILE_PARTS.value() || code == FastOssProtocol.DOWNLOAD_RESPONSE.value()){
                     /*
                         性能瓶颈：copy会复制整个in buffer，buffer大小最大可达16MB，浪费内存空间
                         使用slice来避免复制，但是需要retain来避免内存泄漏
@@ -78,6 +78,7 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
      * @param length copied length
      * @return {@link ByteBuf} copied parts of the original buffer
      */
+    @Deprecated
     private ByteBuf copyByteBuf(ByteBuf in, int length){
         ByteBuf buffer = Unpooled.directBuffer(length);
         in.readBytes(buffer, length);
