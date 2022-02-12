@@ -10,7 +10,6 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>common</module>
-        <module>overseer</module>
         <module>storage</module>
         <module>proxy</module>
     </modules>
