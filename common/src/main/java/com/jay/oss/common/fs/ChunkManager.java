@@ -1,9 +1,6 @@
 package com.jay.oss.common.fs;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -92,5 +89,9 @@ public final class ChunkManager {
     public Chunk createChunkAndGet(){
         int id = chunkIdProvider.getAndIncrement();
         return new Chunk(id);
+    }
+
+    public List<Chunk> listChunks(){
+        return new ArrayList<>(chunkMap.values());
     }
 }

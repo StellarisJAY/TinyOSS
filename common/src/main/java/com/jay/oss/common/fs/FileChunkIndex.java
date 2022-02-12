@@ -1,5 +1,6 @@
 package com.jay.oss.common.fs;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -15,6 +16,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
+@AllArgsConstructor
 public class FileChunkIndex {
     /**
      * chunk 文件路径
@@ -28,7 +30,6 @@ public class FileChunkIndex {
      * 文件大小
      */
     private long size;
-
     /**
      * 文件已被删除
      */
