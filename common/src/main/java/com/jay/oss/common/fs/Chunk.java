@@ -89,6 +89,21 @@ public class Chunk {
         }
     }
 
+    public Chunk(String path, File file, int id) {
+        this.path = path;
+        this.file = file;
+        this.size = (int)file.length();
+        this.id = id;
+        this.readWriteLock = new ReentrantReadWriteLock();
+        try{
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+            fileChannel = randomAccessFile.getChannel();
+        }catch (IOException e){
+            log.error("error creating chunk file: ", e);
+            throw new RuntimeException("can't create a chunk file: " + e);
+        }
+    }
+
     /**
      * 向chunk添加文件
      * @param fileMeta {@link FileMeta} 文件元数据
@@ -112,6 +127,10 @@ public class Chunk {
                     .build();
         }
         return null;
+    }
+
+    public void addFileChunkIndex(String key, FileChunkIndex chunkIndex){
+        files.put(key, chunkIndex);
     }
 
     /**
