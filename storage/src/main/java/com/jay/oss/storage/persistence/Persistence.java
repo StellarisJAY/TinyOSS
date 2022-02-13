@@ -1,6 +1,7 @@
 package com.jay.oss.storage.persistence;
 
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.fs.FileChunkIndex;
 import com.jay.oss.storage.meta.MetaManager;
@@ -53,6 +54,8 @@ public class Persistence {
         File file = new File("C:/Users/76040/Documents/oss/meta/objects.data");
         if(!file.exists()){
             try{
+                File parentFile = file.getParentFile();
+                parentFile.mkdirs();
                 file.createNewFile();
             }catch (Exception e){
                 log.error("can't create persistence file for metas");
@@ -81,7 +84,7 @@ public class Persistence {
                 buffer.rewind();
                 fileChannel.write(buffer);
             }
-            log.info("object meta saved, time used: {}", (System.nanoTime() - start));
+            log.info("object meta saved, time used: {} ms", (System.nanoTime() - start) / 1000000);
         }catch (IOException e){
             log.error("save meta persistence error ", e);
         }
@@ -109,21 +112,50 @@ public class Persistence {
                 int chunkId = buffer.getInt();
                 int offset = buffer.getInt();
                 byte removed = buffer.get();
-
+                // 创建文件chunk索引信息
                 FileChunkIndex chunkIndex = new FileChunkIndex(chunkId, offset, size, removed == 1);
                 String key = new String(keyBytes, StandardCharsets.UTF_8);
+                // 创建文件元数据对象
                 FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
                         .key(key).filename(new String(fileName, StandardCharsets.UTF_8))
                         .createTime(createTime).size(size)
                         .chunkIndex(chunkIndex).build();
+                // 将文件保存到对应chunk的文件列表
+                chunkManager.getChunkById(chunkId).addFileChunkIndex(key, chunkIndex);
+                // 元数据管理器记录文件
                 metaManager.saveMeta(meta);
                 count++;
             }
-            log.info("load meta finished, loaded: {}, time used: {}", count, (System.nanoTime() - start));
+            log.info("load meta finished, loaded: {}, time used: {} ms", count, (System.nanoTime() - start) / (1000 * 1000));
         }catch (FileNotFoundException e){
             log.info("no meta persistence found, skipping loading meta");
         }catch (IOException e){
             log.error("loading meta persistence error ", e);
         }
+    }
+
+    public void loadChunk(){
+        File file = new File("C:/Users/76040/Documents/oss");
+        File[] chunkFiles = file.listFiles();
+        if(chunkFiles == null){
+            log.info("no chunk file found, skipping chunk loading");
+            return;
+        }
+        long start = System.nanoTime();
+        int count = 0;
+        // 遍历chunk目录
+        for(File chunkFile : chunkFiles){
+            if(!chunkFile.isDirectory()){
+                // 解析chunkID
+                String name = chunkFile.getName();
+                int chunkId = Integer.parseInt(name.substring(name.indexOf("_") + 1));
+                // 创建chunk对象
+                Chunk chunk = new Chunk(chunkFile.getPath(), chunkFile, chunkId);
+                // 添加到chunkManager
+                chunkManager.offerChunk(chunk);
+                count ++;
+            }
+        }
+        log.info("load chunk finished, loaded: {} chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
     }
 }
