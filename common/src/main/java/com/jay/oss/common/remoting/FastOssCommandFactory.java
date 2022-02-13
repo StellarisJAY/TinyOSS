@@ -7,6 +7,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.OssConfigs;
 import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.DefaultFileRegion;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -77,6 +78,12 @@ public class FastOssCommandFactory implements CommandFactory {
             ByteBuf data = (ByteBuf) o;
             return builder.data(data)
                     .length(data.readableBytes() + FastOssProtocol.HEADER_LENGTH)
+                    .build();
+        }
+        else if(o instanceof DefaultFileRegion){
+            DefaultFileRegion fileRegion = (DefaultFileRegion) o;
+            return builder.length(FastOssProtocol.HEADER_LENGTH + (int) fileRegion.count())
+                    .fileRegion(fileRegion)
                     .build();
         }
         else{
