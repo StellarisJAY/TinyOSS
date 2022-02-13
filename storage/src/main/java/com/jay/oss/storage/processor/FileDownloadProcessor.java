@@ -12,9 +12,8 @@ import com.jay.oss.common.fs.FileChunkIndex;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultFileRegion;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -68,10 +67,8 @@ public class FileDownloadProcessor extends AbstractProcessor {
             Chunk chunk = chunkManager.getChunkById(chunkIndex.getChunkId());
             // 根据下载类型计算读取长度
             int readLength = (int)(request.isFull() ? chunkIndex.getSize() : request.getLength());
-            // 从chunk读取数据
-            ByteBuf data = Unpooled.directBuffer(readLength);
-            chunk.read(key, start, readLength, data);
-            response = (FastOssCommand) commandFactory.createResponse(requestId, data, FastOssProtocol.DOWNLOAD_RESPONSE);
+            DefaultFileRegion fileRegion = chunk.readFile(key, start, readLength);
+            response = (FastOssCommand) commandFactory.createResponse(requestId, fileRegion, FastOssProtocol.DOWNLOAD_RESPONSE);
         }catch (Exception e){
             log.error("process download request error: ", e);
             response = (FastOssCommand) commandFactory.createExceptionResponse(requestId, e);
