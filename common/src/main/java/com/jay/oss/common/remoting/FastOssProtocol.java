@@ -3,10 +3,7 @@ package com.jay.oss.common.remoting;
 import com.jay.dove.transport.HeartBeatTrigger;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandHandler;
-import com.jay.dove.transport.protocol.Protocol;
-import com.jay.dove.transport.protocol.ProtocolCode;
-import com.jay.dove.transport.protocol.ProtocolDecoder;
-import com.jay.dove.transport.protocol.ProtocolEncoder;
+import com.jay.dove.transport.protocol.*;
 
 /**
  * <p>
@@ -83,6 +80,11 @@ public class FastOssProtocol implements Protocol {
     @Override
     public ProtocolEncoder getEncoder() {
         return encoder;
+    }
+
+    @Override
+    public ProtocolM2mEncoder getM2mEncoder() {
+        return new FastOssM2mEncoder();
     }
 
     @Override
