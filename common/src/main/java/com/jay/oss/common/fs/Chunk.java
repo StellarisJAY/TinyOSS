@@ -5,11 +5,14 @@ import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.DefaultFileRegion;
+import io.netty.channel.FileRegion;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
@@ -36,12 +39,12 @@ public class Chunk {
      */
     private final String path;
 
-    private final RandomAccessFile randomAccessFile;
-
     /**
-     * chunk file channel
+     * chunk file write channel
      */
-    private FileChannel fileChannel;
+    private final FileChannel fileChannel;
+
+    private final File file;
 
     /**
      * chunk current size
@@ -74,11 +77,11 @@ public class Chunk {
     public static final long CHUNK_COMPRESSION_PERIOD = 30 * 1000;
     public Chunk(int chunkId) {
         this.path = "C:/Users/76040/Documents/oss/chunk_"+chunkId;
-        File file = new File(path);
+        this.file = new File(path);
         this.id = chunkId;
         this.readWriteLock = new ReentrantReadWriteLock();
         try{
-            randomAccessFile = new RandomAccessFile(file, "rw");
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             fileChannel = randomAccessFile.getChannel();
         }catch (IOException e){
             log.error("error creating chunk file: ", e);
@@ -154,6 +157,33 @@ public class Chunk {
     }
 
     /**
+     * 读取文件，获取FileRegion
+     * 用于下载时零拷贝传输
+     * @param key object key
+     * @param position 读取位置
+     * @param length 读取长度
+     * @return {@link DefaultFileRegion}
+     */
+    public DefaultFileRegion readFile(String key, int position, long length){
+        // 获取object索引信息
+        FileChunkIndex chunkIndex = files.get(key);
+        int offset = chunkIndex.getOffset();
+        try{
+            // 加 共享锁
+            readWriteLock.readLock().lock();
+            // 创建RandomAccessFile，用Channel获取FileRegion
+            RandomAccessFile rf = new RandomAccessFile(file, "r");
+            // 返回FileRegion
+            return new DefaultFileRegion(rf.getChannel(), offset + position, length);
+        } catch (FileNotFoundException e) {
+            log.error("read file {} error", key, e);
+            return null;
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+    /**
      * 删除文件，仅设置删除标记
      * 磁盘的删除工作由compressor线程异步完成
      * @param key object key
@@ -174,16 +204,6 @@ public class Chunk {
         }
         finally {
             readWriteLock.writeLock().unlock();
-        }
-    }
-
-    public void closeChannel() throws IOException {
-        this.fileChannel.close();
-    }
-
-    public void ensureChannelOpen(){
-        if(!fileChannel.isOpen()){
-            this.fileChannel = randomAccessFile.getChannel();
         }
     }
 
