@@ -69,9 +69,13 @@ public class StorageNode extends AbstractLifeCycle {
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         // 加载持久化数据
+        persistence.loadChunk();
         persistence.loadMeta();
         // 提交持久化定时任务
         Scheduler.scheduleAtFixedRate(persistence::persistenceMeta, 30, 30, TimeUnit.SECONDS);
+
+        // 添加进程关闭钩子，关闭时执行持久化任务
+        Runtime.getRuntime().addShutdownHook(new Thread(persistence::persistenceMeta, "shutdown-persistence"));
     }
 
 
