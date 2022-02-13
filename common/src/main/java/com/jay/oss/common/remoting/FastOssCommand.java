@@ -6,6 +6,8 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.DefaultFileRegion;
+import io.netty.channel.FileRegion;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -50,7 +52,7 @@ public class FastOssCommand implements RemotingCommand {
     private byte[] content;
     private ByteBuf data;
     private FilePartWrapper filePartWrapper;
-
+    private DefaultFileRegion fileRegion;
 
     @Override
     public int getId() {
