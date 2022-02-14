@@ -5,7 +5,7 @@ import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;

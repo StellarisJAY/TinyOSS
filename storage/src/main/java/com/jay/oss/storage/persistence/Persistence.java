@@ -1,5 +1,6 @@
 package com.jay.oss.storage.persistence;
 
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.common.fs.ChunkManager;
@@ -51,7 +52,7 @@ public class Persistence {
      * 总长度：keyLen + fLen + 29 bytes
      */
     public void persistenceMeta(){
-        File file = new File("C:/Users/76040/Documents/oss/meta/objects.data");
+        File file = new File(OssConfigs.dataPath() + "/meta/objects.data");
         if(!file.exists()){
             try{
                 File parentFile = file.getParentFile();
@@ -94,7 +95,7 @@ public class Persistence {
      * 加载meta persistence
      */
     public void loadMeta(){
-        File file = new File("C:/Users/76040/Documents/oss/meta/objects.data");
+        File file = new File(OssConfigs.dataPath() + "/meta/objects.data");
         try(FileInputStream inputStream = new FileInputStream(file);
             FileChannel fileChannel = inputStream.getChannel();){
             long start = System.nanoTime();
@@ -135,7 +136,7 @@ public class Persistence {
     }
 
     public void loadChunk(){
-        File file = new File("C:/Users/76040/Documents/oss");
+        File file = new File(OssConfigs.dataPath());
         File[] chunkFiles = file.listFiles();
         if(chunkFiles == null){
             log.info("no chunk file found, skipping chunk loading");

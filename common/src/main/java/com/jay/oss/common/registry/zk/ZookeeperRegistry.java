@@ -1,6 +1,7 @@
 package com.jay.oss.common.registry.zk;
 
 import com.alibaba.fastjson.JSON;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import lombok.extern.slf4j.Slf4j;
@@ -28,11 +29,12 @@ public class ZookeeperRegistry implements Registry {
     private static final String ROOT_PATH = "/fastOss/storages";
     @Override
     public void init() throws Exception{
-        log.info("initializing zookeeper registry, host: {}", "127.0.0.1:2181");
+        String host = OssConfigs.zookeeperHost();
+        log.info("initializing zookeeper registry, host: {}", host);
         CountDownLatch countDownLatch = new CountDownLatch(1);
         long start = System.currentTimeMillis();
         // 建立Zookeeper连接
-        zooKeeper = new ZooKeeper("127.0.0.1:2181", 4000, new Watcher() {
+        zooKeeper = new ZooKeeper(host, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, new Watcher() {
             @Override
             public void process(WatchedEvent watchedEvent) {
                 // 异步监听连接事件

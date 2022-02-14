@@ -1,5 +1,6 @@
 package com.jay.oss.common.fs;
 
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
@@ -76,7 +77,7 @@ public class Chunk {
     public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
     public static final long CHUNK_COMPRESSION_PERIOD = 30 * 1000;
     public Chunk(int chunkId) {
-        this.path = "C:/Users/76040/Documents/oss/chunk_"+chunkId;
+        this.path = OssConfigs.dataPath() + "/chunk_" +chunkId;
         this.file = new File(path);
         this.id = chunkId;
         this.readWriteLock = new ReentrantReadWriteLock();

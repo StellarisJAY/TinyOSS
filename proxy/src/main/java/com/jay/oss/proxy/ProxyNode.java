@@ -5,12 +5,12 @@ import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.CommandHandler;
-import com.jay.dove.transport.connection.AbstractConnectionFactory;
 import com.jay.dove.transport.connection.ConnectionFactory;
 import com.jay.dove.transport.connection.ConnectionManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.dove.util.NamedThreadFactory;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.ConfigsManager;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -117,6 +117,7 @@ public class ProxyNode extends AbstractLifeCycle {
     }
 
     public static void main(String[] args) {
+        ConfigsManager.loadConfigs();
         ProxyNode proxyNode = new ProxyNode();
         proxyNode.startup();
     }

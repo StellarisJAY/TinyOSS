@@ -5,7 +5,8 @@ import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.protocol.ProtocolManager;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.ConfigsManager;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
@@ -117,7 +118,8 @@ public class StorageNode extends AbstractLifeCycle {
     }
 
     public static void main(String[] args) {
-        StorageNode storageNode = new StorageNode(9999);
+        ConfigsManager.loadConfigs();
+        StorageNode storageNode = new StorageNode(OssConfigs.port());
         storageNode.startup();
     }
 }
