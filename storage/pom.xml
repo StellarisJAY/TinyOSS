@@ -24,4 +24,34 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+                <execution>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>single</goal>
+                    </goals>
+                </execution>
+            </executions>
+            <configuration>
+                <!-- 配置主程序-->
+                <archive>
+                    <manifest>
+                        <mainClass>com.jay.oss.storage.StorageNode</mainClass>
+                    </manifest>
+                </archive>
+                <!-- 生成对应后缀的jar包 为加入依赖的jar-->
+                <descriptorRefs>
+                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                </descriptorRefs>
+            </configuration>
+        </plugin>
+
+    </plugins>
+    </build>
 </project>
