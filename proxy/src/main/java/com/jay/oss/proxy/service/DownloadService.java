@@ -5,9 +5,7 @@ import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.dove.transport.command.CommandFactory;
-import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -16,8 +14,7 @@ import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-
-import java.util.Arrays;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
@@ -27,6 +24,7 @@ import java.util.Arrays;
  * @author Jay
  * @date 2022/02/11 11:05
  */
+@Slf4j
 public class DownloadService {
     private final DoveClient client;
 
@@ -63,6 +61,7 @@ public class DownloadService {
 //            httpResponse.headers().add("Content-Type", "image/jpeg");
             return httpResponse;
         }catch (Exception e){
+            log.error("download service error: ", e);
             return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
         }
     }

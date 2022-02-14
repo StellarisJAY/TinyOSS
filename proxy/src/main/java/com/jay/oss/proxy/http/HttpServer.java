@@ -65,7 +65,7 @@ public class HttpServer extends AbstractLifeCycle {
         try {
             future = bootstrap.bind(9000).sync();
             if(future.isSuccess()){
-                log.info("proxy server started, time used: {}ms", (System.currentTimeMillis() - start));
+                log.info("http server started, time used: {}ms", (System.currentTimeMillis() - start));
             }
         } catch (InterruptedException e) {
             log.error("proxy server failed to start, error: ", e);

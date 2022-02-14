@@ -1,6 +1,6 @@
 package com.jay.oss.storage.processor;
 
-import com.jay.dove.config.Configs;
+import com.jay.dove.config.DoveConfigs;
 import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
@@ -129,7 +129,7 @@ public class FileUploadProcessor extends AbstractProcessor {
         // 读取key，并转为String
         byte[] keyBytes = new byte[keyLength];
         data.readBytes(keyBytes);
-        String key = new String(keyBytes, Configs.DEFAULT_CHARSET);
+        String key = new String(keyBytes, DoveConfigs.DEFAULT_CHARSET);
         // 读取分片编号
         int partNum = data.readInt();
         FilePart filePart = FilePart.builder()

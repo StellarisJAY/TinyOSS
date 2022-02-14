@@ -5,17 +5,21 @@ import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.CommandHandler;
-import com.jay.dove.transport.connection.AbstractConnectionFactory;
 import com.jay.dove.transport.connection.ConnectionFactory;
 import com.jay.dove.transport.connection.ConnectionManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.dove.util.NamedThreadFactory;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.ConfigsManager;
+import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.registry.Registry;
+import com.jay.oss.common.registry.StorageNodeInfo;
+import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssConnectionFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
+import com.jay.oss.common.util.Banner;
 import com.jay.oss.proxy.handler.BucketHandler;
 import com.jay.oss.proxy.handler.ObjectHandler;
 import com.jay.oss.proxy.http.HttpServer;
@@ -23,7 +27,10 @@ import com.jay.oss.proxy.http.handler.HandlerMapping;
 import com.jay.oss.proxy.service.DownloadService;
 import com.jay.oss.proxy.service.ObjectService;
 import com.jay.oss.proxy.service.UploadService;
+import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -37,6 +44,7 @@ import java.util.concurrent.TimeUnit;
  * @author Jay
  * @date 2022/01/25 11:32
  */
+@Slf4j
 public class ProxyNode extends AbstractLifeCycle {
 
     /**
@@ -52,6 +60,8 @@ public class ProxyNode extends AbstractLifeCycle {
     private final ObjectService objectService;
 
     private final CommandHandler commandHandler;
+
+    private final Registry registry;
     public ProxyNode() {
         httpServer = new HttpServer();
         CommandFactory commandFactory = new FastOssCommandFactory();
@@ -70,9 +80,11 @@ public class ProxyNode extends AbstractLifeCycle {
         uploadService = new UploadService(storageClient);
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
+        registry = new ZookeeperRegistry();
     }
 
-    private void init(){
+    private void init() throws Exception {
+        Banner.printBanner();
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         // 注册FastOSS协议
@@ -80,13 +92,22 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册handler
         HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
         HandlerMapping.registerHandler("bucket", new BucketHandler());
+        registry.init();
+        Map<String, List<StorageNodeInfo>> storages = registry.lookupAll();
+        log.info("lookup storages finished, result: {}", storages);
     }
 
     @Override
     public void startup() {
         super.startup();
-        init();
-        httpServer.startup();
+        try{
+            long start = System.currentTimeMillis();
+            init();
+            httpServer.startup();
+            log.info("Proxy Node started, time used: {} ms", (System.currentTimeMillis() - start));
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -96,6 +117,7 @@ public class ProxyNode extends AbstractLifeCycle {
     }
 
     public static void main(String[] args) {
+        ConfigsManager.loadConfigs();
         ProxyNode proxyNode = new ProxyNode();
         proxyNode.startup();
     }

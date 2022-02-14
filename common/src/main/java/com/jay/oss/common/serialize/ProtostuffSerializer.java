@@ -1,7 +1,7 @@
 package com.jay.oss.common.serialize;
 
 import com.jay.dove.serialize.Serializer;
-import com.jay.oss.common.OssConfigs;
+import com.jay.oss.common.config.OssConfigs;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
