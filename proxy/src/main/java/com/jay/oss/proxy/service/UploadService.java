@@ -1,7 +1,7 @@
 package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
-import com.jay.dove.config.Configs;
+import com.jay.dove.config.DoveConfigs;
 import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.Url;
@@ -16,7 +16,6 @@ import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +46,7 @@ public class UploadService {
         if(checkBucket(bucket, auth)){
             long size = content.readableBytes();
             // 计算分片个数
-            int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (int)(size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
+            int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
             // 创建上传请求
             UploadRequest request = UploadRequest.builder()
                     .key(bucket + key)
@@ -70,10 +69,10 @@ public class UploadService {
             byte[] responseContent = uploadHeaderResponse.getContent();
             if(FastOssProtocol.ERROR.equals(responseCode)){
                 // 上传出现错误 或
-                log.warn("upload header failed, {}", new String(responseContent, Configs.DEFAULT_CHARSET));
+                log.warn("upload header failed, {}", new String(responseContent, DoveConfigs.DEFAULT_CHARSET));
             }else if (FastOssProtocol.REQUEST_TIMEOUT.equals(responseCode)){
                 // 上传超时
-                log.warn("upload header timeout, {}", new String(responseContent, Configs.DEFAULT_CHARSET));
+                log.warn("upload header timeout, {}", new String(responseContent, DoveConfigs.DEFAULT_CHARSET));
             }
             else{
                 // 上传文件分片
@@ -108,7 +107,7 @@ public class UploadService {
      */
     private FastOssCommand uploadFileParts(Url url, ByteBuf content, long size, int parts, String key) throws Exception {
         CommandFactory commandFactory = storageClient.getCommandFactory();
-        byte[] keyBytes = key.getBytes(Configs.DEFAULT_CHARSET);
+        byte[] keyBytes = key.getBytes(DoveConfigs.DEFAULT_CHARSET);
         int keyLength = keyBytes.length;
         try{
             // future, 等待所有分片上传完成

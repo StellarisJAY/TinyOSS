@@ -1,6 +1,6 @@
 package com.jay.oss.common.remoting;
 
-import com.jay.dove.config.Configs;
+import com.jay.dove.config.DoveConfigs;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
@@ -63,7 +63,7 @@ public class FastOssCommandFactory implements CommandFactory {
                 .compressor((byte) 0)
                 .commandCode(commandCode);
         if(o instanceof String){
-            byte[] content = ((String)o).getBytes(Configs.DEFAULT_CHARSET);
+            byte[] content = ((String)o).getBytes(DoveConfigs.DEFAULT_CHARSET);
             return builder.content(content)
                     .length(FastOssProtocol.HEADER_LENGTH + content.length)
                     .build();
@@ -99,7 +99,7 @@ public class FastOssCommandFactory implements CommandFactory {
                 .serializer(OssConfigs.DEFAULT_SERIALIZER)
                 .commandCode(FastOssProtocol.REQUEST_TIMEOUT);
         if(o instanceof String){
-            byte[] content = ((String) o).getBytes(Configs.DEFAULT_CHARSET);
+            byte[] content = ((String) o).getBytes(DoveConfigs.DEFAULT_CHARSET);
             return builder.content(content)
                     .length(FastOssProtocol.HEADER_LENGTH + content.length)
                     .build();
