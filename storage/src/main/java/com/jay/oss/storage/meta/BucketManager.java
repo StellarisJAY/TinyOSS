@@ -4,9 +4,7 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.util.AppIdUtil;
 
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,7 +61,26 @@ public class BucketManager {
         objectMetas.get(key).add(fileMeta);
     }
 
-    public List<FileMeta> listBucket(String key){
-        return objectMetas.get(key);
+    /**
+     * List bucket中一定范围的objects
+     * @param key bucketKey
+     * @param count 获取数量
+     * @param offset 起始位置
+     * @return {@link List<FileMeta>}
+     */
+    public List<FileMeta> listBucket(String key, int count, int offset){
+        List<FileMeta> objects = objectMetas.get(key);
+        // offset 超出objects范围
+        if(offset >= objects.size()){
+            // 返回空
+            return new ArrayList<>();
+        }
+        // count 超出 objects范围
+        if(count >= objects.size()){
+            // 返回offset到objects最后一个
+            return objects.subList(offset, objects.size());
+        }else{
+            return objects.subList(offset, offset + count);
+        }
     }
 }
