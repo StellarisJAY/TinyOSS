@@ -3,6 +3,7 @@ package com.jay.oss.storage.meta;
 import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.util.AppIdUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jay
  * @date 2022/02/16 10:39
  */
+@Slf4j
 public class BucketManager {
     /**
      * 桶缓存
@@ -71,7 +73,7 @@ public class BucketManager {
     public List<FileMeta> listBucket(String key, int count, int offset){
         List<FileMeta> objects = objectMetas.get(key);
         // offset 超出objects范围
-        if(offset >= objects.size()){
+        if(objects == null || offset >= objects.size()){
             // 返回空
             return new ArrayList<>();
         }
