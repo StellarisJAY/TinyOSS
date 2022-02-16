@@ -1,5 +1,7 @@
 package com.jay.oss.common.util;
 
+import io.netty.util.internal.StringUtil;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -73,6 +75,9 @@ public class AccessTokenUtil {
      * @return boolean
      */
     public static boolean checkAccessToken(String accessKey, String secretKey, String token){
+        if(StringUtil.isNullOrEmpty(token)){
+            return false;
+        }
         // 切分token，得到三部分：时效、摘要算法、签名
         String[] parts = token.split(";");
         if(parts.length != 3){

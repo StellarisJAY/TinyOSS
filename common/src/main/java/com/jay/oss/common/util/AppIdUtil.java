@@ -34,7 +34,8 @@ public class AppIdUtil {
             lastTimestamp = timestamp;
             sequence++;
         }
-        return timestamp - INITIAL_TIME << TIMESTAMP_LEFT
+        long value = timestamp - INITIAL_TIME << TIMESTAMP_LEFT
                 | sequence;
+        return Math.abs(value);
     }
 }
