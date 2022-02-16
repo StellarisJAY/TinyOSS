@@ -21,7 +21,7 @@ public class OssConfigs {
     public static final byte DEFAULT_SERIALIZER = PROTOSTUFF_SERIALIZER;
 
     private static final String ZOOKEEPER_REGISTRY_HOST = "oss.registry.zookeeper.host";
-    public static final int ZOOKEEPER_SESSION_TIMEOUT = 10 * 1000;
+    public static final int ZOOKEEPER_SESSION_TIMEOUT = 3 * 1000;
 
     private static final String DATA_PATH = "oss.data.path";
     public static final String DEFAULT_DATA_PATH = "./data";

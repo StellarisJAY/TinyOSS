@@ -24,6 +24,7 @@ import com.jay.oss.proxy.handler.BucketHandler;
 import com.jay.oss.proxy.handler.ObjectHandler;
 import com.jay.oss.proxy.http.HttpServer;
 import com.jay.oss.proxy.http.handler.HandlerMapping;
+import com.jay.oss.proxy.service.BucketService;
 import com.jay.oss.proxy.service.DownloadService;
 import com.jay.oss.proxy.service.ObjectService;
 import com.jay.oss.proxy.service.UploadService;
@@ -58,6 +59,7 @@ public class ProxyNode extends AbstractLifeCycle {
     private final UploadService uploadService;
     private final DownloadService downloadService;
     private final ObjectService objectService;
+    private final BucketService bucketService;
 
     private final CommandHandler commandHandler;
 
@@ -80,6 +82,7 @@ public class ProxyNode extends AbstractLifeCycle {
         uploadService = new UploadService(storageClient);
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
+        bucketService = new BucketService(storageClient);
         registry = new ZookeeperRegistry();
     }
 
@@ -91,8 +94,10 @@ public class ProxyNode extends AbstractLifeCycle {
         ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
         // 注册handler
         HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
-        HandlerMapping.registerHandler("bucket", new BucketHandler());
+        HandlerMapping.registerHandler("bucket", new BucketHandler(bucketService));
+        // 初始化注册中心客户端
         registry.init();
+        // 拉取所有storage信息
         Map<String, List<StorageNodeInfo>> storages = registry.lookupAll();
         log.info("lookup storages finished, result: {}", storages);
     }

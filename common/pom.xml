@@ -17,13 +17,17 @@
         <protostuff.version>1.7.4</protostuff.version>
         <fastjson.version>1.2.70</fastjson.version>
         <curator.version>2.7.0</curator.version>
+        <zookeeper.version>3.6.2</zookeeper.version>
+        <janino.version>3.1.2</janino.version>
+        <junit.version>4.12</junit.version>
     </properties>
 
     <dependencies>
+        <!-- junit -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -46,10 +50,11 @@
             <version>${fastjson.version}</version>
         </dependency>
 
+        <!-- zookeeper api -->
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.6.2</version>
+            <version>${zookeeper.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -57,10 +62,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+        <!-- janino log filter, 过滤Zookeeper产生的日志-->
         <dependency>
             <groupId>org.codehaus.janino</groupId>
             <artifactId>janino</artifactId>
-            <version>3.1.2</version>
+            <version>${janino.version}</version>
         </dependency>
     </dependencies>
 </project>
