@@ -59,6 +59,8 @@ public class FastOssProtocol implements Protocol {
      */
     public static final CommandCode OBJECT_NOT_FOUND = new CommandCode((short)110);
 
+    public static final CommandCode PUT_BUCKET = new CommandCode((short)111);
+
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
