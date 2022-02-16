@@ -1,5 +1,6 @@
 package com.jay.oss.common.entity;
 
+import com.jay.oss.common.acl.Acl;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -34,7 +35,7 @@ public class Bucket {
     /**
      * ACL，private | public_read | public_write
      */
-    private String acl;
+    private Acl acl;
     /**
      * 访问公钥
      */
