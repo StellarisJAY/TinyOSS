@@ -32,12 +32,16 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, commandFactory);
         FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, commandFactory);
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, commandFactory);
-        // 注册处理器
+        /*
+            注册处理器
+         */
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DELETE_OBJECT, fileDeleteProcessor);
+        // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);
+        this.registerProcessor(FastOssProtocol.LIST_BUCKET, bucketProcessor);
     }
 }
