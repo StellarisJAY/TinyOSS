@@ -60,12 +60,13 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode OBJECT_NOT_FOUND = new CommandCode((short)110);
 
     public static final CommandCode PUT_BUCKET = new CommandCode((short)111);
-
+    public static final CommandCode LIST_BUCKET = new CommandCode((short)112);
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
     public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
-
+    public static final CommandCode ACCESS_DENIED = new CommandCode((short)403);
+    public static final CommandCode NOT_FOUND = new CommandCode((short)404);
     /**
      * 默认命令处理器
      */
