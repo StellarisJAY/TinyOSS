@@ -2,7 +2,9 @@ package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
+import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
@@ -37,7 +39,7 @@ public class BucketService {
         // 创建桶
         Bucket bucket = Bucket.builder()
                 .bucketName(bucketName)
-                .acl(acl)
+                .acl(Acl.getAcl(acl))
                 .ownerId(ownerId)
                 .build();
         // 序列化
@@ -64,6 +66,35 @@ public class BucketService {
             headers.add("foss-AccessKey", accessKey);
             headers.add("foss-SecretKey", secretKey);
             headers.add("foss-AppId", appId);
+        }catch (Exception e){
+            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        }
+        return httpResponse;
+    }
+
+    /**
+     * list 桶内对象
+     * @param bucket 桶
+     * @param token 访问token
+     * @param count list数量
+     * @param offset 偏移量
+     * @return {@link FullHttpResponse}
+     */
+    public FullHttpResponse listBucket(String bucket, String token, int count, int offset){
+        ListBucketRequest request = new ListBucketRequest(bucket, token, count, offset);
+        // 序列化请求
+        byte[] content = SerializeUtil.serialize(request, ListBucketRequest.class);
+        FastOssCommand command = (FastOssCommand)client.getCommandFactory()
+                .createRequest(content, FastOssProtocol.LIST_BUCKET);
+        // 查询目标storage
+        Url url = Url.parseString("127.0.0.1:9999");
+
+        FullHttpResponse httpResponse;
+        try{
+            // 发送List请求
+            FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
+            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            httpResponse.content().writeBytes(response.getContent());
         }catch (Exception e){
             httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
         }

@@ -32,4 +32,14 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         String acl = headers.get("foss-acl");
         return bucketService.putBucket(bucket, ownerId, acl);
     }
+
+    @Override
+    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+        HttpHeaders headers = request.headers();
+        String host = headers.get("Host");
+        String bucket = host.trim().substring(0, host.indexOf("."));
+        String token = headers.get("Authorization");
+
+        return super.handleGet(context, request);
+    }
 }
