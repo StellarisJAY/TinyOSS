@@ -32,11 +32,6 @@ public class MetaManager {
      * 元数据缓存
      */
     private final ConcurrentHashMap<String, FileMetaWithChunkInfo> fileMetaCache = new ConcurrentHashMap<>(256);
-    /**
-     * 桶缓存
-     * bucketKey: bucketName + ownerId
-     */
-    private final ConcurrentHashMap<String, Bucket> bucketCache = new ConcurrentHashMap<>(256);
 
     public boolean saveMeta(FileMetaWithChunkInfo meta){
         return fileMetaCache.putIfAbsent(meta.getKey(), meta) == null;
@@ -56,10 +51,6 @@ public class MetaManager {
 
     public FileMetaWithChunkInfo getMeta(String key){
         return fileMetaCache.get(key);
-    }
-
-    public Bucket getBucket(String bucketKey){
-        return bucketCache.get(bucketKey);
     }
 
     public List<FileMetaWithChunkInfo> snapshot(){
