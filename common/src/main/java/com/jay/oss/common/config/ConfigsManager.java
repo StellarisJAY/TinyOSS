@@ -22,15 +22,27 @@ public class ConfigsManager {
 
     public static void loadConfigs() {
         String path = ConfigsManager.class.getClassLoader().getResource("com/jay/oss/common/config/ConfigsManager.class").getPath();
-        String jarPath = path.substring(0, path.indexOf("!"));
-        String dir = jarPath.substring(6, jarPath.lastIndexOf("/"));
-        File file = new File(dir + "/conf/fast-oss.conf");
-        try(InputStream inputStream = new FileInputStream(file)){
-            properties.load(inputStream);
-        }catch (IOException e){
-            log.error("failed to load configs from {}", "fast-oss.conf", e);
-            throw new RuntimeException(e);
+        int i = path.indexOf("!");
+        if(i != -1){
+            String jarPath = path.substring(0, i);
+            String dir = jarPath.substring(6, jarPath.lastIndexOf("/"));
+            File file = new File(dir + "/conf/fast-oss.conf");
+            try(InputStream inputStream = new FileInputStream(file)){
+                properties.load(inputStream);
+            }catch (IOException e){
+                log.error("failed to load configs from {}", "fast-oss.conf", e);
+                throw new RuntimeException(e);
+            }
+        }else{
+            try(InputStream stream = ConfigsManager.class.getClassLoader().getResourceAsStream("fast-oss.conf")){
+                properties.load(stream);
+            }catch (Exception e){
+                log.error("failed to load configs from {}", "fast-oss.conf", e);
+                throw new RuntimeException(e);
+            }
         }
+
+
     }
 
     public static String get(String name){

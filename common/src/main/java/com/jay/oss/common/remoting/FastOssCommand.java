@@ -1,13 +1,10 @@
 package com.jay.oss.common.remoting;
 
-import com.jay.dove.serialize.Serializer;
-import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
-import io.netty.channel.FileRegion;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;

@@ -44,12 +44,4 @@ public class Bucket {
      * 访问密钥
      */
     private String secretKey;
-    /**
-     * 读权限用户列表
-     */
-    private Set<String> readerList;
-    /**
-     * 写权限用户列表
-     */
-    private Set<String> writerList;
 }
