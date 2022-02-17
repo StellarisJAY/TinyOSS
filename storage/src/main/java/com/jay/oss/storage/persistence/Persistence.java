@@ -127,6 +127,8 @@ public class Persistence {
                 metaManager.saveMeta(meta);
                 count++;
             }
+            fileChannel.close();
+            inputStream.close();
             log.info("load meta finished, loaded: {}, time used: {} ms", count, (System.nanoTime() - start) / (1000 * 1000));
         }catch (FileNotFoundException e){
             log.info("no meta persistence found, skipping loading meta");

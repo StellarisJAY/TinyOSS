@@ -4,8 +4,7 @@ import com.jay.oss.common.acl.Acl;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.Set;
+import lombok.ToString;
 
 /**
  * <p>
@@ -18,6 +17,7 @@ import java.util.Set;
 @Getter
 @Setter
 @Builder
+@ToString
 public class Bucket {
     /**
      * 桶名称，不同用户可能创建相同名称的桶
