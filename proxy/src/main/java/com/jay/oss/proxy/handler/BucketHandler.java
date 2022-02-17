@@ -9,7 +9,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 
 /**
  * <p>
- *
+ *  桶请求处理器
  * </p>
  *
  * @author Jay
@@ -17,6 +17,9 @@ import io.netty.handler.codec.http.HttpHeaders;
  */
 public class BucketHandler extends AbstractHttpRequestHandler {
 
+    /**
+     * bucket服务
+     */
     private final BucketService bucketService;
 
     public BucketHandler(BucketService bucketService) {
@@ -40,6 +43,6 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         String bucket = host.trim().substring(0, host.indexOf("."));
         String token = headers.get("Authorization");
 
-        return super.handleGet(context, request);
+        return bucketService.listBucket(bucket, token, 10, 0);
     }
 }

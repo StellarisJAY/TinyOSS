@@ -46,8 +46,9 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
 
     private HttpRequestHandler selectHandler(FullHttpRequest request){
         String uri = request.uri();
+        String path = uri.substring(uri.indexOf("/") + 1);
         HttpHeaders headers = request.headers();
-        if(!StringUtil.isNullOrEmpty(uri)){
+        if(!StringUtil.isNullOrEmpty(path)){
             return HandlerMapping.getHandler("object");
         }
         return HandlerMapping.getHandler("bucket");
