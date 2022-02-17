@@ -8,9 +8,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
-import com.jay.oss.common.entity.CheckBucketAclRequest;
-import com.jay.oss.common.entity.FilePart;
-import com.jay.oss.common.entity.UploadRequest;
+import com.jay.oss.common.entity.*;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -55,11 +53,11 @@ public class UploadService {
      * @throws Exception e
      */
     public FullHttpResponse putObject(String key, String bucket, String token, ByteBuf content) throws Exception {
-        // 检查桶是否存在，以及是否有访问权限
-        CommandCode checkBucket = checkBucket(bucket, token, BucketAccessMode.WRITE);
         FullHttpResponse httpResponse;
-        if(checkBucket.equals(FastOssProtocol.SUCCESS)){
-            long size = content.readableBytes();
+        long size = content.readableBytes();
+        CommandCode putBucket = bucketPutObject(bucket, key, size, System.currentTimeMillis(), token);
+        // 向桶内添加对象记录
+        if(putBucket.equals(FastOssProtocol.SUCCESS)){
             // 计算分片个数
             int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
             // 创建上传请求
@@ -86,7 +84,7 @@ public class UploadService {
                 log.warn("upload file header failed, key: {}, bucket: {}", key, bucket);
                 httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
             }
-        }else if(checkBucket.equals(FastOssProtocol.ACCESS_DENIED)){
+        }else if(putBucket.equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
             httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
         }else{
@@ -116,6 +114,18 @@ public class UploadService {
         // 同步发送
         FastOssCommand response = (FastOssCommand)storageClient.sendSync(url, command, null);
         return response.getCommandCode();
+    }
+
+    private CommandCode bucketPutObject(String bucket, String filename, long size, long createTime, String token)throws Exception{
+        Url url = Url.parseString("127.0.0.1:9999");
+        BucketPutObjectRequest request = BucketPutObjectRequest.builder()
+                .filename(filename).key(bucket + filename)
+                .bucket(bucket).size(size).token(token)
+                .createTime(createTime).build();
+        byte[] content = SerializeUtil.serialize(request, BucketPutObjectRequest.class);
+        FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
+                .createRequest(content, FastOssProtocol.BUCKET_PUT_OBJECT);
+        return storageClient.sendSync(url, command, null).getCommandCode();
     }
 
     /**

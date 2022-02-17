@@ -52,6 +52,10 @@ public class BucketManager {
         return appId + ";" + accessKey + ";" + secretKey;
     }
 
+    public void saveBucket(Bucket bucket){
+        bucketCache.put(bucket.getBucketName() + "-" + bucket.getAppId(), bucket);
+    }
+
     public Bucket getBucket(String key){
         return bucketCache.get(key);
     }
@@ -84,5 +88,9 @@ public class BucketManager {
         }else{
             return objects.subList(offset, offset + count);
         }
+    }
+
+    public List<Bucket> snapshot(){
+        return new ArrayList<>(bucketCache.values());
     }
 }

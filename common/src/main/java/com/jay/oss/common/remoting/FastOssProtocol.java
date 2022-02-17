@@ -62,6 +62,7 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode PUT_BUCKET = new CommandCode((short)111);
     public static final CommandCode LIST_BUCKET = new CommandCode((short)112);
     public static final CommandCode CHECK_BUCKET_ACL = new CommandCode((short)113);
+    public static final CommandCode BUCKET_PUT_OBJECT = new CommandCode((short)114);
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
