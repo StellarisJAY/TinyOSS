@@ -21,6 +21,7 @@ import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.meta.BucketManager;
 import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.persistence.BucketPersistence;
 import com.jay.oss.storage.persistence.Persistence;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,6 +64,7 @@ public class StorageNode extends AbstractLifeCycle {
      */
     private final Persistence persistence;
 
+    private final BucketPersistence bucketPersistence;
     private final Registry registry;
 
     public StorageNode(int port) {
@@ -71,6 +73,7 @@ public class StorageNode extends AbstractLifeCycle {
         this.chunkManager = new ChunkManager();
         this.bucketManager = new BucketManager();
         this.persistence = new Persistence(metaManager, chunkManager);
+        this.bucketPersistence = new BucketPersistence(bucketManager);
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
@@ -89,10 +92,12 @@ public class StorageNode extends AbstractLifeCycle {
         // 加载持久化数据
         persistence.loadChunk();
         persistence.loadMeta();
+        bucketPersistence.loadBucket();
         // 提交持久化定时任务
         Scheduler.scheduleAtFixedRate(persistence::persistenceMeta, 30, 30, TimeUnit.SECONDS);
         // 添加进程关闭钩子，关闭时执行持久化任务
         Runtime.getRuntime().addShutdownHook(new Thread(persistence::persistenceMeta, "shutdown-persistence"));
+        Runtime.getRuntime().addShutdownHook(new Thread(bucketPersistence::saveBucket, "shutdown-bucket-persistence"));
         // 初始化注册中心客户端
         registry.init();
         StorageNodeInfo nodeInfo = StorageNodeInfo.builder()
