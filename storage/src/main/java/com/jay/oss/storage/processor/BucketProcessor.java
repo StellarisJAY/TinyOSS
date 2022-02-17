@@ -6,10 +6,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.acl.BucketAccessMode;
-import com.jay.oss.common.entity.Bucket;
-import com.jay.oss.common.entity.CheckBucketAclRequest;
-import com.jay.oss.common.entity.FileMeta;
-import com.jay.oss.common.entity.ListBucketRequest;
+import com.jay.oss.common.entity.*;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.AccessTokenUtil;
@@ -52,6 +49,9 @@ public class BucketProcessor extends AbstractProcessor {
             }
             else if(FastOssProtocol.CHECK_BUCKET_ACL.equals(code)){
                 checkBucketAcl(context, command);
+            }
+            else if(FastOssProtocol.BUCKET_PUT_OBJECT.equals(code)){
+                bucketPutObject(context, command);
             }
         }
     }
@@ -159,5 +159,33 @@ public class BucketProcessor extends AbstractProcessor {
             return (FastOssCommand)commandFactory
                     .createResponse(id, "SUCCESS", FastOssProtocol.SUCCESS);
         }
+    }
+
+    private void bucketPutObject(ChannelHandlerContext context, FastOssCommand command){
+        byte[] content = command.getContent();
+        BucketPutObjectRequest request = SerializeUtil.deserialize(content, BucketPutObjectRequest.class);
+
+        Bucket bucket = bucketManager.getBucket(request.getBucket());
+        FastOssCommand response;
+        if(bucket != null){
+            String accessKey = bucket.getAccessKey();
+            String secretKey = bucket.getSecretKey();
+            String token = request.getToken();
+            if(bucket.getAcl() != Acl.PUBLIC_WRITE && !AccessTokenUtil.checkAccessToken(accessKey, secretKey, token)){
+                response = (FastOssCommand) commandFactory
+                        .createResponse(command.getId(), "ACCESS DENIED", FastOssProtocol.ACCESS_DENIED);
+            }else{
+                FileMeta meta = FileMeta.builder()
+                        .key(request.getKey()).createTime(request.getCreateTime())
+                        .filename(request.getFilename()).size(request.getSize()).build();
+                bucketManager.saveMeta(request.getBucket(), meta);
+                response = (FastOssCommand) commandFactory
+                        .createResponse(command.getId(), "SUCCESS", FastOssProtocol.SUCCESS);
+            }
+        }else{
+            response = (FastOssCommand) commandFactory
+                    .createResponse(command.getId(), "NOT FOUND", FastOssProtocol.NOT_FOUND);
+        }
+        sendResponse(context, response);
     }
 }
