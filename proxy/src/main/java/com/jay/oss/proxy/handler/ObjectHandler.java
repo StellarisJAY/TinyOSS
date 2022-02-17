@@ -40,9 +40,12 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String bucket = host.trim().substring(0, host.indexOf("."));
 
         ByteBuf content = request.content();
-        uploadService.putObject(key, bucket, auth, content);
-
-        return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.OK);
+        try{
+            return uploadService.putObject(key, bucket, auth, content);
+        }catch (Exception e){
+            log.warn("put object error ", e);
+            return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Override
@@ -51,6 +54,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String key = request.uri();
         String host = headers.get("Host");
         String range = headers.get("Range");
+        String token = headers.get("Authorization");
         String bucket = host.trim().substring(0, host.indexOf("."));
         int startByte = 0;
         int endByte = -1;
@@ -65,7 +69,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
                 }
             }
         }
-        return downloadService.getObject(key, bucket, startByte, endByte);
+        return downloadService.getObject(key, bucket, token,  startByte, endByte);
     }
 
     @Override
