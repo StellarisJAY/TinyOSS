@@ -30,8 +30,8 @@ public class AppIdUtil {
         long timestamp = System.currentTimeMillis();
         if(timestamp != lastTimestamp){
             sequence = 0;
-        }else{
             lastTimestamp = timestamp;
+        }else{
             sequence++;
         }
         long value = timestamp - INITIAL_TIME << TIMESTAMP_LEFT
