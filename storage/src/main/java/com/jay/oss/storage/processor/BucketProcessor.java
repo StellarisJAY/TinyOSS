@@ -5,7 +5,9 @@ import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.acl.Acl;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.CheckBucketAclRequest;
 import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -14,6 +16,7 @@ import com.jay.oss.common.util.AccessTokenUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.storage.meta.BucketManager;
 import io.netty.channel.ChannelHandlerContext;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -25,6 +28,7 @@ import java.util.List;
  * @author Jay
  * @date 2022/02/16 11:37
  */
+@Slf4j
 public class BucketProcessor extends AbstractProcessor {
 
     private final BucketManager bucketManager;
@@ -45,6 +49,9 @@ public class BucketProcessor extends AbstractProcessor {
             }
             else if(FastOssProtocol.LIST_BUCKET.equals(code)){
                 processListBucket(context, command);
+            }
+            else if(FastOssProtocol.CHECK_BUCKET_ACL.equals(code)){
+                checkBucketAcl(context, command);
             }
         }
     }
@@ -99,4 +106,58 @@ public class BucketProcessor extends AbstractProcessor {
         sendResponse(context, response);
     }
 
+    /**
+     * 检查桶访问权限
+     * @param context context
+     * @param command command
+     */
+    private void checkBucketAcl(ChannelHandlerContext context, FastOssCommand command){
+        byte[] content = command.getContent();
+        CheckBucketAclRequest request = SerializeUtil.deserialize(content, CheckBucketAclRequest.class);
+        // 获取bucket
+        Bucket bucket = bucketManager.getBucket(request.getBucket());
+        FastOssCommand response;
+        // 检查bucket是否存在
+        if(bucket != null){
+            String accessKey = bucket.getAccessKey();
+            String secretKey = bucket.getSecretKey();
+            Acl acl = bucket.getAcl();
+            BucketAccessMode accessMode = request.getAccessMode();
+            // 读模式，acl是PRIVATE则需要检查token
+            if(accessMode == BucketAccessMode.READ && acl == Acl.PRIVATE){
+                response = checkToken(accessKey, secretKey, request.getToken(), command.getId());
+            }
+            // 写模式，acl不是PUBLIC_WRITE则需要检查token
+            else if(accessMode == BucketAccessMode.WRITE && acl != Acl.PUBLIC_WRITE){
+                response = checkToken(accessKey, secretKey, request.getToken(), command.getId());
+            }
+            else{
+                response = (FastOssCommand) commandFactory
+                        .createResponse(command.getId(), "SUCCESS", FastOssProtocol.SUCCESS);
+            }
+        }else{
+            response = (FastOssCommand)commandFactory
+                    .createResponse(command.getId(), "NOT FOUND", FastOssProtocol.NOT_FOUND);
+        }
+        sendResponse(context, response);
+    }
+
+    /**
+     * 检查token
+     * @param accessKey ak
+     * @param secretKey sk
+     * @param token token
+     * @param id id
+     * @return {@link FastOssCommand}
+     */
+    private FastOssCommand checkToken(String accessKey, String secretKey, String token, int id){
+        // 检查token
+        if(!AccessTokenUtil.checkAccessToken(accessKey, secretKey, token)){
+            return (FastOssCommand)commandFactory
+                    .createResponse(id, "ACCESS DENIED", FastOssProtocol.ACCESS_DENIED);
+        }else{
+            return (FastOssCommand)commandFactory
+                    .createResponse(id, "SUCCESS", FastOssProtocol.SUCCESS);
+        }
+    }
 }
