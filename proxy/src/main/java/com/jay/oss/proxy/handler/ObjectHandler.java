@@ -78,8 +78,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         HttpHeaders headers = request.headers();
         String host = headers.get("Host");
         String bucket = host.trim().substring(0, host.indexOf("."));
-
-        return objectService.deleteObject(key, bucket);
-
+        String token = headers.get("Authorization");
+        return objectService.deleteObject(key, bucket, token);
     }
 }

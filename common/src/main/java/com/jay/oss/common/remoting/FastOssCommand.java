@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 /**
@@ -36,6 +37,7 @@ import lombok.ToString;
  */
 @Builder
 @Getter
+@Setter
 @ToString
 public class FastOssCommand implements RemotingCommand {
 
