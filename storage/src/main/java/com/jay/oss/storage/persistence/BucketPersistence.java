@@ -46,7 +46,7 @@ public class BucketPersistence {
                 byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
                 buffer.writeInt(serialized.length);
                 buffer.writeBytes(serialized);
-                List<FileMeta> metas = bucketManager.listBucket(bucket.getBucketName() + "-" + bucket.getAppId(), 0, Integer.MAX_VALUE);
+                List<FileMeta> metas = bucketManager.listBucket(bucket.getBucketName() + "-" + bucket.getAppId(), Integer.MAX_VALUE, 0);
                 buffer.writeInt(metas.size());
                 for (FileMeta meta : metas) {
                     byte[] metaSerial = SerializeUtil.serialize(meta, FileMeta.class);
