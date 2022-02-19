@@ -5,10 +5,11 @@ import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.util.AppIdUtil;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
@@ -31,8 +32,6 @@ public class BucketManager {
      */
     private final ConcurrentHashMap<String, List<FileMeta>> objectMetas = new ConcurrentHashMap<>(256);
 
-    private final AtomicInteger appIdProvider = new AtomicInteger(0);
-
     /**
      * 添加bucket
      * @param bucket {@link Bucket}
@@ -52,18 +51,32 @@ public class BucketManager {
         return appId + ";" + accessKey + ";" + secretKey;
     }
 
+    /**
+     * 保存存储桶
+     * @param bucket {@link Bucket}
+     */
     public void saveBucket(Bucket bucket){
         bucketCache.put(bucket.getBucketName() + "-" + bucket.getAppId(), bucket);
     }
 
+    /**
+     * 获取存储桶
+     * @param key key
+     * @return {@link Bucket}
+     */
     public Bucket getBucket(String key){
         return bucketCache.get(key);
     }
 
+    /**
+     * 保存object记录
+     * @param key key
+     * @param fileMeta {@link FileMeta}
+     */
     public void saveMeta(String key, FileMeta fileMeta){
-        objectMetas.computeIfAbsent(key, k->{
-            return new CopyOnWriteArrayList<>();
-        });
+        // 创建object列表，concurrentHashMap的computeIfAbsent保证线程安全
+        objectMetas.computeIfAbsent(key, k-> new CopyOnWriteArrayList<>());
+        // copyOnWrite 添加记录
         objectMetas.get(key).add(fileMeta);
     }
 
@@ -90,6 +103,26 @@ public class BucketManager {
         }
     }
 
+    /**
+     * 删除存储桶中的object记录
+     * @param bucket 桶
+     * @param key object key
+     * @return boolean 删除是否成功
+     */
+    public boolean deleteMeta(String bucket, String key){
+        // 获取list
+        List<FileMeta> metas = objectMetas.get(bucket);
+        if(metas != null && !metas.isEmpty()){
+            // 按条件删除，该list是copyOnWriteList，保证了线程安全
+            return metas.removeIf((meta) -> meta.getKey().equals(key));
+        }
+        return false;
+    }
+
+    /**
+     * 获取存储桶缓存快照
+     * @return {@link List<Bucket>}
+     */
     public List<Bucket> snapshot(){
         return new ArrayList<>(bucketCache.values());
     }

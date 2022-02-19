@@ -45,5 +45,6 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         this.registerProcessor(FastOssProtocol.LIST_BUCKET, bucketProcessor);
         this.registerProcessor(FastOssProtocol.CHECK_BUCKET_ACL, bucketProcessor);
         this.registerProcessor(FastOssProtocol.BUCKET_PUT_OBJECT, bucketProcessor);
+        this.registerProcessor(FastOssProtocol.BUCKET_DELETE_OBJECT, bucketProcessor);
     }
 }
