@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
+import com.jay.oss.common.util.ZkUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
@@ -18,6 +19,11 @@ import java.util.concurrent.CountDownLatch;
 /**
  * <p>
  *  Zookeeper 注册中心客户端
+ *  Storage根目录：/fast-oss/storages/{group}/{url}
+ *  Storage信息：
+ *  ./fxid： 文件事务ID
+ *  ./bxid：存储桶事务ID
+ *
  * </p>
  *
  * @author Jay
@@ -26,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 @Slf4j
 public class ZookeeperRegistry implements Registry {
     private ZooKeeper zooKeeper;
+    private ZkUtil zkUtil;
     private static final String ROOT_PATH = "/fastOss/storages";
     @Override
     public void init() throws Exception{
@@ -49,6 +56,7 @@ public class ZookeeperRegistry implements Registry {
         });
         // 同步等待
         countDownLatch.await();
+        this.zkUtil = new ZkUtil(zooKeeper);
         log.info("zookeeper connected, time used: {} ms", (System.currentTimeMillis() - start));
     }
 
@@ -58,13 +66,16 @@ public class ZookeeperRegistry implements Registry {
             // 创建根目录
             ensureRootPath();
             String group = storageNodeInfo.getGroup();
-            if(zooKeeper.exists(ROOT_PATH + "/" + group, false) == null){
-                zooKeeper.create(ROOT_PATH + "/" + group, group.getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            String groupPath = ROOT_PATH + "/" + group;
+            if(!zkUtil.exists(groupPath)){
+                zkUtil.create(groupPath, group, false);
             }
             // JSON序列化
             String json = JSON.toJSONString(storageNodeInfo);
+            String path = groupPath + "/" + storageNodeInfo.getUrl();
             // 创建 临时节点
-            zooKeeper.create(ROOT_PATH + "/" + group + "/" + storageNodeInfo.getUrl(), json.getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+            zkUtil.create(path, json, true);
+            zkUtil.create(path + "/fxid", Long.toString(storageNodeInfo.getFxid()), true);
             log.info("storage node registered, group: {}", group);
         }catch (Exception e){
             log.error("register node error ", e);
@@ -78,9 +89,9 @@ public class ZookeeperRegistry implements Registry {
      * @throws Exception e
      */
     private void ensureRootPath() throws Exception{
-        if(zooKeeper.exists("/fastOss", false) == null){
-            zooKeeper.create("/fastOss", "FastOss v1.0".getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            zooKeeper.create(ROOT_PATH, "FastOss v1.0/storages".getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        if(!zkUtil.exists("/fastOss")){
+            zkUtil.create("/fastOss", "FastOss v1.0", false);
+            zkUtil.create(ROOT_PATH, "FastOss v1.0/storages", false);
         }
     }
 
@@ -88,8 +99,11 @@ public class ZookeeperRegistry implements Registry {
     public Map<String, List<StorageNodeInfo>> lookupAll() throws Exception {
         HashMap<String, List<StorageNodeInfo>> result = new HashMap<>();
         try{
-            registerWatchers();
+            // 订阅node改变事件
+            subscribeNodeChanges();
+            // 获取当前存在的所有组
             List<String> groups = zooKeeper.getChildren(ROOT_PATH, false);
+            // 查询每个组的节点信息
             for(String group : groups){
                 result.put(group, lookupGroup(group));
             }
@@ -101,13 +115,12 @@ public class ZookeeperRegistry implements Registry {
         return result;
     }
 
-    private void registerWatchers() throws InterruptedException, KeeperException {
-        zooKeeper.addWatch(ROOT_PATH, new Watcher() {
-            @Override
-            public void process(WatchedEvent watchedEvent) {
-                log.info("event: {}", watchedEvent);
-            }
-        }, AddWatchMode.PERSISTENT_RECURSIVE);
+    /**
+     * 订阅节点改变事件
+     * @throws Exception e
+     */
+    private void subscribeNodeChanges() throws Exception {
+        zkUtil.subscribe(ROOT_PATH, watchedEvent -> log.info("event: {}", watchedEvent));
     }
 
     private ArrayList<StorageNodeInfo> lookupGroup(String group) throws Exception{
