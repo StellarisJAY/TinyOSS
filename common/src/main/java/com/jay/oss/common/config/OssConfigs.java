@@ -26,6 +26,10 @@ public class OssConfigs {
     private static final String DATA_PATH = "oss.data.path";
     public static final String DEFAULT_DATA_PATH = "./data";
 
+    private static final String GROUP = "oss.storage.group";
+
+    private static final String FLUSH_INTERVAL_LOGS = "oss.edit.flush-interval-log";
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -37,5 +41,13 @@ public class OssConfigs {
 
     public static int port(){
         return ConfigsManager.getInt("server.port");
+    }
+
+    public static String storageGroup(){
+        return ConfigsManager.get(GROUP);
+    }
+
+    public static int flushIntervalLog(){
+        return ConfigsManager.getInt(FLUSH_INTERVAL_LOGS);
     }
 }
