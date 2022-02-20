@@ -19,6 +19,7 @@ import java.util.List;
 /**
  * <p>
  *  Bucket持久化工具
+ *  快照持久化
  * </p>
  *
  * @author Jay
@@ -36,19 +37,27 @@ public class BucketPersistence {
      * 持久化桶信息
      */
     public void saveBucket(){
+        // 获取存储桶快照
         List<Bucket> buckets = bucketManager.snapshot();
+        // 存储桶持久化文件目录
         String path = OssConfigs.dataPath() + "/meta/buckets.data";
         long start = System.currentTimeMillis();
         try(FileOutputStream outputStream = new FileOutputStream(path);
             FileChannel channel = outputStream.getChannel()){
             ByteBuf buffer = Unpooled.directBuffer();
             for (Bucket bucket : buckets) {
+                // 序列化存储桶信息
                 byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
+                // 写入序列化数组长度
                 buffer.writeInt(serialized.length);
+                // 写入序列化结果
                 buffer.writeBytes(serialized);
+                // listBucket
                 List<FileMeta> metas = bucketManager.listBucket(bucket.getBucketName() + "-" + bucket.getAppId(), Integer.MAX_VALUE, 0);
                 buffer.writeInt(metas.size());
+                // 写入存储桶object记录
                 for (FileMeta meta : metas) {
+                    // 序列化
                     byte[] metaSerial = SerializeUtil.serialize(meta, FileMeta.class);
                     buffer.writeInt(metaSerial.length);
                     buffer.writeBytes(metaSerial);
