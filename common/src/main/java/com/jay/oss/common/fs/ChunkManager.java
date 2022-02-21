@@ -60,11 +60,11 @@ public final class ChunkManager {
     public void offerChunk(Chunk chunk){
         BlockingQueue<Chunk> queue;
         // 保证线程安全，只有一个线程能创建新的queue
-        if((queue = chunkSizeMap.get(Chunk.MAX_CHUNK_SIZE - chunk.getSize())) == null){
+        if((queue = chunkSizeMap.get(Chunk.MAX_CHUNK_SIZE - chunk.size())) == null){
             synchronized (mutex){
-                if((queue = chunkSizeMap.get((long)chunk.getSize())) == null){
+                if((queue = chunkSizeMap.get((long)chunk.size())) == null){
                     queue = new LinkedBlockingQueue<>();
-                    chunkSizeMap.put(Chunk.MAX_CHUNK_SIZE - chunk.getSize(), queue);
+                    chunkSizeMap.put(Chunk.MAX_CHUNK_SIZE - chunk.size(), queue);
                 }
             }
         }
