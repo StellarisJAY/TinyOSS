@@ -10,17 +10,15 @@ import lombok.ToString;
  * </p>
  *
  * @author Jay
- * @date 2022/01/21 11:17
+ * @date 2022/02/21 11:22
  */
-@Getter
 @Builder
+@Getter
 @ToString
-public class UploadRequest {
+public class SelectUploadNodeRequest {
+    private String bucket;
     private String key;
-    private String filename;
+    private String token;
     private long size;
-    /**
-     * 文件的分片个数
-     */
-    private int parts;
+
 }

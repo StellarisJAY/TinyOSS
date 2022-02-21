@@ -4,7 +4,6 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.common.fs.ChunkManager;
-import com.jay.oss.common.fs.FileChunkIndex;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -79,9 +78,9 @@ public class Persistence {
                 buffer.put(filename);
                 buffer.putLong(meta.getSize());
                 buffer.putLong(meta.getCreateTime());
-                buffer.putInt(meta.getChunkIndex().getChunkId());
-                buffer.putInt(meta.getChunkIndex().getOffset());
-                buffer.put(meta.getChunkIndex().isRemoved() ? (byte)1 : (byte)0);
+                buffer.putInt(meta.getChunkId());
+                buffer.putInt(meta.getOffset());
+                buffer.put(meta.isRemoved() ? (byte)1 : (byte)0);
                 buffer.rewind();
                 fileChannel.write(buffer);
             }
@@ -113,16 +112,12 @@ public class Persistence {
                 int chunkId = buffer.getInt();
                 int offset = buffer.getInt();
                 byte removed = buffer.get();
-                // 创建文件chunk索引信息
-                FileChunkIndex chunkIndex = new FileChunkIndex(chunkId, offset, size, removed == 1);
                 String key = new String(keyBytes, StandardCharsets.UTF_8);
                 // 创建文件元数据对象
                 FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
                         .key(key).filename(new String(fileName, StandardCharsets.UTF_8))
                         .createTime(createTime).size(size)
-                        .chunkIndex(chunkIndex).build();
-                // 将文件保存到对应chunk的文件列表
-                chunkManager.getChunkById(chunkId).addFileChunkIndex(key, chunkIndex);
+                        .chunkId(chunkId).offset(offset).removed(removed == 1).build();
                 // 元数据管理器记录文件
                 metaManager.saveMeta(meta);
                 count++;

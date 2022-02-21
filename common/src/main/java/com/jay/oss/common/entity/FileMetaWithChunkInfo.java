@@ -1,6 +1,5 @@
 package com.jay.oss.common.entity;
 
-import com.jay.oss.common.fs.FileChunkIndex;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,5 +18,20 @@ public class FileMetaWithChunkInfo {
     private String filename;
     private long size;
     private long createTime;
-    private FileChunkIndex chunkIndex;
+    /**
+     * chunk 文件路径
+     */
+    private int chunkId;
+    /**
+     * 该文件数据的offset
+     */
+    private int offset;
+    /**
+     * 文件已被删除
+     */
+    private boolean removed;
+
+    public void setRemoved(boolean removed){
+        this.removed = removed;
+    }
 }

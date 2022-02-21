@@ -7,10 +7,10 @@ import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 import com.jay.oss.common.entity.UploadRequest;
+import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.fs.FileReceiver;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -90,21 +90,22 @@ public class FileUploadProcessor extends AbstractProcessor {
             computeIfAbsent 保证同一个key的meta只保存一次
          */
         metaManager.computeIfAbsent(request.getKey(), (k)->{
-            // 创建文件元数据
-            FileMeta fileMeta = FileMeta.builder().size(request.getSize())
-                    .filename(request.getFilename())
-                    .createTime(System.currentTimeMillis())
-                    .key(request.getKey())
-                    .ownerId(request.getOwnerId()).build();
-
+            // 获取chunk文件
+            Chunk chunk = chunkManager.getChunkBySize(request.getSize());
+            // 计算该文件的offset
+            int offset = chunk.getAndAddSize((int)request.getSize());
+            // 创建元数据
+            FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
+                    .chunkId(chunk.getId()).removed(false)
+                    .offset(offset).size(request.getSize())
+                    .key(request.getKey()).filename(request.getFilename())
+                    .createTime(System.currentTimeMillis()).build();
             // 创建文件接收器
-            FileReceiver receiver = FileReceiver.createFileReceiver(fileMeta, request.getParts(), chunkManager);
-            // 将文件添加到chunk中
-            FileMetaWithChunkInfo metaWithChunkInfo = receiver.addFileToChunk(fileMeta);
+            FileReceiver receiver = FileReceiver.createFileReceiver(chunk, request.getParts(), offset,  chunkManager);
             // 保存文件接收器
-            fileReceivers.putIfAbsent(fileMeta.getKey(), receiver);
+            fileReceivers.putIfAbsent(request.getKey(), receiver);
             duplicateKey.set(false);
-            return metaWithChunkInfo;
+            return meta;
         });
         // 没能够成功进行computeIfAbsent的重复的key
         if(duplicateKey.get()){
