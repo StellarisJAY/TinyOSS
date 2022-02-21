@@ -6,11 +6,10 @@ import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.util.ZkUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.Stat;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,10 +18,9 @@ import java.util.concurrent.CountDownLatch;
 /**
  * <p>
  *  Zookeeper 注册中心客户端
- *  Storage根目录：/fast-oss/storages/{group}/{url}
+ *  Storage根目录：/fast-oss/storages/{url}
  *  Storage信息：
  *  ./fxid： 文件事务ID
- *  ./bxid：存储桶事务ID
  *
  * </p>
  *
@@ -65,18 +63,12 @@ public class ZookeeperRegistry implements Registry {
         try{
             // 创建根目录
             ensureRootPath();
-            String group = storageNodeInfo.getGroup();
-            String groupPath = ROOT_PATH + "/" + group;
-            if(!zkUtil.exists(groupPath)){
-                zkUtil.create(groupPath, group, false);
-            }
             // JSON序列化
             String json = JSON.toJSONString(storageNodeInfo);
-            String path = groupPath + "/" + storageNodeInfo.getUrl();
+            String path = ROOT_PATH + "/" + storageNodeInfo.getUrl();
             // 创建 临时节点
             zkUtil.create(path, json, true);
-            zkUtil.create(path + "/fxid", Long.toString(storageNodeInfo.getFxid()), true);
-            log.info("storage node registered, group: {}", group);
+            log.info("storage node registered to zookeeper");
         }catch (Exception e){
             log.error("register node error ", e);
             throw e;
@@ -96,18 +88,20 @@ public class ZookeeperRegistry implements Registry {
     }
 
     @Override
-    public Map<String, List<StorageNodeInfo>> lookupAll() throws Exception {
-        HashMap<String, List<StorageNodeInfo>> result = new HashMap<>();
+    public Map<String, StorageNodeInfo> lookupAll() throws Exception {
+        HashMap<String, StorageNodeInfo> result = new HashMap<>();
         try{
             // 订阅node改变事件
             subscribeNodeChanges();
-            // 获取当前存在的所有组
-            List<String> groups = zooKeeper.getChildren(ROOT_PATH, false);
-            // 查询每个组的节点信息
-            for(String group : groups){
-                result.put(group, lookupGroup(group));
+            // 获取当前存在的所有storage
+            List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);
+            log.info("nodes: {}", nodes);
+            // 遍历获取每个storage信息
+            for(String path : nodes){
+                String json = zkUtil.getData(ROOT_PATH + "/" + path);
+                StorageNodeInfo nodeInfo = JSON.parseObject(json, StorageNodeInfo.class);
+                result.put(nodeInfo.getUrl(), nodeInfo);
             }
-
         }catch (Exception e){
             log.error("lookup storages error ", e);
             throw e;
@@ -121,18 +115,6 @@ public class ZookeeperRegistry implements Registry {
      */
     private void subscribeNodeChanges() throws Exception {
         zkUtil.subscribe(ROOT_PATH, watchedEvent -> log.info("event: {}", watchedEvent));
-    }
-
-    private ArrayList<StorageNodeInfo> lookupGroup(String group) throws Exception{
-        List<String> children = zooKeeper.getChildren(ROOT_PATH + "/" + group, false);
-        ArrayList<StorageNodeInfo> nodes = new ArrayList<>(children.size());
-        for(String url: children){
-            byte[] data = zooKeeper.getData(ROOT_PATH + "/" + group + "/" + url, false, new Stat());
-            String json = new String(data, StandardCharsets.UTF_8);
-            StorageNodeInfo node = JSON.parseObject(json, StorageNodeInfo.class);
-            nodes.add(node);
-        }
-        return nodes;
     }
 
 

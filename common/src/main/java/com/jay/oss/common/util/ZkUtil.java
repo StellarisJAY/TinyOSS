@@ -30,7 +30,7 @@ public class ZkUtil {
     }
 
     public boolean exists(String path) throws Exception{
-        return zooKeeper.exists(path, false) == null;
+        return zooKeeper.exists(path, false) != null;
     }
 
     public void subscribe(String path, Watcher watcher) throws Exception{
