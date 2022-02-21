@@ -18,12 +18,7 @@ import lombok.ToString;
 public class UploadRequest {
     private String key;
     private String filename;
-    private String bucket;
     private long size;
-    /**
-     * 拥有者id
-     */
-    private String ownerId;
     /**
      * 文件的分片个数
      */

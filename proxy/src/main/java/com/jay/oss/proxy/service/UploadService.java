@@ -7,19 +7,22 @@ import com.jay.dove.transport.callback.InvokeCallback;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.acl.BucketAccessMode;
-import com.jay.oss.common.entity.*;
+import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.entity.BucketPutObjectRequest;
+import com.jay.oss.common.entity.FilePart;
+import com.jay.oss.common.entity.UploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -55,23 +58,20 @@ public class UploadService {
     public FullHttpResponse putObject(String key, String bucket, String token, ByteBuf content) throws Exception {
         FullHttpResponse httpResponse;
         long size = content.readableBytes();
-        CommandCode putBucket = bucketPutObject(bucket, key, size, System.currentTimeMillis(), token);
+        // 向存储桶put object
+        FastOssCommand bucketResponse = bucketPutObject(bucket, key, size, System.currentTimeMillis(), token);
         // 向桶内添加对象记录
-        if(putBucket.equals(FastOssProtocol.SUCCESS)){
+        if(bucketResponse.getCommandCode().equals(FastOssProtocol.SUCCESS)){
             // 计算分片个数
             int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
+            // 获取上传点
+            List<Url> urls = parseUploadUrls(bucketResponse.getContent());
+            Url url = urls.get(0);
             // 创建上传请求
             UploadRequest request = UploadRequest.builder()
                     .key(bucket + key)
-                    .bucket(bucket)
-                    .filename(key)
-                    .ownerId(token)
-                    .size(size)
-                    .parts(parts)
-                    .build();
-
-            // 目标存储节点地址，从一致性HASH获取
-            Url url = Url.parseString("127.0.0.1:9999?conn=20");
+                    .filename(key).size(size)
+                    .parts(parts).build();
             // 向存储节点发送文件信息，开启上传任务
             FastOssCommand uploadHeaderResponse = uploadFileHeader(url, request);
             CommandCode responseCode = uploadHeaderResponse.getCommandCode();
@@ -79,53 +79,36 @@ public class UploadService {
             if(FastOssProtocol.SUCCESS.equals(responseCode)){
                 // 上传文件分片
                 FastOssCommand response = uploadFileParts(url, content, size, parts, bucket + key);
-                httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                httpResponse = HttpUtil.okResponse();
             }else{
                 log.warn("upload file header failed, key: {}, bucket: {}", key, bucket);
-                httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                httpResponse = HttpUtil.internalErrorResponse("upload file header failed");
             }
-        }else if(putBucket.equals(FastOssProtocol.ACCESS_DENIED)){
+        }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
+            httpResponse = HttpUtil.unauthorizedResponse("bucket access denied");
         }else{
             // bucket不存在
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
+            httpResponse = HttpUtil.notFoundResponse("bucket not found");
         }
         return httpResponse;
     }
 
-    /**
-     * 检查桶访问权限
-     * @param bucket 桶
-     * @param token AccessToken
-     * @param accessMode {@link BucketAccessMode}
-     * @return boolean
-     * @throws Exception e
-     */
-    public CommandCode checkBucket(String bucket, String token, BucketAccessMode accessMode) throws Exception{
-        // search for bucket acl and check auth
-        Url url = Url.parseString("127.0.0.1:9999");
-        CheckBucketAclRequest request = CheckBucketAclRequest.builder()
-                .accessMode(accessMode).token(token).bucket(bucket).build();
-        byte[] content = SerializeUtil.serialize(request, CheckBucketAclRequest.class);
-        // 创建check acl请求
-        FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
-                .createRequest(content, FastOssProtocol.CHECK_BUCKET_ACL);
-        // 同步发送
-        FastOssCommand response = (FastOssCommand)storageClient.sendSync(url, command, null);
-        return response.getCommandCode();
-    }
-
-    private CommandCode bucketPutObject(String bucket, String filename, long size, long createTime, String token)throws Exception{
-        Url url = Url.parseString("127.0.0.1:9999");
+    private FastOssCommand bucketPutObject(String bucket, String filename, long size, long createTime, String token)throws Exception{
+        // 获取tracker服务器地址
+        String tracker = OssConfigs.trackerServerHost();
+        Url url = Url.parseString(tracker);
+        // 创建bucket put object请求
         BucketPutObjectRequest request = BucketPutObjectRequest.builder()
                 .filename(filename).key(bucket + filename)
                 .bucket(bucket).size(size).token(token)
                 .createTime(createTime).build();
+        // 序列化
         byte[] content = SerializeUtil.serialize(request, BucketPutObjectRequest.class);
+        // 发送
         FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
                 .createRequest(content, FastOssProtocol.BUCKET_PUT_OBJECT);
-        return storageClient.sendSync(url, command, null).getCommandCode();
+        return (FastOssCommand) storageClient.sendSync(url, command, null);
     }
 
     /**
@@ -184,6 +167,16 @@ public class UploadService {
             log.warn("upload file parts failed, cause: ", e);
             throw e;
         }
+    }
+
+    private List<Url> parseUploadUrls(byte[] content){
+        String str = StringUtil.toString(content);
+        String[] urls = str.split(";");
+        List<Url> result = new ArrayList<>(urls.length);
+        for (String url : urls) {
+            result.add(Url.parseString(url));
+        }
+        return result;
     }
 
 
