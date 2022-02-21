@@ -62,8 +62,6 @@ public class ProxyNode extends AbstractLifeCycle {
     private final BucketService bucketService;
 
     private final CommandHandler commandHandler;
-
-    private final Registry registry;
     public ProxyNode() {
         httpServer = new HttpServer();
         CommandFactory commandFactory = new FastOssCommandFactory();
@@ -83,7 +81,6 @@ public class ProxyNode extends AbstractLifeCycle {
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
         bucketService = new BucketService(storageClient);
-        registry = new ZookeeperRegistry();
     }
 
     private void init() throws Exception {
@@ -95,11 +92,6 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册handler
         HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
         HandlerMapping.registerHandler("bucket", new BucketHandler(bucketService));
-        // 初始化注册中心客户端
-        registry.init();
-        // 拉取所有storage信息
-        Map<String, List<StorageNodeInfo>> storages = registry.lookupAll();
-        log.info("lookup storages finished, result: {}", storages);
     }
 
     @Override

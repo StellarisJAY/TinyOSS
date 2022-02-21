@@ -49,9 +49,13 @@ public class ConfigsManager {
         return properties.getProperty(name);
     }
 
-    public static int getInt(String name){
+    public static int getInt(String name, int defaultValue){
         String s = get(name);
-        return Integer.parseInt(s);
+        return s != null ? Integer.parseInt(s) : defaultValue;
+    }
+
+    public static int getInt(String name){
+        return getInt(name, 0);
     }
 
     public static boolean getBool(String name){

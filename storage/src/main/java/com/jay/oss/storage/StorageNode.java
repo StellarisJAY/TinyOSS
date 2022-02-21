@@ -15,7 +15,7 @@ import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
-import com.jay.oss.common.util.Scheduler;
+import com.jay.oss.common.util.NodeInfoUtil;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.EditLogManager;
@@ -23,11 +23,9 @@ import com.jay.oss.storage.meta.BucketManager;
 import com.jay.oss.storage.meta.MetaManager;
 import com.jay.oss.storage.persistence.BucketPersistence;
 import com.jay.oss.storage.persistence.Persistence;
-import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -69,8 +67,11 @@ public class StorageNode extends AbstractLifeCycle {
 
     private final EditLogManager editLogManager;
     private final Registry registry;
+    private final int port;
 
     public StorageNode(int port) {
+        ConfigsManager.loadConfigs();
+        this.port = OssConfigs.port();
         CommandFactory commandFactory = new FastOssCommandFactory();
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
@@ -89,29 +90,14 @@ public class StorageNode extends AbstractLifeCycle {
 
     private void init() throws Exception {
         Banner.printBanner();
-        // 获取存储组
-        String group = OssConfigs.storageGroup();
-        if(StringUtil.isNullOrEmpty(group)){
-            throw new IllegalArgumentException("missing storage node config: storage group");
-        }
         // 注册协议
         ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
-        // 加载持久化数据
-        persistence.loadChunk();
-        persistence.loadMeta();
-        bucketPersistence.loadBucket();
         editLogManager.init();
-
-        // 提交持久化定时任务
-        Scheduler.scheduleAtFixedRate(persistence::persistenceMeta, 30, 30, TimeUnit.SECONDS);
-        // 添加进程关闭钩子，关闭时执行持久化任务
-        Runtime.getRuntime().addShutdownHook(new Thread(persistence::persistenceMeta, "shutdown-persistence"));
-        Runtime.getRuntime().addShutdownHook(new Thread(bucketPersistence::saveBucket, "shutdown-bucket-persistence"));
-
         // 初始化注册中心客户端
         registry.init();
+        registry.register(NodeInfoUtil.getStorageNodeInfo(port, 128 * 1024 * 1024));
     }
 
 

@@ -30,6 +30,10 @@ public class OssConfigs {
 
     private static final String FLUSH_INTERVAL_LOGS = "oss.edit.flush-interval-log";
 
+    private static final String TRACKER_SERVER = "oss.tracker.host";
+
+    private static final String REPLICA = "oss.replica.count";
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -49,5 +53,13 @@ public class OssConfigs {
 
     public static int flushIntervalLog(){
         return ConfigsManager.getInt(FLUSH_INTERVAL_LOGS);
+    }
+
+    public static String trackerServerHost(){
+        return ConfigsManager.get(TRACKER_SERVER);
+    }
+
+    public static int replicaCount(){
+        return ConfigsManager.getInt(REPLICA);
     }
 }
