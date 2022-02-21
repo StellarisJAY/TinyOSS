@@ -8,7 +8,6 @@ import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.fs.Chunk;
 import com.jay.oss.common.fs.ChunkManager;
-import com.jay.oss.common.fs.FileChunkIndex;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;
@@ -51,7 +50,7 @@ public class FileDownloadProcessor extends AbstractProcessor {
     }
 
     private void processDownloadFull(ChannelHandlerContext context, int requestId, DownloadRequest request){
-        FastOssCommand response = null;
+        FastOssCommand response;
         try{
             String key = request.getKey();
             int start = request.getStart();
@@ -59,20 +58,18 @@ public class FileDownloadProcessor extends AbstractProcessor {
             FileMetaWithChunkInfo meta = metaManager.getMeta(key);
             if(meta == null){
                 response = (FastOssCommand) commandFactory.createResponse(requestId, "object not found", FastOssProtocol.OBJECT_NOT_FOUND);
-                return;
+            }else{
+                // 获取chunk
+                Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
+                // 根据下载类型计算读取长度
+                int readLength = (int)(request.isFull() ? meta.getSize() : request.getLength());
+                DefaultFileRegion fileRegion = chunk.readFile(key, start + meta.getOffset(), readLength);
+                response = (FastOssCommand) commandFactory.createResponse(requestId, fileRegion, FastOssProtocol.DOWNLOAD_RESPONSE);
             }
-            // 获取chunk索引
-            FileChunkIndex chunkIndex = meta.getChunkIndex();
-            // 获取chunk
-            Chunk chunk = chunkManager.getChunkById(chunkIndex.getChunkId());
-            // 根据下载类型计算读取长度
-            int readLength = (int)(request.isFull() ? chunkIndex.getSize() : request.getLength());
-            DefaultFileRegion fileRegion = chunk.readFile(key, start, readLength);
-            response = (FastOssCommand) commandFactory.createResponse(requestId, fileRegion, FastOssProtocol.DOWNLOAD_RESPONSE);
+            sendResponse(context, response);
         }catch (Exception e){
             log.error("process download request error: ", e);
             response = (FastOssCommand) commandFactory.createExceptionResponse(requestId, e);
-        }finally {
             sendResponse(context, response);
         }
     }
