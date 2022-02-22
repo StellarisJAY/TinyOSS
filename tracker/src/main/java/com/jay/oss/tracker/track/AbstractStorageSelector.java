@@ -1,4 +1,4 @@
-package com.jay.oss.tracker.meta;
+package com.jay.oss.tracker.track;
 
 import com.jay.oss.common.registry.StorageNodeInfo;
 
@@ -18,7 +18,7 @@ public abstract class AbstractStorageSelector implements StorageSelector{
     public List<StorageNodeInfo> select(List<StorageNodeInfo> nodes, long size, int replica) {
         // 按大小升序排序，优先选择剩余空间较多的storage
         List<StorageNodeInfo> selections = nodes.stream().sorted((o1, o2) -> (int) (o1.getSpace() - o2.getSpace()))
-                .filter((nodeInfo) -> nodeInfo.getSpace() > size)
+                .filter((nodeInfo) -> nodeInfo.isAvailable() && nodeInfo.getSpace() > size)
                 .collect(Collectors.toList());
         // 节点数量是否足够备份
         if(selections.size() <= replica){

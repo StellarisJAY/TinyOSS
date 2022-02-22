@@ -91,8 +91,6 @@ public class ZookeeperRegistry implements Registry {
     public Map<String, StorageNodeInfo> lookupAll() throws Exception {
         HashMap<String, StorageNodeInfo> result = new HashMap<>();
         try{
-            // 订阅node改变事件
-            subscribeNodeChanges();
             // 获取当前存在的所有storage
             List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);
             log.info("nodes: {}", nodes);
@@ -100,7 +98,7 @@ public class ZookeeperRegistry implements Registry {
             for(String path : nodes){
                 String json = zkUtil.getData(ROOT_PATH + "/" + path);
                 StorageNodeInfo nodeInfo = JSON.parseObject(json, StorageNodeInfo.class);
-                result.put(nodeInfo.getUrl(), nodeInfo);
+                result.put(path, nodeInfo);
             }
         }catch (Exception e){
             log.error("lookup storages error ", e);
@@ -109,12 +107,15 @@ public class ZookeeperRegistry implements Registry {
         return result;
     }
 
-    /**
-     * 订阅节点改变事件
-     * @throws Exception e
-     */
-    private void subscribeNodeChanges() throws Exception {
-        zkUtil.subscribe(ROOT_PATH, watchedEvent -> log.info("event: {}", watchedEvent));
+    @Override
+    public StorageNodeInfo lookup(String path) throws Exception {
+        String data = zkUtil.getData(path);
+        return JSON.parseObject(data, StorageNodeInfo.class);
+    }
+
+    @Override
+    public void subscribe(Watcher watcher) throws Exception{
+        zkUtil.subscribe(ROOT_PATH, watcher);
     }
 
 

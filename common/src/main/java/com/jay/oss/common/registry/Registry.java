@@ -1,6 +1,7 @@
 package com.jay.oss.common.registry;
 
-import java.util.List;
+import org.apache.zookeeper.Watcher;
+
 import java.util.Map;
 
 /**
@@ -16,6 +17,7 @@ public interface Registry {
     /**
      * 初始化注册中心客户端
      * 比如建立连接，发布订阅
+     * @throws Exception e
      */
     void init() throws Exception;
 
@@ -28,8 +30,24 @@ public interface Registry {
 
     /**
      * 查询所有注册节点
+     * @throws Exception e
      * @return {@link Map} key: groupName, value: List<Storages>
      */
-    Map<String, List<StorageNodeInfo>> lookupAll() throws Exception;
+    Map<String, StorageNodeInfo> lookupAll() throws Exception;
+
+    /**
+     * 查询单个目录下的StorageNode
+     * @param path path
+     * @return {@link StorageNodeInfo}
+     * @throws Exception e
+     */
+    StorageNodeInfo lookup(String path) throws Exception;
+
+    /**
+     * 订阅事件
+     * @param watcher 事件Watcher
+     * @throws Exception e
+     */
+    void subscribe(Watcher watcher) throws Exception;
 
 }

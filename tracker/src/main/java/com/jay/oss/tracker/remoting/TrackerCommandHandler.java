@@ -4,7 +4,7 @@ import com.jay.dove.transport.command.AbstractCommandHandler;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.tracker.meta.BucketManager;
-import com.jay.oss.tracker.meta.ObjectTracker;
+import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.processor.BucketProcessor;
 import com.jay.oss.tracker.processor.ObjectProcessor;
 import com.jay.oss.tracker.registry.StorageRegistry;

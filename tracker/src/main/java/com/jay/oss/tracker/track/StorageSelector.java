@@ -1,4 +1,4 @@
-package com.jay.oss.tracker.meta;
+package com.jay.oss.tracker.track;
 
 import com.jay.oss.common.registry.StorageNodeInfo;
 
