@@ -51,4 +51,8 @@ public class HttpUtil {
     public static FullHttpResponse unauthorizedResponse(String message){
         return createHttpResponse(HttpResponseStatus.UNAUTHORIZED, message);
     }
+
+    public static FullHttpResponse forbiddenResponse(String message){
+        return createHttpResponse(HttpResponseStatus.FORBIDDEN, message);
+    }
 }
