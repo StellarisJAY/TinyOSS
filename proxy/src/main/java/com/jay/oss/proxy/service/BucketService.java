@@ -7,6 +7,7 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.handler.codec.http.*;
 
@@ -49,7 +50,7 @@ public class BucketService {
                 .createRequest(content, FastOssProtocol.PUT_BUCKET);
 
         // 寻找目标storage地址
-        Url url = Url.parseString("127.0.0.1:9999");
+        Url url = Url.parseString("127.0.0.1:8000");
 
         FullHttpResponse httpResponse;
         try{
@@ -61,13 +62,13 @@ public class BucketService {
             String accessKey = keyPairs[1];
             String secretKey = keyPairs[2];
 
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            httpResponse = HttpUtil.okResponse();
             HttpHeaders headers = httpResponse.headers();
             headers.add("foss-AccessKey", accessKey);
             headers.add("foss-SecretKey", secretKey);
             headers.add("foss-AppId", appId);
         }catch (Exception e){
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
         }
         return httpResponse;
     }
@@ -87,16 +88,16 @@ public class BucketService {
         FastOssCommand command = (FastOssCommand)client.getCommandFactory()
                 .createRequest(content, FastOssProtocol.LIST_BUCKET);
         // 查询目标storage
-        Url url = Url.parseString("127.0.0.1:9999");
+        Url url = Url.parseString("127.0.0.1:8000");
 
         FullHttpResponse httpResponse;
         try{
             // 发送List请求
             FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+            httpResponse = HttpUtil.okResponse();
             httpResponse.content().writeBytes(response.getContent());
         }catch (Exception e){
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
         }
         return httpResponse;
     }
