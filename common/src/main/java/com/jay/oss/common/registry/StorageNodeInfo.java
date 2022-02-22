@@ -47,6 +47,8 @@ public class StorageNodeInfo {
      */
     private long space;
 
+    private boolean available = true;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
