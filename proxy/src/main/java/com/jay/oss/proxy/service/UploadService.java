@@ -86,10 +86,10 @@ public class UploadService {
             }
         }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
-            httpResponse = HttpUtil.unauthorizedResponse("bucket access denied");
+            httpResponse = HttpUtil.forbiddenResponse("Bucket Access Denied");
         }else{
             // bucket不存在
-            httpResponse = HttpUtil.notFoundResponse("bucket not found");
+            httpResponse = HttpUtil.notFoundResponse("Bucket Not Found");
         }
         return httpResponse;
     }
