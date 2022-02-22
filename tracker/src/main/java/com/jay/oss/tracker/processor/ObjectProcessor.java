@@ -1,6 +1,5 @@
 package com.jay.oss.tracker.processor;
 
-import com.alibaba.fastjson.JSON;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
@@ -11,7 +10,7 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
-import com.jay.oss.tracker.meta.ObjectTracker;
+import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;

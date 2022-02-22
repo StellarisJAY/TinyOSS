@@ -13,7 +13,7 @@ import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.tracker.meta.BucketManager;
-import com.jay.oss.tracker.meta.ObjectTracker;
+import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import lombok.extern.slf4j.Slf4j;
