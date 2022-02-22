@@ -10,6 +10,7 @@ import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -41,7 +42,7 @@ public class ObjectService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse deleteObject(String key, String bucket, String token){
-        DefaultFullHttpResponse httpResponse;
+        FullHttpResponse httpResponse;
         try{
             // 发送删除存储桶内object请求，同时验证权限
             CommandCode code = deleteObjectInBucket(key, bucket, token);
@@ -55,16 +56,16 @@ public class ObjectService {
                 Url url = Url.parseString("127.0.0.1:9999?conn=10");
                 // 同步发送
                 FastOssCommand response = (FastOssCommand)client.sendSync(url, request, null);
-                httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                httpResponse = HttpUtil.okResponse();
             }else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
                 // 无访问权限
-                httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
+                httpResponse = HttpUtil.forbiddenResponse("Access Denied");
             }else{
                 // 桶或者object不存在
-                httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
+                httpResponse = HttpUtil.notFoundResponse("Not Found");
             }
         }catch (Exception e){
-            httpResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            httpResponse = HttpUtil.internalErrorResponse("Internal server error");
         }
         return httpResponse;
     }
@@ -78,7 +79,7 @@ public class ObjectService {
      * @throws Exception e
      */
     private CommandCode deleteObjectInBucket(String key, String bucket, String token)throws Exception{
-        Url url = Url.parseString("127.0.0.1:9999");
+        Url url = Url.parseString("127.0.0.1:8000");
         DeleteObjectInBucketRequest request = DeleteObjectInBucketRequest.builder()
                 .bucket(bucket).key(key).token(token).build();
         byte[] content = SerializeUtil.serialize(request, DeleteObjectInBucketRequest.class);
