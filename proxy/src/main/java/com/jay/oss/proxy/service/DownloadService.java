@@ -8,6 +8,7 @@ import com.jay.oss.common.entity.CheckBucketAclRequest;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -64,18 +65,24 @@ public class DownloadService {
                 FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
                 // object不存在
                 if(response.getCommandCode().equals(FastOssProtocol.OBJECT_NOT_FOUND)){
-                    return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
+                    return HttpUtil.notFoundResponse("object not found");
                 }
                 content = response.getData();
-                return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
+                // 全量下载返回 200OK
+                if(commandCode.equals(FastOssProtocol.DOWNLOAD_FULL)){
+                    return HttpUtil.okResponse(content);
+                }else{
+                    // 部分下载返回206 Partial Content
+                    return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.PARTIAL_CONTENT, content);
+                }
             }
             else if(checkBucket.equals(FastOssProtocol.ACCESS_DENIED)){
                 // 无访问权限
-                return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED);
+                return HttpUtil.forbiddenResponse("access denied");
             }
             else{
                 // 桶不存在
-                return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
+                return HttpUtil.notFoundResponse("bucket not found");
             }
 
         }catch (Exception e){
@@ -95,7 +102,7 @@ public class DownloadService {
      */
     public CommandCode checkBucket(String bucket, String token, BucketAccessMode accessMode) throws Exception{
         // search for bucket acl and check auth
-        Url url = Url.parseString("127.0.0.1:9999");
+        Url url = Url.parseString("127.0.0.1:8000");
         CheckBucketAclRequest request = CheckBucketAclRequest.builder()
                 .accessMode(accessMode).token(token).bucket(bucket).build();
         byte[] content = SerializeUtil.serialize(request, CheckBucketAclRequest.class);

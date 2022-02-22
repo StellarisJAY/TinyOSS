@@ -1,5 +1,6 @@
 package com.jay.oss.proxy.handler;
 
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.http.handler.AbstractHttpRequestHandler;
 import com.jay.oss.proxy.service.BucketService;
 import io.netty.channel.ChannelHandlerContext;
@@ -33,6 +34,9 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         String bucket = host.trim().substring(0, host.indexOf("."));
         String ownerId = headers.get("Authorization");
         String acl = headers.get("foss-acl");
+        if(StringUtil.isNullOrEmpty(acl)){
+            acl = "private";
+        }
         return bucketService.putBucket(bucket, ownerId, acl);
     }
 
