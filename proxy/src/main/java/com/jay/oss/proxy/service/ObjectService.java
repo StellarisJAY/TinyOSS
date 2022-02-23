@@ -79,7 +79,7 @@ public class ObjectService {
      * @throws Exception e
      */
     private CommandCode deleteObjectInBucket(String key, String bucket, String token)throws Exception{
-        Url url = Url.parseString("127.0.0.1:8000");
+        Url url = Url.parseString(OssConfigs.trackerServerHost());
         DeleteObjectInBucketRequest request = DeleteObjectInBucketRequest.builder()
                 .bucket(bucket).key(key).token(token).build();
         byte[] content = SerializeUtil.serialize(request, DeleteObjectInBucketRequest.class);

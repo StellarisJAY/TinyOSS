@@ -34,6 +34,9 @@ public class OssConfigs {
 
     private static final String REPLICA = "oss.replica.count";
 
+    private static final String VNODE_COUNT = "oss.load-balance.vnode";
+    private static final int DEFAULT_VNODE_COUNT = 10;
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -47,19 +50,15 @@ public class OssConfigs {
         return ConfigsManager.getInt("server.port");
     }
 
-    public static String storageGroup(){
-        return ConfigsManager.get(GROUP);
-    }
-
-    public static int flushIntervalLog(){
-        return ConfigsManager.getInt(FLUSH_INTERVAL_LOGS);
-    }
-
     public static String trackerServerHost(){
         return ConfigsManager.get(TRACKER_SERVER);
     }
 
     public static int replicaCount(){
-        return ConfigsManager.getInt(REPLICA);
+        return ConfigsManager.getInt(REPLICA, 1);
+    }
+
+    public static int vnodeCount(){
+        return ConfigsManager.getInt(VNODE_COUNT, DEFAULT_VNODE_COUNT);
     }
 }
