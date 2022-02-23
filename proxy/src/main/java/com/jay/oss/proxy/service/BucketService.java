@@ -3,6 +3,7 @@ package com.jay.oss.proxy.service;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.oss.common.acl.Acl;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -50,7 +51,7 @@ public class BucketService {
                 .createRequest(content, FastOssProtocol.PUT_BUCKET);
 
         // 寻找目标storage地址
-        Url url = Url.parseString("127.0.0.1:8000");
+        Url url = Url.parseString(OssConfigs.trackerServerHost());
 
         FullHttpResponse httpResponse;
         try{
@@ -88,7 +89,7 @@ public class BucketService {
         FastOssCommand command = (FastOssCommand)client.getCommandFactory()
                 .createRequest(content, FastOssProtocol.LIST_BUCKET);
         // 查询目标storage
-        Url url = Url.parseString("127.0.0.1:8000");
+        Url url = Url.parseString(OssConfigs.trackerServerHost());
 
         FullHttpResponse httpResponse;
         try{

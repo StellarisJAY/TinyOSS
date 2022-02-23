@@ -4,6 +4,7 @@ import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.CheckBucketAclRequest;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -54,7 +55,7 @@ public class DownloadService {
                 createRequest(serialized, commandCode);
 
         // 选择storage
-        Url url = Url.parseString("127.0.0.1:9999?conn=10");
+        Url url = Url.parseString("127.0.0.1:9999");
 
         ByteBuf content;
         try{
@@ -102,7 +103,7 @@ public class DownloadService {
      */
     public CommandCode checkBucket(String bucket, String token, BucketAccessMode accessMode) throws Exception{
         // search for bucket acl and check auth
-        Url url = Url.parseString("127.0.0.1:8000");
+        Url url = Url.parseString(OssConfigs.trackerServerHost());
         CheckBucketAclRequest request = CheckBucketAclRequest.builder()
                 .accessMode(accessMode).token(token).bucket(bucket).build();
         byte[] content = SerializeUtil.serialize(request, CheckBucketAclRequest.class);
