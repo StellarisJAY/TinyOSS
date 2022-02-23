@@ -1,7 +1,9 @@
 package com.jay.oss.tracker.track;
 
+import com.google.common.hash.Hashing;
 import com.jay.oss.common.registry.StorageNodeInfo;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -41,18 +43,23 @@ public class ConsistentHashRing {
             readWriteLock.writeLock().lock();
             List<SyncSource> sources = new ArrayList<>(VIRTUAL_NODE_COUNT);
             String url = node.getUrl();
+            boolean firstNode = ring.isEmpty();
             // 添加若干虚节点
-            for(int i = 0; i < VIRTUAL_NODE_COUNT; i++){
+            for(int i = 0; i < 1; i++){
                 int hash = hash(url + i);
                 // 获取tailMap
                 SortedMap<Integer, String> tailMap = ring.tailMap(hash, true);
-                // 如果hash值之前没有节点，表示新节点是最后一个，同步源是ring的最后一个
-                int syncKey = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
-                // 圆环中的上一个节点
-                String syncUrl = ring.get(syncKey);
-                int syncStart = syncKey + 1;
-                SyncSource syncSource = new SyncSource(syncUrl, syncStart, hash);
-                sources.add(syncSource);
+                if(!firstNode){
+                    // 如果hash值之前没有节点，表示新节点是最后一个，同步源是ring的最后一个
+                    int syncKey = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
+                    // 圆环中的上一个节点
+                    String syncUrl = ring.get(syncKey);
+                    int syncStart = syncKey + 1;
+                    SyncSource syncSource = new SyncSource(syncUrl, syncStart, hash);
+                    sources.add(syncSource);
+                }
+                System.out.println(hash);
+                ring.put(hash, url);
             }
             return sources;
         }finally {
@@ -95,7 +102,23 @@ public class ConsistentHashRing {
         }
     }
 
+    /**
+     * test only
+     */
+    public void listNodes(){
+        try{
+            readWriteLock.readLock().lock();
+            SortedMap<Integer, String> map = ring.headMap(Integer.MAX_VALUE);
+            map.forEach((k, v)->System.out.println(v));
+        }finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
     private int hash(String url){
-        return url.hashCode();
+        // murmur_128 hash
+        long hash = Hashing.murmur3_128().hashString(url, StandardCharsets.UTF_8).asLong();
+        // 将long变为32位int，后32位与前32位与
+        return (int)(hash & (hash >>> 32));
     }
 }
