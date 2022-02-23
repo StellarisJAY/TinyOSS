@@ -1,6 +1,7 @@
 package com.jay.oss.tracker.track;
 
 import com.google.common.hash.Hashing;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.registry.StorageNodeInfo;
 
 import java.nio.charset.StandardCharsets;
@@ -43,9 +44,10 @@ public class ConsistentHashRing {
             readWriteLock.writeLock().lock();
             List<SyncSource> sources = new ArrayList<>(VIRTUAL_NODE_COUNT);
             String url = node.getUrl();
+            int vnode = OssConfigs.vnodeCount();
             boolean firstNode = ring.isEmpty();
             // 添加若干虚节点
-            for(int i = 0; i < 1; i++){
+            for(int i = 0; i < vnode; i++){
                 int hash = hash(url + i);
                 // 获取tailMap
                 SortedMap<Integer, String> tailMap = ring.tailMap(hash, true);
