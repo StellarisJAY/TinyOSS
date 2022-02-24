@@ -98,7 +98,9 @@ public class ZookeeperRegistry implements Registry {
             for(String path : nodes){
                 String json = zkUtil.getData(ROOT_PATH + "/" + path);
                 StorageNodeInfo nodeInfo = JSON.parseObject(json, StorageNodeInfo.class);
-                result.put(path, nodeInfo);
+                int i = path.lastIndexOf("/");
+                String url = path.substring(i + 1);
+                result.put(url, nodeInfo);
             }
         }catch (Exception e){
             log.error("lookup storages error ", e);
