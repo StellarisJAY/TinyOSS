@@ -74,6 +74,7 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
     public static final CommandCode ACCESS_DENIED = new CommandCode((short)403);
     public static final CommandCode NOT_FOUND = new CommandCode((short)404);
+    public static final CommandCode NO_ENOUGH_STORAGES = new CommandCode((short)600);
     /**
      * 默认命令处理器
      */
