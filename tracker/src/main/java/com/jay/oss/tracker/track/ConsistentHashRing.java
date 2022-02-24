@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * <p>
  *  一致性HASH环
- *  管理object与存储节点的映射关系
+ *  管理object主备份与存储节点的映射关系
  * </p>
  *
  * @author Jay
@@ -60,7 +60,6 @@ public class ConsistentHashRing {
                     SyncSource syncSource = new SyncSource(syncUrl, syncStart, hash);
                     sources.add(syncSource);
                 }
-                System.out.println(hash);
                 ring.put(hash, url);
             }
             return sources;
@@ -70,7 +69,7 @@ public class ConsistentHashRing {
     }
 
     /**
-     * 定位object
+     * 定位object主备份位置
      * @param key object key 包含桶、版本号、备份号
      * @return url
      */
