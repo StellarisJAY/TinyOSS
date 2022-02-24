@@ -12,7 +12,9 @@ import com.jay.oss.common.remoting.FastOssCodec;
 import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
+import com.jay.oss.common.util.Banner;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
@@ -30,29 +32,30 @@ import lombok.extern.slf4j.Slf4j;
 public class Tracker extends AbstractLifeCycle {
 
     private final StorageRegistry storageRegistry;
-
     private final BucketManager bucketManager;
-
     private final ObjectTracker objectTracker;
-
     private final TrackerCommandHandler commandHandler;
-
     private final DoveServer server;
-
     private final Registry registry;
+    private final ConsistentHashRing ring;
+
     public Tracker(){
         ConfigsManager.loadConfigs();
+
+        int port = OssConfigs.port();
         FastOssCommandFactory commandFactory = new FastOssCommandFactory();
-        this.storageRegistry = new StorageRegistry();
+        this.ring = new ConsistentHashRing();
+        this.storageRegistry = new StorageRegistry(ring);
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
         this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
-        this.server = new DoveServer(new FastOssCodec(), 8000, commandFactory);
+        this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
     }
 
     private void init() throws Exception {
+        Banner.printBanner();
         // 协议添加默认command handler
         FastOssProtocol fastOssProtocol = new FastOssProtocol(this.commandHandler);
         // 注册协议
