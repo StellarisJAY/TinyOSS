@@ -28,9 +28,10 @@ public class StorageRegistry {
     private final ConcurrentHashMap<String, StorageNodeInfo> storages = new ConcurrentHashMap<>();
     private Registry registry;
     private final ConsistentHashRing ring;
-    private ReplicaSelector replicaSelector;
+    private final ReplicaSelector replicaSelector;
     public StorageRegistry(ConsistentHashRing ring) {
         this.ring = ring;
+        this.replicaSelector = new SpaceBalancedReplicaSelector();
     }
 
     public void setRegistry(Registry registry) {
@@ -47,11 +48,11 @@ public class StorageRegistry {
         storages.putAll(storageNodeInfoMap);
         // 订阅节点更新事件
         registry.subscribe(new RemoteRegistryWatcher());
-        this.replicaSelector = new SpaceBalancedReplicaSelector();
     }
 
     public void addStorageNode(StorageNodeInfo node){
         storages.put(node.getUrl(), node);
+        ring.addStorageNode(node);
     }
 
     /**
@@ -131,8 +132,6 @@ public class StorageRegistry {
             // 注册表添加新节点
             StorageNodeInfo node = registry.lookup(path);
             addStorageNode(node);
-            // 一致性hash环添加新节点
-            ring.addStorageNode(node);
         }
     }
 

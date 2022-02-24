@@ -87,13 +87,26 @@ public class UploadService {
         }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
             httpResponse = HttpUtil.forbiddenResponse("Bucket Access Denied");
-        }else{
+        }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.NOT_FOUND)){
             // bucket不存在
             httpResponse = HttpUtil.notFoundResponse("Bucket Not Found");
+        }else{
+            httpResponse = HttpUtil.internalErrorResponse("No enough storages for replica");
         }
         return httpResponse;
     }
 
+    /**
+     * 想存储桶put object
+     * 同时校验访问权限 和 分配上传点
+     * @param bucket bucket
+     * @param filename 对象名称
+     * @param size 大小
+     * @param createTime 创建时间
+     * @param token 访问token
+     * @return {@link FastOssCommand}
+     * @throws Exception e
+     */
     private FastOssCommand bucketPutObject(String bucket, String filename, long size, long createTime, String token)throws Exception{
         // 获取tracker服务器地址
         String tracker = OssConfigs.trackerServerHost();

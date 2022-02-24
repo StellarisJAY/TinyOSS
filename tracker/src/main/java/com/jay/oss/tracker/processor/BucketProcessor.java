@@ -15,17 +15,19 @@ import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
 /**
  * <p>
- *
+ *  存储桶请求处理器
  * </p>
  *
  * @author Jay
  * @date 2022/02/21 10:12
  */
+@Slf4j
 public class BucketProcessor extends AbstractProcessor {
 
     private final BucketManager bucketManager;
@@ -152,7 +154,7 @@ public class BucketProcessor extends AbstractProcessor {
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
             }catch (Exception e){
                 response = (FastOssCommand) commandFactory
-                        .createResponse(command.getId(), e.getMessage(), FastOssProtocol.ACCESS_DENIED);
+                        .createResponse(command.getId(), e.getMessage(), FastOssProtocol.NO_ENOUGH_STORAGES);
             }
         }else{
             // 没有访问权限 或者 存储桶不存在
