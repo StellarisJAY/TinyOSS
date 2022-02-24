@@ -16,7 +16,8 @@ import java.util.List;
 public class SpaceBalancedReplicaSelector extends AbstractReplicaSelector{
     @Override
     public List<StorageNodeInfo> doSelect(List<StorageNodeInfo> filtered, int count) {
-        filtered.sort((n1,n2)->(int)(n1.getSpace()-n2.getSpace()));
+        // 按space大小降序排序
+        filtered.sort((n1,n2)->(int)(n2.getSpace()-n1.getSpace()));
         return filtered.subList(0, count);
     }
 }
