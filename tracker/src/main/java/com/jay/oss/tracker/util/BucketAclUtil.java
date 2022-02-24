@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
- *
+ *  Bucket ACL检验工具
  * </p>
  *
  * @author Jay
@@ -37,7 +37,6 @@ public class BucketAclUtil {
             String accessKey = bucket.getAccessKey();
             String secretKey = bucket.getSecretKey();
             Acl acl = bucket.getAcl();
-            log.info("check bucket acl for: {}", acl);
             // 检查 READ 权限
             if(accessMode == BucketAccessMode.READ){
                 // PRIVATE acl下需要检查token
