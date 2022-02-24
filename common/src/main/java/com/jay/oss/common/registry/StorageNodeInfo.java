@@ -24,25 +24,6 @@ public class StorageNodeInfo {
      */
     private String url;
     /**
-     * 存储节点组
-     */
-    private String group;
-
-    /**
-     * 存储节点在组内的角色
-     */
-    private String role;
-    /**
-     * 节点的object事务ID
-     */
-    private long fxid;
-
-    /**
-     * 节点的存储桶事务id
-     */
-    private long bxid;
-
-    /**
      * 存储节点剩余空间
      */
     private long space;

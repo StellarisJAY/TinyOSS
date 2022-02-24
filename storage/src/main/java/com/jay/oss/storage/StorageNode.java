@@ -97,7 +97,7 @@ public class StorageNode extends AbstractLifeCycle {
         editLogManager.init();
         // 初始化注册中心客户端
         registry.init();
-        registry.register(NodeInfoUtil.getStorageNodeInfo(port, 128 * 1024 * 1024));
+        registry.register(NodeInfoUtil.getStorageNodeInfo(port));
     }
 
 
