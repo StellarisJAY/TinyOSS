@@ -134,15 +134,9 @@ public class BucketProcessor extends AbstractProcessor {
         FastOssCommand response;
         // 拥有权限，完成put object
         if(code.equals(FastOssProtocol.SUCCESS)){
-            // 选择上传点
-            List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(request.getSize(), OssConfigs.replicaCount());
-
-            // 没有可用上传点
-            if(nodes == null || nodes.isEmpty()){
-                response = (FastOssCommand) commandFactory
-                        .createResponse(command.getId(), "no available storages", FastOssProtocol.ACCESS_DENIED);
-            }
-            else{
+            try{
+                // 选择上传点
+                List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(request.getKey(), request.getSize(), OssConfigs.replicaCount());
                 // 创建文件Meta
                 FileMeta meta = FileMeta.builder()
                         .key(request.getKey()).createTime(request.getCreateTime())
@@ -156,6 +150,9 @@ public class BucketProcessor extends AbstractProcessor {
                     builder.append(";");
                 }
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
+            }catch (Exception e){
+                response = (FastOssCommand) commandFactory
+                        .createResponse(command.getId(), e.getMessage(), FastOssProtocol.ACCESS_DENIED);
             }
         }else{
             // 没有访问权限 或者 存储桶不存在
