@@ -2,6 +2,7 @@ package com.jay.oss.common.remoting;
 
 import com.jay.dove.transport.HeartBeatTrigger;
 import com.jay.dove.transport.command.CommandCode;
+import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.CommandHandler;
 import com.jay.dove.transport.protocol.*;
 
@@ -32,6 +33,8 @@ public class FastOssProtocol implements Protocol {
      */
     private final ProtocolEncoder encoder = new FastOssProtocolEncoder();
 
+
+    private final CommandFactory commandFactory = new FastOssCommandFactory();
     /**
      * 上传文件头命令，该命令作用是让StorageNode开启上传流程
      */
@@ -120,5 +123,10 @@ public class FastOssProtocol implements Protocol {
     @Override
     public HeartBeatTrigger getHeartBeatTrigger() {
         return heartBeatTrigger;
+    }
+
+    @Override
+    public CommandFactory getCommandFactory() {
+        return commandFactory;
     }
 }
