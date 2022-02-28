@@ -11,9 +11,7 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.dove.util.NamedThreadFactory;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.registry.Registry;
-import com.jay.oss.common.registry.StorageNodeInfo;
-import com.jay.oss.common.registry.zk.ZookeeperRegistry;
+import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssConnectionFactory;
@@ -30,8 +28,6 @@ import com.jay.oss.proxy.service.ObjectService;
 import com.jay.oss.proxy.service.UploadService;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -53,6 +49,11 @@ public class ProxyNode extends AbstractLifeCycle {
      */
     private final HttpServer httpServer;
     /**
+     * Prometheus监控收集服务器
+     */
+    private final PrometheusServer prometheusServer;
+
+    /**
      * 存储节点访问客户端
      */
     private final DoveClient storageClient;
@@ -60,6 +61,7 @@ public class ProxyNode extends AbstractLifeCycle {
     private final DownloadService downloadService;
     private final ObjectService objectService;
     private final BucketService bucketService;
+
 
     private final CommandHandler commandHandler;
     public ProxyNode() {
@@ -81,6 +83,7 @@ public class ProxyNode extends AbstractLifeCycle {
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
         bucketService = new BucketService(storageClient);
+        prometheusServer = new PrometheusServer();
     }
 
     private void init() throws Exception {
@@ -102,6 +105,7 @@ public class ProxyNode extends AbstractLifeCycle {
             init();
             httpServer.startup();
             log.info("Proxy Node started, time used: {} ms", (System.currentTimeMillis() - start));
+            prometheusServer.startup();
         }catch (Exception e){
             throw new RuntimeException(e);
         }
