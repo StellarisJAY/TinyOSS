@@ -20,6 +20,7 @@
         <zookeeper.version>3.6.2</zookeeper.version>
         <janino.version>3.1.2</janino.version>
         <junit.version>4.12</junit.version>
+        <prometheus.version>0.9.0</prometheus.version>
     </properties>
 
     <dependencies>
@@ -68,6 +69,25 @@
             <groupId>org.codehaus.janino</groupId>
             <artifactId>janino</artifactId>
             <version>${janino.version}</version>
+        </dependency>
+
+
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient</artifactId>
+            <version>${prometheus.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_hotspot</artifactId>
+            <version>${prometheus.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.prometheus</groupId>
+            <artifactId>simpleclient_httpserver</artifactId>
+            <version>${prometheus.version}</version>
         </dependency>
     </dependencies>
 </project>
