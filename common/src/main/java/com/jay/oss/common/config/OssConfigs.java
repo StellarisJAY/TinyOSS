@@ -48,6 +48,9 @@ public class OssConfigs {
     private static final String VNODE_COUNT = "oss.load-balance.vnode";
     private static final int DEFAULT_VNODE_COUNT = 10;
 
+    private static final String PROMETHEUS_SERVER_PORT = "oss.prometheus.port";
+    private static final int DEFAULT_PROMETHEUS_PORT = 9898;
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -71,5 +74,9 @@ public class OssConfigs {
 
     public static int vnodeCount(){
         return ConfigsManager.getInt(VNODE_COUNT, DEFAULT_VNODE_COUNT);
+    }
+
+    public static int prometheusServerPort(){
+        return ConfigsManager.getInt(PROMETHEUS_SERVER_PORT, DEFAULT_PROMETHEUS_PORT);
     }
 }
