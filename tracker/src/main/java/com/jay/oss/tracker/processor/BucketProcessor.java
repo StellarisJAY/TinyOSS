@@ -6,6 +6,9 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLog;
+import com.jay.oss.common.edit.EditLogManager;
+import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.*;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -33,10 +36,12 @@ public class BucketProcessor extends AbstractProcessor {
     private final BucketManager bucketManager;
     private final StorageRegistry storageRegistry;
     private final CommandFactory commandFactory;
-    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, CommandFactory commandFactory) {
+    private final EditLogManager editLogManager;
+    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.commandFactory = commandFactory;
         this.storageRegistry = storageRegistry;
+        this.editLogManager = editLogManager;
     }
     @Override
     public void process(ChannelHandlerContext context, Object o) {
@@ -70,7 +75,11 @@ public class BucketProcessor extends AbstractProcessor {
     private void processPutBucket(ChannelHandlerContext context, FastOssCommand command){
         byte[] content = command.getContent();
         Bucket bucket = SerializeUtil.deserialize(content, Bucket.class);
-        String keyPair = bucketManager.addBucket(bucket);
+        // 保存存储桶，并生成appId、AK、SK
+        bucket = bucketManager.addBucket(bucket);
+        // 记录添加存储桶日志
+        appendAddBucketLog(bucket);
+        String keyPair = bucket.getAppId() + ";" + bucket.getAccessKey() + ";" + bucket.getSecretKey();
         FastOssCommand response = (FastOssCommand) commandFactory
                 .createResponse(command.getId(), keyPair, FastOssProtocol.SUCCESS);
         sendResponse(context, response);
@@ -145,6 +154,7 @@ public class BucketProcessor extends AbstractProcessor {
                         .filename(request.getFilename()).size(request.getSize()).build();
                 // 保存到存储桶
                 bucketManager.saveMeta(request.getBucket(), meta);
+                appendBucketPutObjectLog(meta);
                 // 拼接候选url
                 StringBuilder builder = new StringBuilder();
                 for (StorageNodeInfo node : nodes) {
@@ -153,6 +163,7 @@ public class BucketProcessor extends AbstractProcessor {
                 }
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
             }catch (Exception e){
+                log.error("bucket put object error ", e);
                 response = (FastOssCommand) commandFactory
                         .createResponse(command.getId(), e.getMessage(), FastOssProtocol.NO_ENOUGH_STORAGES);
             }
@@ -185,6 +196,7 @@ public class BucketProcessor extends AbstractProcessor {
                 response = (FastOssCommand) commandFactory
                         .createResponse(command.getId(), "", FastOssProtocol.NOT_FOUND);
             }else{
+                appendBucketDeleteObjectLog(request.getKey());
                 response = (FastOssCommand) commandFactory
                         .createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
             }
@@ -193,5 +205,23 @@ public class BucketProcessor extends AbstractProcessor {
                     .createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
+    }
+
+
+    private void appendAddBucketLog(Bucket bucket){
+        byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
+        EditLog editLog = new EditLog(EditOperation.ADD, serialized);
+        editLogManager.append(editLog);
+    }
+
+    private void appendBucketPutObjectLog(FileMeta meta){
+        byte[] serialized = SerializeUtil.serialize(meta, FileMeta.class);
+        EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
+        editLogManager.append(editLog);
+    }
+
+    private void appendBucketDeleteObjectLog(String objectKey){
+        EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, objectKey.getBytes(OssConfigs.DEFAULT_CHARSET));
+        editLogManager.append(editLog);
     }
 }

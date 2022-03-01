@@ -1,8 +1,8 @@
-package com.jay.oss.storage.edit;
+package com.jay.oss.common.edit;
 
 /**
  * <p>
- *
+ *  编辑日志操作类型
  * </p>
  *
  * @author Jay
@@ -10,11 +10,23 @@ package com.jay.oss.storage.edit;
  */
 public enum EditOperation {
     /**
-     * 删除操作
+     * 添加meta，包括object和bucket
      */
-    DELETE((byte)0),
+    ADD((byte)1),
+    /**
+     * 删除操作，包括storage删除元数据、tracker删除存储桶
+     */
+    DELETE((byte)2),
+    /**
+     * 向存储桶放入对象元数据
+     */
+    BUCKET_PUT_OBJECT((byte)3),
+    /**
+     * 删除桶内对象操作
+     */
+    BUCKET_DELETE_OBJECT((byte)4)
     ;
-    private byte code;
+    private final byte code;
 
     EditOperation(byte code) {
         this.code = code;

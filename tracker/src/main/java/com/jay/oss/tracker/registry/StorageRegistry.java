@@ -45,7 +45,9 @@ public class StorageRegistry {
     public void init() throws Exception {
         // 从远程注册中心获取所有storage信息
         Map<String, StorageNodeInfo> storageNodeInfoMap = registry.lookupAll();
-        storages.putAll(storageNodeInfoMap);
+        for (StorageNodeInfo node : storageNodeInfoMap.values()) {
+            addStorageNode(node);
+        }
         // 订阅节点更新事件
         registry.subscribe(new RemoteRegistryWatcher());
     }
@@ -69,7 +71,8 @@ public class StorageRegistry {
         // 从一致性hash环定位主备份位置
         String mainReplica = ring.locateObject(key);
         // 选择备份节点
-        List<StorageNodeInfo> result = replicaSelector.select(nodes, size, replica - 1, mainReplica);
+        List<StorageNodeInfo> result =  new ArrayList<>();
+        //replicaSelector.select(nodes, size, replica - 1, mainReplica);
         // 将主副本节点添加到列表头部
         result.add(0, storages.get(mainReplica));
         return result;

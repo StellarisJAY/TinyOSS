@@ -1,4 +1,4 @@
-package com.jay.oss.storage.edit;
+package com.jay.oss.common.edit;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,7 +7,7 @@ import lombok.ToString;
 
 /**
  * <p>
- *
+ *  编辑日志
  * </p>
  *
  * @author Jay
@@ -19,19 +19,13 @@ import lombok.ToString;
 @ToString
 public class EditLog {
     /**
-     * 事务ID
-     */
-    private long xid;
-    /**
-     * 事务类型，1 object 2 bucket
-     */
-    private byte type;
-    /**
-     * 操作类型
+     * 操作类型，添加、删除
      */
     private EditOperation operation;
     /**
-     * 操作的key
+     * 操作的内容
+     * 如果是添加，content就是元数据的序列化bytes
+     * 如果是删除，content是key的bytes
      */
-    private String key;
+    private byte[] content;
 }

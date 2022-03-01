@@ -44,10 +44,11 @@ public class DownloadService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse getObject(String key, String bucket, String token, int rangeStart, int rangeEnd){
+        String objectKey = bucket + "/" + key;
         // 根据范围判断下载类型，full或者ranged
         CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;
         // 创建下载请求
-        DownloadRequest request = new DownloadRequest(bucket + key, rangeEnd == -1, rangeStart, rangeEnd);
+        DownloadRequest request = new DownloadRequest(objectKey, rangeEnd == -1, rangeStart, rangeEnd);
         // 序列化
         byte[] serialized = SerializeUtil.serialize(request, DownloadRequest.class);
         // 创建command

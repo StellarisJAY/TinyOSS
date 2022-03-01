@@ -58,8 +58,9 @@ public class UploadService {
     public FullHttpResponse putObject(String key, String bucket, String token, ByteBuf content) throws Exception {
         FullHttpResponse httpResponse;
         long size = content.readableBytes();
+        String objectKey = bucket + "/" + key;
         // 向存储桶put object
-        FastOssCommand bucketResponse = bucketPutObject(bucket, key, size, System.currentTimeMillis(), token);
+        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, size, System.currentTimeMillis(), token);
         // 向桶内添加对象记录
         if(bucketResponse.getCommandCode().equals(FastOssProtocol.SUCCESS)){
             // 计算分片个数
@@ -69,7 +70,7 @@ public class UploadService {
             Url url = urls.get(0);
             // 创建上传请求
             UploadRequest request = UploadRequest.builder()
-                    .key(bucket + key)
+                    .key(objectKey)
                     .filename(key).size(size)
                     .parts(parts).build();
             // 向存储节点发送文件信息，开启上传任务
@@ -78,7 +79,7 @@ public class UploadService {
             // 检查上传头状态
             if(FastOssProtocol.SUCCESS.equals(responseCode)){
                 // 上传文件分片
-                FastOssCommand response = uploadFileParts(url, content, size, parts, bucket + key);
+                FastOssCommand response = uploadFileParts(url, content, size, parts, objectKey);
                 httpResponse = HttpUtil.okResponse();
             }else{
                 log.warn("upload file header failed, key: {}, bucket: {}", key, bucket);
@@ -90,8 +91,10 @@ public class UploadService {
         }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.NOT_FOUND)){
             // bucket不存在
             httpResponse = HttpUtil.notFoundResponse("Bucket Not Found");
-        }else{
+        }else if(bucketResponse.getCommandCode().equals(FastOssProtocol.NO_ENOUGH_STORAGES)){
             httpResponse = HttpUtil.internalErrorResponse("No enough storages for replica");
+        }else{
+            httpResponse = HttpUtil.internalErrorResponse("internal server error");
         }
         return httpResponse;
     }

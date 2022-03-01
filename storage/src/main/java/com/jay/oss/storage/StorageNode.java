@@ -7,6 +7,7 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -18,11 +19,8 @@ import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.NodeInfoUtil;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
-import com.jay.oss.storage.edit.EditLogManager;
-import com.jay.oss.storage.meta.BucketManager;
+import com.jay.oss.storage.edit.StorageEditLogManager;
 import com.jay.oss.storage.meta.MetaManager;
-import com.jay.oss.storage.persistence.BucketPersistence;
-import com.jay.oss.storage.persistence.Persistence;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
@@ -49,21 +47,10 @@ public class StorageNode extends AbstractLifeCycle {
      * chunk管理器
      */
     private final ChunkManager chunkManager;
-
-    /**
-     * 桶管理器
-     */
-    private final BucketManager bucketManager;
     /**
      * 命令处理器
      */
     private final StorageNodeCommandHandler commandHandler;
-    /**
-     * 持久化工具
-     */
-    private final Persistence persistence;
-
-    private final BucketPersistence bucketPersistence;
 
     private final EditLogManager editLogManager;
     private final Registry registry;
@@ -75,15 +62,12 @@ public class StorageNode extends AbstractLifeCycle {
         CommandFactory commandFactory = new FastOssCommandFactory();
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
-        this.bucketManager = new BucketManager();
-        this.persistence = new Persistence(metaManager, chunkManager);
-        this.bucketPersistence = new BucketPersistence(bucketManager);
-        this.editLogManager = new EditLogManager();
+        this.editLogManager = new StorageEditLogManager();
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
         // 命令处理器
-        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, bucketManager);
+        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, editLogManager);
         // FastOSS协议Dove服务器
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
     }
@@ -95,6 +79,8 @@ public class StorageNode extends AbstractLifeCycle {
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         editLogManager.init();
+        // 加载edit日志
+        editLogManager.loadAndCompress(this.metaManager);
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));

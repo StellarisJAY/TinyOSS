@@ -27,10 +27,6 @@ public class Bucket {
      * appId，桶的唯一表示，为了避免相同名称的桶
      */
     private long appId;
-    /**
-     * 创建者ID
-     */
-    private String ownerId;
 
     /**
      * ACL，private | public_read | public_write
