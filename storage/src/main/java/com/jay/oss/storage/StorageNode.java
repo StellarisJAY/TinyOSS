@@ -19,7 +19,6 @@ import com.jay.oss.common.util.NodeInfoUtil;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.EditLogManager;
-import com.jay.oss.storage.meta.BucketManager;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,11 +46,6 @@ public class StorageNode extends AbstractLifeCycle {
      * chunk管理器
      */
     private final ChunkManager chunkManager;
-
-    /**
-     * 桶管理器
-     */
-    private final BucketManager bucketManager;
     /**
      * 命令处理器
      */
@@ -67,13 +61,12 @@ public class StorageNode extends AbstractLifeCycle {
         CommandFactory commandFactory = new FastOssCommandFactory();
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
-        this.bucketManager = new BucketManager();
         this.editLogManager = new EditLogManager();
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
         // 命令处理器
-        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, bucketManager, editLogManager);
+        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, editLogManager);
         // FastOSS协议Dove服务器
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
     }
