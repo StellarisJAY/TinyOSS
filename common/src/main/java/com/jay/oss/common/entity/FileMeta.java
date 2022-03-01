@@ -14,9 +14,11 @@ import lombok.Getter;
 @Builder
 @Getter
 public class FileMeta {
+    /**
+     * bucket-filename-version
+     */
     private String key;
     private String filename;
     private long size;
     private long createTime;
-    private String ownerId;
 }
