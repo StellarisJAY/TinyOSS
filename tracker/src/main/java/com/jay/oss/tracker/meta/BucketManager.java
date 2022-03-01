@@ -24,18 +24,16 @@ public class BucketManager {
      * bucketKey: bucketName + appId
      */
     private final ConcurrentHashMap<String, Bucket> bucketCache = new ConcurrentHashMap<>(256);
-
     /**
      * 桶内元数据缓存
      */
     private final ConcurrentHashMap<String, List<FileMeta>> objectMetas = new ConcurrentHashMap<>(256);
-
     /**
      * 添加bucket
      * @param bucket {@link Bucket}
      * @return appId + accessKey + secretKey
      */
-    public String addBucket(Bucket bucket){
+    public Bucket addBucket(Bucket bucket){
         // 生成AppId
         long appId = AppIdUtil.getAppId();
         bucket.setAppId(appId);
@@ -46,7 +44,7 @@ public class BucketManager {
         bucket.setAccessKey(accessKey);
         bucket.setSecretKey(secretKey);
         bucketCache.put(key, bucket);
-        return appId + ";" + accessKey + ";" + secretKey;
+        return bucket;
     }
 
     /**
@@ -68,7 +66,7 @@ public class BucketManager {
 
     /**
      * 保存object记录
-     * @param key key
+     * @param key bucket key
      * @param fileMeta {@link FileMeta}
      */
     public void saveMeta(String key, FileMeta fileMeta){
