@@ -42,7 +42,6 @@ public class BucketService {
         Bucket bucket = Bucket.builder()
                 .bucketName(bucketName)
                 .acl(Acl.getAcl(acl))
-                .ownerId(ownerId)
                 .build();
         // 序列化
         byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
