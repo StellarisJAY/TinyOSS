@@ -6,6 +6,7 @@ import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCodec;
@@ -13,6 +14,7 @@ import com.jay.oss.common.remoting.FastOssCommandFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
+import com.jay.oss.tracker.edit.BucketEditLogManager;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -22,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
- *
+ *  Tracker端主类
  * </p>
  *
  * @author Jay
@@ -39,19 +41,22 @@ public class Tracker extends AbstractLifeCycle {
     private final Registry registry;
     private final ConsistentHashRing ring;
 
+    private final EditLogManager editLogManager;
+
     public Tracker(){
         ConfigsManager.loadConfigs();
-
         int port = OssConfigs.port();
         FastOssCommandFactory commandFactory = new FastOssCommandFactory();
         this.ring = new ConsistentHashRing();
         this.storageRegistry = new StorageRegistry(ring);
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
-        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, commandFactory);
+        this.editLogManager = new BucketEditLogManager();
+        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+
     }
 
     private void init() throws Exception {
@@ -63,6 +68,9 @@ public class Tracker extends AbstractLifeCycle {
         // 注册默认序列化器
         ProtostuffSerializer serializer = new ProtostuffSerializer();
         SerializerManager.registerSerializer(OssConfigs.DEFAULT_SERIALIZER, serializer);
+        // 初始化 并 加载编辑日志
+        editLogManager.init();
+        editLogManager.loadAndCompress(bucketManager);
         // 初始化远程注册中心客户端
         registry.init();
         // 初始化本地storage记录

@@ -2,6 +2,7 @@ package com.jay.oss.tracker.remoting;
 
 import com.jay.dove.transport.command.AbstractCommandHandler;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -18,9 +19,9 @@ import com.jay.oss.tracker.registry.StorageRegistry;
  */
 public class TrackerCommandHandler extends AbstractCommandHandler {
 
-    public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry, CommandFactory commandFactory) {
+    public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry, EditLogManager editLogManager, CommandFactory commandFactory) {
         super(commandFactory);
-        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, commandFactory);
+        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager, commandFactory);
 
         // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);
