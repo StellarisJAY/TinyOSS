@@ -4,11 +4,15 @@ import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.storage.edit.EditLog;
+import com.jay.oss.storage.edit.EditLogManager;
+import com.jay.oss.storage.edit.EditOperation;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -25,11 +29,13 @@ public class FileDeleteProcessor extends AbstractProcessor {
     private final ChunkManager chunkManager;
     private final MetaManager metaManager;
     private final CommandFactory commandFactory;
+    private final EditLogManager editLogManager;
 
-    public FileDeleteProcessor(ChunkManager chunkManager, MetaManager metaManager, CommandFactory commandFactory) {
+    public FileDeleteProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
         this.commandFactory = commandFactory;
+        this.editLogManager = new EditLogManager();
         //Scheduler.scheduleAtFixedRate(new CompressionTask(), Chunk.CHUNK_COMPRESSION_PERIOD * 2, Chunk.CHUNK_COMPRESSION_PERIOD, TimeUnit.MILLISECONDS);
     }
 
@@ -51,9 +57,16 @@ public class FileDeleteProcessor extends AbstractProcessor {
                 return;
             }else{
                 meta.setRemoved(true);
+                appendEditLog(request.getKey());
                 response = (FastOssCommand)commandFactory.createResponse(command.getId(), "set delete tag error", FastOssProtocol.ERROR);
             }
             sendResponse(channelHandlerContext, response);
         }
+    }
+
+    private void appendEditLog(String key){
+        byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
+        EditLog editLog = new EditLog(EditOperation.DELETE, keyBytes);
+        editLogManager.append(editLog);
     }
 }

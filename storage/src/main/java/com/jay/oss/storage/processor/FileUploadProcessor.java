@@ -15,6 +15,10 @@ import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.fs.FileReceiver;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.storage.edit.EditLog;
+import com.jay.oss.storage.edit.EditLogManager;
+import com.jay.oss.storage.edit.EditOperation;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -48,12 +52,12 @@ public class FileUploadProcessor extends AbstractProcessor {
      * 元数据管理器
      */
     private final MetaManager metaManager;
-
     private final CommandFactory commandFactory;
-
-    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, CommandFactory commandFactory) {
+    private final EditLogManager editLogManager;
+    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
+        this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
     }
 
@@ -104,6 +108,8 @@ public class FileUploadProcessor extends AbstractProcessor {
             FileReceiver receiver = FileReceiver.createFileReceiver(chunk, request.getParts(), offset,  chunkManager);
             // 保存文件接收器
             fileReceivers.putIfAbsent(request.getKey(), receiver);
+            // 追加edit日志
+            appendEditLog(meta);
             duplicateKey.set(false);
             return meta;
         });
@@ -164,5 +170,12 @@ public class FileUploadProcessor extends AbstractProcessor {
             context.channel().writeAndFlush(response);
         }
 
+    }
+
+    private void appendEditLog(FileMetaWithChunkInfo meta){
+        byte[] serialized = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
+        // 生成编辑日志
+        EditLog editLog = new EditLog(EditOperation.ADD, serialized);
+        editLogManager.append(editLog);
     }
 }

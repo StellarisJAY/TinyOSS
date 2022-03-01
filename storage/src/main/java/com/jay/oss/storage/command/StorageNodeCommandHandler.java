@@ -4,6 +4,7 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.storage.edit.EditLogManager;
 import com.jay.oss.storage.meta.BucketManager;
 import com.jay.oss.storage.meta.MetaManager;
 import com.jay.oss.storage.processor.BucketProcessor;
@@ -25,12 +26,12 @@ import java.util.concurrent.ExecutorService;
 public class StorageNodeCommandHandler extends FastOssCommandHandler {
 
     public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor,
-                                     ChunkManager chunkManager, MetaManager metaManager, BucketManager bucketManager) {
+                                     ChunkManager chunkManager, MetaManager metaManager, BucketManager bucketManager, EditLogManager editLogManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, commandFactory);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, commandFactory);
-        FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, commandFactory);
+        FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, commandFactory);
         /*
             注册处理器

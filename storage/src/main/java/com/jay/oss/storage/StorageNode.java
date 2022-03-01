@@ -73,7 +73,7 @@ public class StorageNode extends AbstractLifeCycle {
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
         // 命令处理器
-        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, bucketManager);
+        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, bucketManager, editLogManager);
         // FastOSS协议Dove服务器
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
     }
