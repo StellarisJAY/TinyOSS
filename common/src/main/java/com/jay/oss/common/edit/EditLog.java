@@ -1,4 +1,4 @@
-package com.jay.oss.storage.edit;
+package com.jay.oss.common.edit;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
