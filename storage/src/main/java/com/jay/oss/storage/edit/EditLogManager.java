@@ -41,7 +41,7 @@ public class EditLogManager {
     private int maxUnWritten;
 
     public void init(){
-        String path = "D:/edit.log";
+        String path = OssConfigs.dataPath() + "\\edit.log";
         this.maxUnWritten = 100;
         try{
             File file = new File(path);
@@ -69,6 +69,8 @@ public class EditLogManager {
             }
             ByteBuf buffer = Unpooled.directBuffer();
             buffer.writeBytes(channel, 0L, (int)channel.size());
+            int count = 0;
+            long start = System.currentTimeMillis();
             while(buffer.readableBytes() > 0){
                 byte operation = buffer.readByte();
                 int length = buffer.readInt();
@@ -77,12 +79,13 @@ public class EditLogManager {
                 EditOperation editOperation = EditOperation.get(operation);
                 if(editOperation != null){
                     switch(editOperation){
-                        case ADD: addObject(metaManager, content);break;
+                        case ADD: addObject(metaManager, content); count++;break;
                         case DELETE: deleteObject(metaManager, content);break;
                         default: break;
                     }
                 }
             }
+            log.info("load edit log finished, loaded: {} objects, time used: {}ms", count, (System.currentTimeMillis() - start));
             compress(metaManager);
         }catch (Exception e){
             log.warn("load and compress edit log error ", e);
