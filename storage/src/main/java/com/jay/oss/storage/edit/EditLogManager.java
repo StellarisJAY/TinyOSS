@@ -1,16 +1,18 @@
 package com.jay.oss.storage.edit;
 
-import com.jay.oss.storage.meta.BucketManager;
+import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * <p>
@@ -43,47 +45,99 @@ public class EditLogManager {
         this.maxUnWritten = 100;
         try{
             File file = new File(path);
-            if(!file.exists()){
-                file.createNewFile();
+            if(!file.exists() && !file.createNewFile()){
+                throw new RuntimeException("can't create edit log file");
             }
-            FileOutputStream outputStream = new FileOutputStream(file);
-            this.channel = outputStream.getChannel();
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+            this.channel = randomAccessFile.getChannel();
             this.syncBuffer = Unpooled.buffer();
         }catch (IOException e){
             throw new RuntimeException(e);
         }
     }
 
-    public void loadAndCompress(MetaManager metaManager, BucketManager bucketManager){
+    /**
+     * 节点启动时加载日志和压缩日志
+     * 加载元数据 同时根据日志删除元数据
+     * @param metaManager {@link MetaManager}
+     */
+    public void loadAndCompress(MetaManager metaManager){
         try{
-            ByteBuf buffer = Unpooled.buffer();
-            buffer.writeBytes(channel, 0, (int)channel.size());
-            while(buffer.readableBytes() > 0){
-                long xid = buffer.readLong();
-                byte type = buffer.readByte();
-                byte operation = buffer.readByte();
-                byte length = buffer.readByte();
-                byte[] keyBytes = new byte[length];
-                buffer.readBytes(keyBytes);
-                String key = new String(keyBytes, StandardCharsets.UTF_8);
+            if(channel.size() == 0){
+                log.info("No Edit Log content found, skipping loading and compression");
+                return;
             }
+            ByteBuf buffer = Unpooled.directBuffer();
+            buffer.writeBytes(channel, 0L, (int)channel.size());
+            while(buffer.readableBytes() > 0){
+                byte operation = buffer.readByte();
+                int length = buffer.readInt();
+                byte[] content = new byte[length];
+                buffer.readBytes(content);
+                EditOperation editOperation = EditOperation.get(operation);
+                if(editOperation != null){
+                    switch(editOperation){
+                        case ADD: addObject(metaManager, content);break;
+                        case DELETE: deleteObject(metaManager, content);break;
+                        default: break;
+                    }
+                }
+            }
+            compress(metaManager);
         }catch (Exception e){
-            log.warn("load edit log error ", e);
+            log.warn("load and compress edit log error ", e);
         }
     }
 
-    public void append(EditLog log){
+    /**
+     * 压缩日志
+     * 将有效的日志数据重写入日志
+     * @param metaManager {@link MetaManager}
+     * @throws IOException IOException
+     */
+    private void compress(MetaManager metaManager) throws IOException {
+        removeOldFile();
+        List<FileMetaWithChunkInfo> snapshot = metaManager.snapshot();
+        ByteBuf buffer = Unpooled.directBuffer((int)channel.size());
+        for (FileMetaWithChunkInfo meta : snapshot) {
+            buffer.writeByte(EditOperation.ADD.value());
+            byte[] content = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
+            buffer.writeInt(content.length);
+            buffer.writeBytes(content);
+        }
+        buffer.readBytes(channel, 0, buffer.readableBytes());
+    }
+
+    private void removeOldFile() throws IOException{
+        this.channel.close();
+        File file = new File("D:/edit.log");
+        if(file.delete() && file.createNewFile()){
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+            this.channel = randomAccessFile.getChannel();
+        }else{
+            throw new RuntimeException("remove old log file failed");
+        }
+    }
+
+    private void addObject(MetaManager metaManager, byte[] serialized){
+        FileMetaWithChunkInfo meta = SerializeUtil.deserialize(serialized, FileMetaWithChunkInfo.class);
+        metaManager.saveMeta(meta);
+    }
+
+    private void deleteObject(MetaManager metaManager, byte[] keyBytes){
+        String key = new String(keyBytes, OssConfigs.DEFAULT_CHARSET);
+        metaManager.delete(key);
+    }
+
+    public void append(EditLog editLog){
         /*
             因为是向同一个buffer追加数据，所以需要加锁避免多线程同时追加
          */
         synchronized (writeLock){
             // 写入syncBuffer
-            syncBuffer.writeLong(log.getXid());
-            syncBuffer.writeByte(log.getType());
-            syncBuffer.writeByte(log.getOperation().value());
-            byte[] key = log.getKey().getBytes(StandardCharsets.UTF_8);
-            syncBuffer.writeByte(key.length);
-            syncBuffer.writeBytes(key);
+            syncBuffer.writeByte(editLog.getOperation().value());
+            syncBuffer.writeInt(editLog.getContent().length);
+            syncBuffer.writeBytes(editLog.getContent());
             unWrittenLogs ++;
             // 尝试刷盘
             flush();
