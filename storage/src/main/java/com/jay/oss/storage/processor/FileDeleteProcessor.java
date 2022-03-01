@@ -5,14 +5,14 @@ import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.storage.edit.EditLog;
-import com.jay.oss.storage.edit.EditLogManager;
-import com.jay.oss.storage.edit.EditOperation;
+import com.jay.oss.common.edit.EditLog;
+import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -35,7 +35,7 @@ public class FileDeleteProcessor extends AbstractProcessor {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
         this.commandFactory = commandFactory;
-        this.editLogManager = new EditLogManager();
+        this.editLogManager = editLogManager;
         //Scheduler.scheduleAtFixedRate(new CompressionTask(), Chunk.CHUNK_COMPRESSION_PERIOD * 2, Chunk.CHUNK_COMPRESSION_PERIOD, TimeUnit.MILLISECONDS);
     }
 

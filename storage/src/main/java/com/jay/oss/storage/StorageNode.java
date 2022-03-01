@@ -7,6 +7,7 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -18,7 +19,7 @@ import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.NodeInfoUtil;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
-import com.jay.oss.storage.edit.EditLogManager;
+import com.jay.oss.storage.edit.StorageEditLogManager;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,7 +62,7 @@ public class StorageNode extends AbstractLifeCycle {
         CommandFactory commandFactory = new FastOssCommandFactory();
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
-        this.editLogManager = new EditLogManager();
+        this.editLogManager = new StorageEditLogManager();
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
