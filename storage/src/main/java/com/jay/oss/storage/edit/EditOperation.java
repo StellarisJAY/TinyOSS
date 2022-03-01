@@ -2,7 +2,7 @@ package com.jay.oss.storage.edit;
 
 /**
  * <p>
- *
+ *  编辑日志操作类型
  * </p>
  *
  * @author Jay
@@ -10,11 +10,15 @@ package com.jay.oss.storage.edit;
  */
 public enum EditOperation {
     /**
+     * 添加meta
+     */
+    ADD((byte)1),
+    /**
      * 删除操作
      */
-    DELETE((byte)0),
+    DELETE((byte)2)
     ;
-    private byte code;
+    private final byte code;
 
     EditOperation(byte code) {
         this.code = code;
