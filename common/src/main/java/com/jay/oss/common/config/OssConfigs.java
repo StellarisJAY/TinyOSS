@@ -45,7 +45,7 @@ public class OssConfigs {
      * 副本数量
      */
     private static final String REPLICA = "oss.replica.count";
-    private static final int DEFAULT_REPLICA_COUNT = 3;
+    private static final int DEFAULT_REPLICA_COUNT = 1;
 
     /**
      * 一致性hash环，虚节点数量
@@ -55,6 +55,9 @@ public class OssConfigs {
 
     private static final String PROMETHEUS_SERVER_PORT = "oss.prometheus.port";
     private static final int DEFAULT_PROMETHEUS_PORT = 9898;
+
+    private static final String EDIT_LOG_FLUSH_INTERVAL = "oss.log.flush_interval";
+    private static final int DEFAULT_EDIT_LOG_FLUSH_INTERVAL = 20 * 1000;
 
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
@@ -83,5 +86,9 @@ public class OssConfigs {
 
     public static int prometheusServerPort(){
         return ConfigsManager.getInt(PROMETHEUS_SERVER_PORT, DEFAULT_PROMETHEUS_PORT);
+    }
+
+    public static int editLogFlushInterval(){
+        return ConfigsManager.getInt(EDIT_LOG_FLUSH_INTERVAL, DEFAULT_EDIT_LOG_FLUSH_INTERVAL);
     }
 }
