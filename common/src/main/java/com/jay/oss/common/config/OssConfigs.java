@@ -1,5 +1,8 @@
 package com.jay.oss.common.config;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 /**
  * <p>
  *  FastOSS默认配置
@@ -14,6 +17,8 @@ public class OssConfigs {
      * protostuff序列化器
      */
     public static final byte PROTOSTUFF_SERIALIZER = 1;
+
+    public static final Charset DEFAULT_CHARSET =  StandardCharsets.UTF_8;
 
     /**
      * 默认序列化器
