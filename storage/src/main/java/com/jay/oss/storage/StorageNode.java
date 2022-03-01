@@ -21,8 +21,6 @@ import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.EditLogManager;
 import com.jay.oss.storage.meta.BucketManager;
 import com.jay.oss.storage.meta.MetaManager;
-import com.jay.oss.storage.persistence.BucketPersistence;
-import com.jay.oss.storage.persistence.Persistence;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
@@ -58,12 +56,6 @@ public class StorageNode extends AbstractLifeCycle {
      * 命令处理器
      */
     private final StorageNodeCommandHandler commandHandler;
-    /**
-     * 持久化工具
-     */
-    private final Persistence persistence;
-
-    private final BucketPersistence bucketPersistence;
 
     private final EditLogManager editLogManager;
     private final Registry registry;
@@ -76,8 +68,6 @@ public class StorageNode extends AbstractLifeCycle {
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
         this.bucketManager = new BucketManager();
-        this.persistence = new Persistence(metaManager, chunkManager);
-        this.bucketPersistence = new BucketPersistence(bucketManager);
         this.editLogManager = new EditLogManager();
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
@@ -95,6 +85,8 @@ public class StorageNode extends AbstractLifeCycle {
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         editLogManager.init();
+        // 加载edit日志
+        editLogManager.loadAndCompress(this.metaManager);
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));
