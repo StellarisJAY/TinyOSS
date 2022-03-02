@@ -78,6 +78,11 @@ public class Tracker extends AbstractLifeCycle {
         registry.init();
         // 初始化本地storage记录
         storageRegistry.init();
+
+        // 系统关闭hook，关闭时flush日志
+        Runtime.getRuntime().addShutdownHook(new Thread(()->{
+            editLogManager.flush(true);
+        }, "shutdown-log-flush"));
     }
 
     @Override

@@ -97,6 +97,11 @@ public class StorageNode extends AbstractLifeCycle {
                 log.warn("update storage node info error ", e);
             }
         }, 5000, 5000, TimeUnit.MILLISECONDS);
+
+        // 系统关闭hook，关闭时flush日志
+        Runtime.getRuntime().addShutdownHook(new Thread(()->{
+            editLogManager.flush(true);
+        }, "shutdown-log-flush"));
     }
 
 
