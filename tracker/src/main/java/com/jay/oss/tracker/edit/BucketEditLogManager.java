@@ -4,9 +4,10 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.Bucket;
-import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.track.ObjectTracker;
+import com.jay.oss.tracker.track.bitcask.ObjectIndex;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,13 @@ import java.util.List;
  */
 @Slf4j
 public class BucketEditLogManager extends AbstractEditLogManager {
+
+
+    private final ObjectTracker objectTracker;
+
+    public BucketEditLogManager(ObjectTracker objectTracker) {
+        this.objectTracker = objectTracker;
+    }
 
     @Override
     public void loadAndCompress(Object manager) {
@@ -52,16 +60,23 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                         switch (editOperation){
                             case ADD: saveBucket(bucketManager, content);break;
                             case DELETE: deleteBucket(bucketManager, content);break;
-                            case BUCKET_PUT_OBJECT: bucketPutObject(bucketManager, content); break;
-                            case BUCKET_DELETE_OBJECT: bucketDeleteObject(bucketManager, content); break;
+                            case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
+                            case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
                             default: break;
                         }
                     }
                 }
+                // 合并chunk文件
+                objectTracker.merge();
                 // 压缩editLog
                 compress(bucketManager);
+                /*
+                    object tracker清除内存中的已删除的key index
+                    并将合并的chunk改名
+                 */
+                objectTracker.completeMerge();
                 log.info("edit log load and compressed, time used: {}ms", (System.currentTimeMillis() - start));
-            }catch (IOException e){
+            }catch (Exception e){
                 log.error("load Bucket Edit Log Error ", e);
             }
         }
@@ -85,13 +100,17 @@ public class BucketEditLogManager extends AbstractEditLogManager {
             byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
             buffer.writeInt(content.length);
             buffer.writeBytes(content);
-            // 写入桶内所有元数据
-            List<FileMeta> metas = bucketManager.listBucket(bucket.getBucketName(), 0, Integer.MAX_VALUE);
-            for (FileMeta meta : metas) {
+        }
+        buffer.readBytes(channel, buffer.readableBytes());
+        buffer.clear();
+        // 获取所有的object index
+        List<ObjectIndex> objectIndexes = objectTracker.listIndexes();
+        for (ObjectIndex index : objectIndexes) {
+            if(!index.isRemoved()){
                 buffer.writeByte(EditOperation.BUCKET_PUT_OBJECT.value());
-                byte[] serialized = SerializeUtil.serialize(meta, FileMeta.class);
-                buffer.writeInt(serialized.length);
-                buffer.writeBytes(serialized);
+                byte[] content = SerializeUtil.serialize(index, ObjectIndex.class);
+                buffer.writeInt(content.length);
+                buffer.writeBytes(content);
             }
         }
         buffer.readBytes(channel, buffer.readableBytes());
@@ -118,16 +137,15 @@ public class BucketEditLogManager extends AbstractEditLogManager {
         String bucketKey = new String(content, OssConfigs.DEFAULT_CHARSET);
     }
 
-    private void bucketPutObject(BucketManager bucketManager, byte[] content){
-        FileMeta meta = SerializeUtil.deserialize(content, FileMeta.class);
-        String objectKey = meta.getKey();
-        String bucketKey = objectKey.substring(0, objectKey.indexOf("/"));
-        bucketManager.saveMeta(bucketKey, meta);
+    private void bucketPutObject(byte[] content){
+        ObjectIndex index = SerializeUtil.deserialize(content, ObjectIndex.class);
+        String key = index.getKey();
+        objectTracker.saveObjectIndex(key, index);
     }
 
-    private void bucketDeleteObject(BucketManager bucketManager, byte[] content){
-        String objectKey = new String(content, OssConfigs.DEFAULT_CHARSET);
-        String bucketKey = objectKey.substring(0, objectKey.indexOf("/"));
-        bucketManager.deleteMeta(bucketKey, objectKey);
+    private void bucketDeleteObject(byte[] content){
+        String key = new String(content, OssConfigs.DEFAULT_CHARSET);
+        objectTracker.deleteObject(key);
     }
+
 }
