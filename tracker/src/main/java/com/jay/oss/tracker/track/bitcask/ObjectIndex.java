@@ -1,9 +1,6 @@
 package com.jay.oss.tracker.track.bitcask;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 /**
  * <p>
@@ -16,8 +13,10 @@ import lombok.ToString;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@Setter
 @ToString
 public class ObjectIndex {
+    private String key;
     /**
      * chunk id
      */

@@ -16,6 +16,8 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
+import com.jay.oss.tracker.track.ObjectTracker;
+import com.jay.oss.tracker.track.bitcask.ObjectIndex;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -37,11 +39,15 @@ public class BucketProcessor extends AbstractProcessor {
     private final StorageRegistry storageRegistry;
     private final CommandFactory commandFactory;
     private final EditLogManager editLogManager;
-    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager, CommandFactory commandFactory) {
+    private final ObjectTracker objectTracker;
+
+    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager,
+                           ObjectTracker objectTracker, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.commandFactory = commandFactory;
         this.storageRegistry = storageRegistry;
         this.editLogManager = editLogManager;
+        this.objectTracker = objectTracker;
     }
     @Override
     public void process(ChannelHandlerContext context, Object o) {
@@ -54,9 +60,6 @@ public class BucketProcessor extends AbstractProcessor {
             }
             else if(FastOssProtocol.LIST_BUCKET.equals(code)){
                 processListBucket(context, command);
-            }
-            else if(FastOssProtocol.CHECK_BUCKET_ACL.equals(code)){
-                checkBucketAcl(context, command);
             }
             else if(FastOssProtocol.BUCKET_PUT_OBJECT.equals(code)){
                 bucketPutObject(context, command);
@@ -113,22 +116,6 @@ public class BucketProcessor extends AbstractProcessor {
     }
 
     /**
-     * 检查桶访问权限
-     * @param context context
-     * @param command command
-     */
-    private void checkBucketAcl(ChannelHandlerContext context, FastOssCommand command){
-        byte[] content = command.getContent();
-        // 反序列化请求
-        CheckBucketAclRequest request = SerializeUtil.deserialize(content, CheckBucketAclRequest.class);
-        // 检查权限，并返回response
-        CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, request.getBucket(), request.getToken(), request.getAccessMode());
-        FastOssCommand response = (FastOssCommand)commandFactory.createResponse(command.getId(), "", code);
-        // 发送response
-        sendResponse(context, response);
-    }
-
-    /**
      * 处理向桶中放入object元数据
      * @param context {@link ChannelHandlerContext}
      * @param command {@link FastOssCommand}
@@ -161,7 +148,10 @@ public class BucketProcessor extends AbstractProcessor {
                     builder.append(node.getUrl());
                     builder.append(";");
                 }
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
+                String urls = builder.toString();
+                // 保存object位置
+                objectTracker.saveObjectLocation(request.getKey(), urls);
+                response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
             }catch (Exception e){
                 log.error("bucket put object error ", e);
                 response = (FastOssCommand) commandFactory
@@ -215,7 +205,8 @@ public class BucketProcessor extends AbstractProcessor {
     }
 
     private void appendBucketPutObjectLog(FileMeta meta){
-        byte[] serialized = SerializeUtil.serialize(meta, FileMeta.class);
+        ObjectIndex index = objectTracker.getIndex(meta.getKey());
+        byte[] serialized = SerializeUtil.serialize(index, ObjectIndex.class);
         EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
         editLogManager.append(editLog);
     }
