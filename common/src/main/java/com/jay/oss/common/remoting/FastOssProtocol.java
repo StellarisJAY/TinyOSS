@@ -58,7 +58,6 @@ public class FastOssProtocol implements Protocol {
 
     public static final CommandCode DELETE_OBJECT = new CommandCode((short)107);
     public static final CommandCode LOCATE_OBJECT = new CommandCode((short)108);
-    public static final CommandCode SELECT_UPLOAD_NODE = new CommandCode((short)109);
     /**
      * 对象不存在返回
      */
@@ -81,7 +80,7 @@ public class FastOssProtocol implements Protocol {
     /**
      * 默认命令处理器
      */
-    private CommandHandler commandHandler;
+    private final CommandHandler commandHandler;
     /**
      * 默认心跳处理器
      */
@@ -114,10 +113,6 @@ public class FastOssProtocol implements Protocol {
     @Override
     public CommandHandler getCommandHandler() {
         return commandHandler;
-    }
-
-    public void setCommandHandler(CommandHandler commandHandler){
-        this.commandHandler = commandHandler;
     }
 
     @Override
