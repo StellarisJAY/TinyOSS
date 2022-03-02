@@ -1,5 +1,6 @@
 package com.jay.oss.common.util;
 
+import com.jay.oss.common.config.OssConfigs;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
@@ -35,5 +36,10 @@ public class ZkUtil {
 
     public void subscribe(String path, Watcher watcher) throws Exception{
         zooKeeper.addWatch(path, watcher, AddWatchMode.PERSISTENT_RECURSIVE);
+    }
+
+    public void setData(String path, String data) throws InterruptedException, KeeperException {
+        int version = zooKeeper.exists(path, false).getVersion();
+        zooKeeper.setData(path, data.getBytes(OssConfigs.DEFAULT_CHARSET), version);
     }
 }

@@ -75,6 +75,12 @@ public class ZookeeperRegistry implements Registry {
         }
     }
 
+    @Override
+    public void update(StorageNodeInfo storageNodeInfo) throws Exception {
+        String json = JSON.toJSONString(storageNodeInfo);
+        zkUtil.setData(ROOT_PATH + "/" + storageNodeInfo.getUrl(), json);
+    }
+
 
     /**
      * 保证根目录已创建

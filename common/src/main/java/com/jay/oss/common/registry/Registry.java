@@ -28,6 +28,8 @@ public interface Registry {
      */
     void register(StorageNodeInfo storageNodeInfo) throws Exception;
 
+    void update(StorageNodeInfo storageNodeInfo) throws Exception;
+
     /**
      * 查询所有注册节点
      * @throws Exception e
