@@ -71,7 +71,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
     @Override
     public final void flush() {
         // 判断是否到达刷盘阈值
-        if(unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastFlushTime) > OssConfigs.editLogFlushInterval()){
+        if(unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastFlushTime) >= OssConfigs.editLogFlushInterval()){
             try{
                 int length = syncBuffer.readableBytes();
                 // 写入channel
@@ -82,6 +82,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
                     unWrittenLogs = 0;
                     lastFlushTime = System.currentTimeMillis();
                     syncBuffer.clear();
+                    log.info("edit log flushed, size: {} bytes", written);
                 }
             }catch (Exception e){
                 log.warn("flush edits log error ", e);
