@@ -9,6 +9,7 @@ import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.fs.ChunkManager;
+import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCodec;
@@ -17,6 +18,7 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.NodeInfoUtil;
+import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.StorageEditLogManager;
@@ -24,6 +26,7 @@ import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -54,6 +57,7 @@ public class StorageNode extends AbstractLifeCycle {
 
     private final EditLogManager editLogManager;
     private final Registry registry;
+    private final PrometheusServer prometheusServer;
     private final int port;
 
     public StorageNode(int port) {
@@ -70,6 +74,7 @@ public class StorageNode extends AbstractLifeCycle {
         this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, editLogManager);
         // FastOSS协议Dove服务器
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+        this.prometheusServer = new PrometheusServer();
     }
 
     private void init() throws Exception {
@@ -84,6 +89,14 @@ public class StorageNode extends AbstractLifeCycle {
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));
+        // 提交定时汇报任务
+        Scheduler.scheduleAtFixedRate(()->{
+            try{
+                registry.update(NodeInfoUtil.getStorageNodeInfo(port));
+            }catch (Exception e){
+                log.warn("update storage node info error ", e);
+            }
+        }, 5000, 5000, TimeUnit.MILLISECONDS);
     }
 
 
@@ -94,6 +107,7 @@ public class StorageNode extends AbstractLifeCycle {
             long start = System.currentTimeMillis();
             init();
             server.startup();
+            prometheusServer.startup();
             log.info("Storage Node started, time used: {} ms", (System.currentTimeMillis() - start));
         }catch (Exception e){
             throw new RuntimeException(e);
