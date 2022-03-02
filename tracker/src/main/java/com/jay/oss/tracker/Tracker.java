@@ -7,6 +7,7 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLogManager;
+import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCodec;
@@ -43,6 +44,8 @@ public class Tracker extends AbstractLifeCycle {
 
     private final EditLogManager editLogManager;
 
+    private final PrometheusServer prometheusServer;
+
     public Tracker(){
         ConfigsManager.loadConfigs();
         int port = OssConfigs.port();
@@ -56,7 +59,7 @@ public class Tracker extends AbstractLifeCycle {
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
-
+        this.prometheusServer = new PrometheusServer();
     }
 
     private void init() throws Exception {
@@ -84,6 +87,7 @@ public class Tracker extends AbstractLifeCycle {
         try{
             init();
             this.server.startup();
+            prometheusServer.startup();
             log.info("tracker started, time used: {}ms", (System.currentTimeMillis() - start));
         }catch (Exception e){
             throw new RuntimeException(e);
