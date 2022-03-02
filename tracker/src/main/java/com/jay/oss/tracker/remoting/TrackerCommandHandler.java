@@ -19,9 +19,11 @@ import com.jay.oss.tracker.registry.StorageRegistry;
  */
 public class TrackerCommandHandler extends AbstractCommandHandler {
 
-    public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry, EditLogManager editLogManager, CommandFactory commandFactory) {
+    public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry,
+                                 EditLogManager editLogManager, CommandFactory commandFactory) {
         super(commandFactory);
-        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager, commandFactory);
+        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager,
+                objectTracker, commandFactory);
 
         // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);

@@ -38,6 +38,7 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                     log.info("No Bucket Edit log found, skipping loading Edit Log");
                     return;
                 }
+                long start = System.currentTimeMillis();
                 ByteBuf buffer = Unpooled.directBuffer();
                 buffer.writeBytes(channel, 0, (int)channel.size());
                 // 读取editLog
@@ -59,6 +60,7 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                 }
                 // 压缩editLog
                 compress(bucketManager);
+                log.info("edit log load and compressed, time used: {}ms", (System.currentTimeMillis() - start));
             }catch (IOException e){
                 log.error("load Bucket Edit Log Error ", e);
             }
