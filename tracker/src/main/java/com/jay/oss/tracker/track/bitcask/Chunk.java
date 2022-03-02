@@ -4,6 +4,7 @@ import com.jay.oss.common.config.OssConfigs;
 import lombok.Getter;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -24,14 +25,14 @@ public class Chunk {
     private int count;
     private int size;
     public static final int MAX_DATA_COUNT = 1024;
-    private final FileChannel activeChannel;
+    private FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
-    public Chunk() throws IOException {
+    public Chunk(boolean merge) throws IOException {
         this.count = 0;
         this.chunkId = ID_PROVIDER.getAndIncrement();
         this.size = 0;
-        String path = OssConfigs.dataPath() + "/chunks/chunk_" + chunkId;
+        String path = OssConfigs.dataPath() + "/chunks/" + (merge ? "merged_chunks" : "chunk_" + chunkId);
         File file = new File(path);
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
             throw new RuntimeException("can't make parent directory");
@@ -41,6 +42,25 @@ public class Chunk {
         }
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         this.activeChannel = randomAccessFile.getChannel();
+    }
+
+    private Chunk(int chunkId, int size, int count, FileChannel channel){
+        this.chunkId = chunkId;
+        this.size = size;
+        this.activeChannel = channel;
+    }
+
+    public static Chunk getChunkInstance(File file) throws Exception {
+        String name = file.getName();
+        int idx;
+        if(name.startsWith("chunk_") && (idx = name.lastIndexOf("_")) != -1){
+            int chunkId = Integer.parseInt(name.substring(idx + 1));
+            int size = (int)file.length();
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+            FileChannel channel = randomAccessFile.getChannel();
+            return new Chunk(chunkId, size, 0, channel);
+        }
+        return null;
     }
 
     /**
@@ -91,5 +111,13 @@ public class Chunk {
 
     public boolean isWritable(){
         return count < MAX_DATA_COUNT;
+    }
+
+    public void closeChannel() throws IOException {
+        activeChannel.close();
+    }
+
+    public void resetChannel(FileChannel channel){
+        this.activeChannel = channel;
     }
 }
