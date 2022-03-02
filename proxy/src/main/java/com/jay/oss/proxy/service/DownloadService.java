@@ -7,6 +7,7 @@ import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.CheckBucketAclRequest;
 import com.jay.oss.common.entity.DownloadRequest;
+import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.HttpUtil;
@@ -55,14 +56,14 @@ public class DownloadService {
         FastOssCommand command = (FastOssCommand)client.getCommandFactory().
                 createRequest(serialized, commandCode);
 
-        // 选择storage
-        Url url = Url.parseString("127.0.0.1:9999");
-
         ByteBuf content;
         try{
-            // 检查存储桶
-            CommandCode checkBucket = checkBucket(bucket, token, BucketAccessMode.READ);
-            if(checkBucket.equals(FastOssProtocol.SUCCESS)){
+            FastOssCommand locateResponse = locateObject(objectKey, bucket, token);
+            CommandCode code = locateResponse.getCommandCode();
+            if(code.equals(FastOssProtocol.SUCCESS)){
+                String respContent = new String(locateResponse.getContent(), OssConfigs.DEFAULT_CHARSET);
+                String[] urls = respContent.split(";");
+                Url url = Url.parseString(urls[0]);
                 // 发送下载请求
                 FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
                 // object不存在
@@ -77,8 +78,7 @@ public class DownloadService {
                     // 部分下载返回206 Partial Content
                     return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.PARTIAL_CONTENT, content);
                 }
-            }
-            else if(checkBucket.equals(FastOssProtocol.ACCESS_DENIED)){
+            } else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
                 // 无访问权限
                 return HttpUtil.forbiddenResponse("access denied");
             }
@@ -93,26 +93,13 @@ public class DownloadService {
         }
     }
 
-
-    /**
-     * 检查桶访问权限
-     * @param bucket 桶
-     * @param token AccessToken
-     * @param accessMode {@link BucketAccessMode}
-     * @return boolean
-     * @throws Exception e
-     */
-    public CommandCode checkBucket(String bucket, String token, BucketAccessMode accessMode) throws Exception{
-        // search for bucket acl and check auth
+    public FastOssCommand locateObject(String key, String bucket, String token) throws Exception {
         Url url = Url.parseString(OssConfigs.trackerServerHost());
-        CheckBucketAclRequest request = CheckBucketAclRequest.builder()
-                .accessMode(accessMode).token(token).bucket(bucket).build();
-        byte[] content = SerializeUtil.serialize(request, CheckBucketAclRequest.class);
-        // 创建check acl请求
+        LocateObjectRequest request = new LocateObjectRequest(key, bucket, token);
+        byte[] content = SerializeUtil.serialize(request, LocateObjectRequest.class);
         FastOssCommand command = (FastOssCommand) client.getCommandFactory()
-                .createRequest(content, FastOssProtocol.CHECK_BUCKET_ACL);
+                .createRequest(content, FastOssProtocol.LOCATE_OBJECT);
         // 同步发送
-        FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
-        return response.getCommandCode();
+        return (FastOssCommand)client.sendSync(url, command, null);
     }
 }
