@@ -202,6 +202,7 @@ public class ObjectTracker {
             FileChannel chunk0Channel = raf.getChannel();
             long transferred = this.activeChunk.getActiveChannel().transferTo(0, activeChunk.getSize(), chunk0Channel);
             log.info("transferred: {}", transferred);
+            this.activeChunk.closeChannel();
             this.activeChunk.resetChannel(chunk0Channel);
             file.delete();
         }
