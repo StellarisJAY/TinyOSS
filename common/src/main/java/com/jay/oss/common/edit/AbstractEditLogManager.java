@@ -38,7 +38,6 @@ public abstract class AbstractEditLogManager implements EditLogManager{
     public void init() {
         this.maxUnWritten = 100;
         String path = OssConfigs.dataPath() + "\\edit.log";
-        this.maxUnWritten = 100;
         try{
             File file = new File(path);
             if(!file.exists() && !file.createNewFile()){
@@ -46,6 +45,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
             }
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             this.channel = randomAccessFile.getChannel();
+            channel.force(false);
             this.syncBuffer = Unpooled.buffer();
         }catch (IOException e){
             throw new RuntimeException(e);
@@ -105,5 +105,14 @@ public abstract class AbstractEditLogManager implements EditLogManager{
 
     public void setLastFlushTime(long lastFlushTime) {
         this.lastFlushTime = lastFlushTime;
+    }
+
+    @Override
+    public final void close(){
+        try{
+            channel.close();
+        }catch (IOException e){
+            log.warn("failed to close channel");
+        }
     }
 }

@@ -88,7 +88,7 @@ public class Tracker extends AbstractLifeCycle {
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()-> editLogManager.flush(true), "shutdown-log-flush"));
         // 定时flush任务
-        Scheduler.scheduleAtFixedRate(()-> editLogManager.flush(true), OssConfigs.editLogFlushInterval(), OssConfigs.editLogFlushInterval(), TimeUnit.MILLISECONDS);
+        Scheduler.scheduleAtFixedRate(()-> {editLogManager.flush(true);editLogManager.close();}, OssConfigs.editLogFlushInterval(), OssConfigs.editLogFlushInterval(), TimeUnit.MILLISECONDS);
     }
 
     @Override

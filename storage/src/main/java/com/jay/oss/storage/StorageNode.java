@@ -107,6 +107,7 @@ public class StorageNode extends AbstractLifeCycle {
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
             editLogManager.flush(true);
+            editLogManager.close();
         }, "shutdown-log-flush"));
     }
 

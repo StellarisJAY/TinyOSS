@@ -31,4 +31,9 @@ public interface EditLogManager {
      * @param manager 元数据Manager
      */
     void loadAndCompress(Object manager);
+
+    /**
+     * 关闭EditLogManager
+     */
+    void close();
 }
