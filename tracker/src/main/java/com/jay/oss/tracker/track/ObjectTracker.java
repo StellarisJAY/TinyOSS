@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,9 +62,10 @@ public class ObjectTracker {
                 Chunk chunk = Chunk.getChunkInstance(chunkFile);
                 if(chunk != null){
                     // 添加到chunk集合
-                    chunks.add(chunk.getChunkId(), chunk);
+                    chunks.add(chunk);
                 }
             }
+            chunks.sort(Comparator.comparingInt(Chunk::getChunkId));
         }
     }
 
@@ -158,6 +161,7 @@ public class ObjectTracker {
                 chunk.closeChannel();
                 iterator.remove();
             }
+            this.activeChunk = mergedChunk;
         }
     }
 
@@ -187,14 +191,19 @@ public class ObjectTracker {
     }
 
     private void resetActiveChunk() throws IOException {
-        this.activeChunk.closeChannel();
-        String path = OssConfigs.dataPath() + "/chunks/merged_chunk";
-        File file = new File(path);
-        File renamed = new File(OssConfigs.dataPath() + "/chunks/chunk_0");
-        if(!file.renameTo(renamed)){
-            throw new RuntimeException("can't rename merged chunk file");
+        if(this.activeChunk != null){
+            String path = OssConfigs.dataPath() + "/chunks/merged_chunk";
+            File file = new File(path);
+            File chunk0 = new File(OssConfigs.dataPath() + "/chunks/chunk_0");
+            if(!chunk0.exists() && !chunk0.createNewFile()){
+                throw new RuntimeException("can't move merged chunks into chunk0");
+            }
+            RandomAccessFile raf = new RandomAccessFile(chunk0, "rw");
+            FileChannel chunk0Channel = raf.getChannel();
+            long transferred = this.activeChunk.getActiveChannel().transferTo(0, activeChunk.getSize(), chunk0Channel);
+            log.info("transferred: {}", transferred);
+            this.activeChunk.resetChannel(chunk0Channel);
+            file.delete();
         }
-        RandomAccessFile randomAccessFile = new RandomAccessFile(renamed, "rw");
-        this.activeChunk.resetChannel(randomAccessFile.getChannel());
     }
 }
