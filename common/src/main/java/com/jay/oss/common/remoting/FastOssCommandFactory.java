@@ -115,11 +115,21 @@ public class FastOssCommandFactory implements CommandFactory {
 
     @Override
     public RemotingCommand createExceptionResponse(int id, String s) {
-        return null;
+        byte[] content = s.getBytes(OssConfigs.DEFAULT_CHARSET);
+        return FastOssCommand.builder()
+                .id(id).commandCode(FastOssProtocol.ERROR)
+                .content(content).length(FastOssProtocol.HEADER_LENGTH + content.length)
+                .timeout(System.currentTimeMillis() * 2)
+                .serializer(OssConfigs.DEFAULT_SERIALIZER).build();
     }
 
     @Override
     public RemotingCommand createExceptionResponse(int id, Throwable throwable) {
-        return null;
+        byte[] content = throwable.getMessage().getBytes(OssConfigs.DEFAULT_CHARSET);
+        return FastOssCommand.builder()
+                .id(id).commandCode(FastOssProtocol.ERROR)
+                .content(content).length(FastOssProtocol.HEADER_LENGTH + content.length)
+                .timeout(System.currentTimeMillis() * 2)
+                .serializer(OssConfigs.DEFAULT_SERIALIZER).build();
     }
 }
