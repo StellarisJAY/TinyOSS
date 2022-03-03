@@ -126,6 +126,8 @@ public class BucketProcessor extends AbstractProcessor {
         BucketPutObjectRequest request = SerializeUtil.deserialize(content, BucketPutObjectRequest.class);
         String bucket = request.getBucket();
         String token = request.getToken();
+        String objectKey = request.getKey();
+        long size = request.getSize();
         // 检查存储桶访问权限
         CommandCode code = BucketAclUtil
                 .checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
@@ -134,13 +136,7 @@ public class BucketProcessor extends AbstractProcessor {
         if(code.equals(FastOssProtocol.SUCCESS)){
             try{
                 // 选择上传点
-                List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(request.getKey(), request.getSize(), OssConfigs.replicaCount());
-                // 创建文件Meta
-                FileMeta meta = FileMeta.builder()
-                        .key(request.getKey()).createTime(request.getCreateTime())
-                        .filename(request.getFilename()).size(request.getSize()).build();
-                // 保存到存储桶
-                bucketManager.saveMeta(request.getBucket(), meta);
+                List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
                 // 拼接候选url
                 StringBuilder builder = new StringBuilder();
                 for (StorageNodeInfo node : nodes) {
@@ -149,8 +145,9 @@ public class BucketProcessor extends AbstractProcessor {
                 }
                 String urls = builder.toString();
                 // 保存object位置
-                objectTracker.saveObjectLocation(request.getKey(), urls);
-                appendBucketPutObjectLog(meta);
+                objectTracker.saveObjectLocation(objectKey, urls);
+                // 日志记录put object
+                appendBucketPutObjectLog(objectKey);
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
             }catch (Exception e){
                 log.error("bucket put object error ", e);
@@ -204,8 +201,8 @@ public class BucketProcessor extends AbstractProcessor {
         editLogManager.append(editLog);
     }
 
-    private void appendBucketPutObjectLog(FileMeta meta){
-        ObjectIndex index = objectTracker.getIndex(meta.getKey());
+    private void appendBucketPutObjectLog(String objectKey){
+        ObjectIndex index = objectTracker.getIndex(objectKey);
         byte[] serialized = SerializeUtil.serialize(index, ObjectIndex.class);
         EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
         editLogManager.append(editLog);
