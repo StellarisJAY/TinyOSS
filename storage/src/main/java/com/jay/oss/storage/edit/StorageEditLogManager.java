@@ -84,7 +84,7 @@ public class StorageEditLogManager extends AbstractEditLogManager {
     private void removeOldFile() throws IOException{
         FileChannel channel = getChannel();
         channel.close();
-        File file = new File("D:/edit.log");
+        File file = new File(OssConfigs.dataPath() + "/edit.log");
         if(file.delete() && file.createNewFile()){
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             setChannel(randomAccessFile.getChannel());
