@@ -47,6 +47,7 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                     return;
                 }
                 long start = System.currentTimeMillis();
+                int count = 0;
                 ByteBuf buffer = Unpooled.directBuffer();
                 buffer.writeBytes(channel, 0, (int)channel.size());
                 // 读取editLog
@@ -58,7 +59,7 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                     EditOperation editOperation = EditOperation.get(operation);
                     if(editOperation != null){
                         switch (editOperation){
-                            case ADD: saveBucket(bucketManager, content);break;
+                            case ADD: saveBucket(bucketManager, content); count++;break;
                             case DELETE: deleteBucket(bucketManager, content);break;
                             case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
                             case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
@@ -75,7 +76,7 @@ public class BucketEditLogManager extends AbstractEditLogManager {
                     并将合并的chunk改名
                  */
                 objectTracker.completeMerge();
-                log.info("edit log load and compressed, time used: {}ms", (System.currentTimeMillis() - start));
+                log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
             }catch (Exception e){
                 log.error("load Bucket Edit Log Error ", e);
             }
