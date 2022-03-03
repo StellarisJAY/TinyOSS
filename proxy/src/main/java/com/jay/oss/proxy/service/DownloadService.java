@@ -80,11 +80,14 @@ public class DownloadService {
                 }
             } else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
                 // 无访问权限
-                return HttpUtil.forbiddenResponse("access denied");
+                return HttpUtil.forbiddenResponse("Access Denied");
+            }
+            else if(code.equals(FastOssProtocol.OBJECT_NOT_FOUND)){
+                // 桶不存在
+                return HttpUtil.notFoundResponse("Object Not Found");
             }
             else{
-                // 桶不存在
-                return HttpUtil.notFoundResponse("bucket not found");
+                return HttpUtil.notFoundResponse("Bucket Not Found");
             }
 
         }catch (Exception e){
