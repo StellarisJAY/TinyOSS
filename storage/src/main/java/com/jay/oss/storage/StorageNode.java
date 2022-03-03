@@ -98,6 +98,10 @@ public class StorageNode extends AbstractLifeCycle {
             }
         }, 5000, 5000, TimeUnit.MILLISECONDS);
 
+        Scheduler.scheduleAtFixedRate(()->editLogManager.flush(true),
+                OssConfigs.editLogFlushInterval(),
+                OssConfigs.editLogFlushInterval(),
+                TimeUnit.MILLISECONDS);
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
             editLogManager.flush(true);
