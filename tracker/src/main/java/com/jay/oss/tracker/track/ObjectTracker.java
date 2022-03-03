@@ -204,6 +204,7 @@ public class ObjectTracker {
             log.info("transferred: {}", transferred);
             this.activeChunk.closeChannel();
             this.activeChunk.resetChannel(chunk0Channel);
+            chunks.add(this.activeChunk);
             file.delete();
         }
     }
