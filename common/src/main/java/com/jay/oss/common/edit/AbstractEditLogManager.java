@@ -70,22 +70,27 @@ public abstract class AbstractEditLogManager implements EditLogManager{
 
     @Override
     public final void flush(boolean force) {
-        // 判断是否到达刷盘阈值
-        if(force || unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastFlushTime) >= OssConfigs.editLogFlushInterval()){
-            try{
-                int length = syncBuffer.readableBytes();
-                // 写入channel
-                int written = syncBuffer.readBytes(channel, length);
-                // 判断是否完全写入
-                if(written == length){
-                    // 重置未写入数量 和 syncBuffer
-                    unWrittenLogs = 0;
-                    lastFlushTime = System.currentTimeMillis();
-                    syncBuffer.clear();
-                    log.info("edit log flushed, size: {} bytes", written);
+        synchronized (writeLock){
+            if(syncBuffer.readableBytes() > 0){
+                // 判断是否到达刷盘阈值
+                if(force || unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastFlushTime) >= OssConfigs.editLogFlushInterval()){
+                    try{
+                        int length = syncBuffer.readableBytes();
+                        long offset = channel.size();
+                        // 写入channel
+                        int written = syncBuffer.readBytes(channel, offset, length);
+                        // 判断是否完全写入
+                        if(written == length){
+                            // 重置未写入数量 和 syncBuffer
+                            unWrittenLogs = 0;
+                            lastFlushTime = System.currentTimeMillis();
+                            syncBuffer.clear();
+                            log.info("edit log flushed, size: {} bytes", written);
+                        }
+                    }catch (Exception e){
+                        log.warn("flush edits log error ", e);
+                    }
                 }
-            }catch (Exception e){
-                log.warn("flush edits log error ", e);
             }
         }
     }

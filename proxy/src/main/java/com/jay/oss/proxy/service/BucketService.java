@@ -33,11 +33,10 @@ public class BucketService {
     /**
      * put bucket
      * @param bucketName 桶名称
-     * @param ownerId 创建者ID
      * @param acl 访问权限
      * @return {@link FullHttpResponse}
      */
-    public FullHttpResponse putBucket(String bucketName, String ownerId, String acl){
+    public FullHttpResponse putBucket(String bucketName, String acl){
         // 创建桶
         Bucket bucket = Bucket.builder()
                 .bucketName(bucketName)

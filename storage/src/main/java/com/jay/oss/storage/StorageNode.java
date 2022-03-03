@@ -86,6 +86,8 @@ public class StorageNode extends AbstractLifeCycle {
         editLogManager.init();
         // 加载edit日志
         editLogManager.loadAndCompress(this.metaManager);
+        // 加载chunk文件
+        chunkManager.loadChunk();
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));
@@ -98,6 +100,10 @@ public class StorageNode extends AbstractLifeCycle {
             }
         }, 5000, 5000, TimeUnit.MILLISECONDS);
 
+        Scheduler.scheduleAtFixedRate(()->editLogManager.flush(true),
+                OssConfigs.editLogFlushInterval(),
+                OssConfigs.editLogFlushInterval(),
+                TimeUnit.MILLISECONDS);
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
             editLogManager.flush(true);

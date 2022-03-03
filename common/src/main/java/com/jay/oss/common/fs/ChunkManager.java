@@ -1,5 +1,9 @@
 package com.jay.oss.common.fs;
 
+import com.jay.oss.common.config.OssConfigs;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jay
  * @date 2022/01/17 15:44
  */
+@Slf4j
 public final class ChunkManager {
     /**
      * chunkSizeMap
@@ -93,5 +98,34 @@ public final class ChunkManager {
 
     public List<Chunk> listChunks(){
         return new ArrayList<>(chunkMap.values());
+    }
+
+    /**
+     * 从文件系统加载chunk信息
+     * 最终记录在内存中
+     */
+    public void loadChunk(){
+        File file = new File(OssConfigs.dataPath());
+        File[] chunkFiles = file.listFiles(((dir, name) -> name.startsWith("chunk_")));
+        if(chunkFiles == null){
+            log.info("no chunk file found, skipping chunk loading");
+            return;
+        }
+        long start = System.nanoTime();
+        int count = 0;
+        // 遍历chunk目录
+        for(File chunkFile : chunkFiles){
+            if(!chunkFile.isDirectory()){
+                // 解析chunkID
+                String name = chunkFile.getName();
+                int chunkId = Integer.parseInt(name.substring(name.indexOf("_") + 1));
+                // 创建chunk对象
+                Chunk chunk = new Chunk(chunkFile.getPath(), chunkFile, chunkId);
+                // 添加到chunkManager
+                this.offerChunk(chunk);
+                count ++;
+            }
+        }
+        log.info("load chunk finished, loaded: {} chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
     }
 }

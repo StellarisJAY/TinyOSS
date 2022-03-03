@@ -60,7 +60,7 @@ public class UploadService {
         long size = content.readableBytes();
         String objectKey = bucket + "/" + key;
         // 向存储桶put object
-        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, size, System.currentTimeMillis(), token);
+        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token);
         // 向桶内添加对象记录
         if(bucketResponse.getCommandCode().equals(FastOssProtocol.SUCCESS)){
             // 计算分片个数
@@ -104,19 +104,20 @@ public class UploadService {
      * 同时校验访问权限 和 分配上传点
      * @param bucket bucket
      * @param filename 对象名称
+     * @param objectKey Object key
      * @param size 大小
      * @param createTime 创建时间
      * @param token 访问token
      * @return {@link FastOssCommand}
      * @throws Exception e
      */
-    private FastOssCommand bucketPutObject(String bucket, String filename, long size, long createTime, String token)throws Exception{
+    private FastOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token)throws Exception{
         // 获取tracker服务器地址
         String tracker = OssConfigs.trackerServerHost();
         Url url = Url.parseString(tracker);
         // 创建bucket put object请求
         BucketPutObjectRequest request = BucketPutObjectRequest.builder()
-                .filename(filename).key(bucket + filename)
+                .filename(filename).key(objectKey)
                 .bucket(bucket).size(size).token(token)
                 .createTime(createTime).build();
         // 序列化
