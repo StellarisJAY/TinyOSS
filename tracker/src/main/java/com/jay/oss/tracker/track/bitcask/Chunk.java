@@ -37,8 +37,8 @@ public class Chunk {
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
             throw new RuntimeException("can't make parent directory");
         }
-        if(!file.createNewFile()){
-            throw new RuntimeException("can't create chunk file");
+        if(!file.exists() && !file.createNewFile()){
+            throw new RuntimeException("can't create chunk file " + file);
         }
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         this.activeChannel = randomAccessFile.getChannel();
