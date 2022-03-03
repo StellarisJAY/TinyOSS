@@ -86,6 +86,8 @@ public class StorageNode extends AbstractLifeCycle {
         editLogManager.init();
         // 加载edit日志
         editLogManager.loadAndCompress(this.metaManager);
+        // 加载chunk文件
+        chunkManager.loadChunk();
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));
