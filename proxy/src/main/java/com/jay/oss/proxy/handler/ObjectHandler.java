@@ -34,7 +34,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     @Override
     public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
         HttpHeaders headers = request.headers();
-        String key = request.uri();
+        String key = request.uri().substring(1);
         String host = headers.get("Host");
         String auth = headers.get("Authorization");
         String bucket = host.trim().substring(0, host.indexOf("."));
@@ -51,7 +51,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     @Override
     public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
         HttpHeaders headers = request.headers();
-        String key = request.uri();
+        String key = request.uri().substring(1);
         String host = headers.get("Host");
         String range = headers.get("Range");
         String token = headers.get("Authorization");
