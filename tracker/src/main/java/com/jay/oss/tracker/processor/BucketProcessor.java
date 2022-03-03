@@ -141,7 +141,6 @@ public class BucketProcessor extends AbstractProcessor {
                         .filename(request.getFilename()).size(request.getSize()).build();
                 // 保存到存储桶
                 bucketManager.saveMeta(request.getBucket(), meta);
-                appendBucketPutObjectLog(meta);
                 // 拼接候选url
                 StringBuilder builder = new StringBuilder();
                 for (StorageNodeInfo node : nodes) {
@@ -151,6 +150,7 @@ public class BucketProcessor extends AbstractProcessor {
                 String urls = builder.toString();
                 // 保存object位置
                 objectTracker.saveObjectLocation(request.getKey(), urls);
+                appendBucketPutObjectLog(meta);
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
             }catch (Exception e){
                 log.error("bucket put object error ", e);
