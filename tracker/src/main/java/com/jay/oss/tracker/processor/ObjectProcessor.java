@@ -13,6 +13,7 @@ import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
@@ -23,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
  * @author Jay
  * @date 2022/03/02 12:07
  */
+@Slf4j
 public class ObjectProcessor extends AbstractProcessor {
 
     private final BucketManager bucketManager;
@@ -56,19 +58,18 @@ public class ObjectProcessor extends AbstractProcessor {
         LocateObjectRequest request = SerializeUtil.deserialize(content, LocateObjectRequest.class);
         String bucket = request.getBucket();
         String token = request.getToken();
-
+        String objectKey = request.getObjectKey();
         FastOssCommand response;
         // 检查存储桶访问权限
         CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.READ);
         if(FastOssProtocol.SUCCESS.equals(code)){
             // 定位object
-            String urls = objectTracker.locateObject(request.getObjectKey());
+            String urls = objectTracker.locateObject(objectKey);
             if(StringUtil.isNullOrEmpty(urls)){
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "Object Not Found", FastOssProtocol.NOT_FOUND);
+                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "Object Not Found", FastOssProtocol.OBJECT_NOT_FOUND);
             }else{
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }
-
         }else{
             response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", code);
         }
