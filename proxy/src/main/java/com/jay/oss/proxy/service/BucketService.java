@@ -8,9 +8,11 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.HttpUtil;
+import com.jay.oss.proxy.entity.Result;
+import com.jay.oss.proxy.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.handler.codec.http.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 
@@ -22,6 +24,7 @@ import java.nio.charset.StandardCharsets;
  * @author Jay
  * @date 2022/02/16 11:19
  */
+@Slf4j
 public class BucketService {
 
     private final DoveClient client;
@@ -61,12 +64,15 @@ public class BucketService {
             String accessKey = keyPairs[1];
             String secretKey = keyPairs[2];
 
-            httpResponse = HttpUtil.okResponse();
-            HttpHeaders headers = httpResponse.headers();
-            headers.add("foss-AccessKey", accessKey);
-            headers.add("foss-SecretKey", secretKey);
-            headers.add("foss-AppId", appId);
+            Result result = new Result();
+            result.setMessage("success");
+            result.putData("foss-AccessKey", accessKey);
+            result.putData("foss-SecretKey", secretKey);
+            result.putData("foss-AppId", appId);
+            httpResponse = HttpUtil.okResponse(result);
+            httpResponse.headers().set("Content-Type", "application/json");
         }catch (Exception e){
+            log.warn("Put Bucket Error ", e);
             httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
         }
         return httpResponse;

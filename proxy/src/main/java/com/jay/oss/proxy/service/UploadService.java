@@ -14,7 +14,7 @@ import com.jay.oss.common.entity.UploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.HttpUtil;
+import com.jay.oss.proxy.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import io.netty.buffer.ByteBuf;
