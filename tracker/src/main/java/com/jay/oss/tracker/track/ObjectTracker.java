@@ -1,17 +1,10 @@
 package com.jay.oss.tracker.track;
 
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.tracker.track.bitcask.Chunk;
-import com.jay.oss.tracker.track.bitcask.ObjectIndex;
+import com.jay.oss.common.bitcask.BitCaskStorage;
+import com.jay.oss.common.bitcask.Index;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,20 +25,9 @@ public class ObjectTracker {
      */
     private final ConcurrentHashMap<String, String> locationCache = new ConcurrentHashMap<>();
     /**
-     * index cache
+     * BitCask存储模型
      */
-    private final ConcurrentHashMap<String, ObjectIndex> indexCache = new ConcurrentHashMap<>();
-
-    /**
-     * chunk list
-     */
-    private final List<Chunk> chunks = new ArrayList<>();
-
-    /**
-     * 当前活跃chunk
-     */
-    private Chunk activeChunk = null;
-    private final Object writeLock = new Object();
+    private final BitCaskStorage bitCaskStorage = new BitCaskStorage("location");
 
     /**
      * 初始化object tracker
@@ -53,33 +35,15 @@ public class ObjectTracker {
      * @throws Exception e
      */
     public void init() throws Exception {
-        String path = OssConfigs.dataPath() + "/chunks";
-        File directory = new File(path);
-        File[] files = directory.listFiles();
-        if(files != null){
-            for(File chunkFile : files){
-                // 从文件创建chunk instance
-                Chunk chunk = Chunk.getChunkInstance(chunkFile);
-                if(chunk != null){
-                    // 添加到chunk集合
-                    chunks.add(chunk);
-                }
-            }
-            chunks.sort(Comparator.comparingInt(Chunk::getChunkId));
-        }
+        bitCaskStorage.init();
     }
 
     public String locateObject(String objectKey){
         try{
             String urls = locationCache.get(objectKey);
             if(urls == null){
-                ObjectIndex index = indexCache.get(objectKey);
-                if(index != null){
-                    Chunk chunk = chunks.get(index.getChunkId());
-                    byte[] value = chunk.read(index.getOffset());
-                    urls = new String(value, OssConfigs.DEFAULT_CHARSET);
-                    locationCache.put(objectKey, urls);
-                }
+                byte[] value = bitCaskStorage.get(objectKey);
+                return value != null ? new String(value, OssConfigs.DEFAULT_CHARSET) : null;
             }
             return urls;
         }catch (Exception e){
@@ -94,118 +58,37 @@ public class ObjectTracker {
      * @param urls 位置urls
      */
     public void saveObjectLocation(String objectKey, String urls){
-        synchronized (writeLock){
-            try{
-                byte[] keyBytes = objectKey.getBytes(OssConfigs.DEFAULT_CHARSET);
-                byte[] urlBytes = urls.getBytes(OssConfigs.DEFAULT_CHARSET);
-                // 检查当前chunk是否可写入
-                if(activeChunk == null || !activeChunk.isWritable()){
-                    // 创建新chunk
-                    activeChunk = new Chunk(false);
-                    chunks.add(activeChunk);
-                }
-                // 写入数据
-                int offset = activeChunk.write(keyBytes, urlBytes);
-                // 记录索引
-                ObjectIndex index = new ObjectIndex(objectKey, activeChunk.getChunkId(), offset, false);
-                indexCache.put(objectKey, index);
-            }catch (Exception e){
-                log.error("Failed to save object location ", e);
-            }
+        try{
+            byte[] urlBytes = urls.getBytes(OssConfigs.DEFAULT_CHARSET);
+            bitCaskStorage.put(objectKey, urlBytes);
+        }catch (Exception e){
+            log.error("Failed to save object location ", e);
         }
     }
 
-    public ObjectIndex getIndex(String key){
-        return indexCache.get(key);
+    public Index getIndex(String key){
+        return bitCaskStorage.getIndex(key);
     }
 
-    public void saveObjectIndex(String key, ObjectIndex objectIndex){
-        indexCache.put(key, objectIndex);
+    public void saveObjectIndex(String key, Index index){
+        bitCaskStorage.saveIndex(key, index);
     }
 
     public void deleteObject(String key){
-        indexCache.computeIfPresent(key, (k, value) -> {
-            value.setRemoved(true);
-            return value;
-        });
+        locationCache.remove(key);
+        bitCaskStorage.delete(key);
     }
 
     /**
-     * 合并chunk文件
-     * 该操作在启动时会执行
-     * 也会在空闲时由后台线程执行
+     * BitCask存储模型merge
      */
     public void merge() throws Exception {
-        synchronized (writeLock){
-            Chunk mergedChunk = new Chunk(true);
-            for (ObjectIndex index : indexCache.values()) {
-                String key = index.getKey();
-                if(!index.isRemoved()){
-                    // 获取原来的chunk
-                    Chunk chunk = chunks.get(index.getChunkId());
-                    if(chunk != null){
-                        // 从原来的chunk读取数据
-                        byte[] content = chunk.read(index.getOffset());
-                        // 写入新chunk
-                        int offset = mergedChunk.write(key.getBytes(OssConfigs.DEFAULT_CHARSET), content);
-                        // 重置index的offset和chunkId
-                        index.setOffset(offset);
-                        index.setChunkId(0);
-                    }
-                }
-            }
-            // 内存中删除其他chunk的对象
-            Iterator<Chunk> iterator = chunks.iterator();
-            while(iterator.hasNext()){
-                Chunk chunk = iterator.next();
-                chunk.closeChannel();
-                iterator.remove();
-            }
-            this.activeChunk = mergedChunk;
-        }
+        bitCaskStorage.init();
+        bitCaskStorage.merge();
+        bitCaskStorage.completeMerge();
     }
 
-    public List<ObjectIndex> listIndexes(){
-        return new ArrayList<>(indexCache.values());
-    }
-
-    public void completeMerge() throws IOException {
-        // 删除被无效的index
-        for (String key : indexCache.keySet()) {
-            if(indexCache.get(key).isRemoved()){
-                indexCache.remove(key);
-            }
-        }
-        // 删除已经合并完成的chunk文件
-        String path = OssConfigs.dataPath() + "/chunks";
-        File directory = new File(path);
-        File[] files = directory.listFiles((dir, name) -> name.startsWith("chunk_"));
-        if(files != null){
-            for(File chunkFile : files){
-                if(!chunkFile.delete()){
-                    log.warn("failed to delete chunk file");
-                }
-            }
-        }
-        resetActiveChunk();
-    }
-
-    private void resetActiveChunk() throws IOException {
-        if(this.activeChunk != null){
-            String path = OssConfigs.dataPath() + "/chunks/merged_chunk";
-            File file = new File(path);
-            File chunk0 = new File(OssConfigs.dataPath() + "/chunks/chunk_0");
-            if(!chunk0.exists() && !chunk0.createNewFile()){
-                throw new RuntimeException("can't move merged chunks into chunk0");
-            }
-            RandomAccessFile raf = new RandomAccessFile(chunk0, "rw");
-            FileChannel chunk0Channel = raf.getChannel();
-            long transferred = this.activeChunk.getActiveChannel().transferTo(0, activeChunk.getSize(), chunk0Channel);
-            log.info("transferred: {}", transferred);
-            this.activeChunk.closeChannel();
-            this.activeChunk.resetChannel(chunk0Channel);
-            chunks.add(this.activeChunk);
-            file.delete();
-        }
+    public List<Index> listIndexes(){
+        return bitCaskStorage.listIndex();
     }
 }

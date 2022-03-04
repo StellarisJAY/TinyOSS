@@ -1,10 +1,10 @@
-package com.jay.oss.tracker.track.bitcask;
+package com.jay.oss.common.bitcask;
 
 import lombok.*;
 
 /**
  * <p>
- *  Object 位置信息index
+ *  BitCask存储模型索引
  * </p>
  *
  * @author Jay
@@ -15,7 +15,7 @@ import lombok.*;
 @Getter
 @Setter
 @ToString
-public class ObjectIndex {
+public class Index {
     private String key;
     /**
      * chunk id

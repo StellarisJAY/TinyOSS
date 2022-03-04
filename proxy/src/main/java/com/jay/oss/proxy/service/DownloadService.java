@@ -3,14 +3,14 @@ package com.jay.oss.proxy.service;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.entity.CheckBucketAclRequest;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.HttpUtil;
+import com.jay.oss.proxy.cache.CacheValue;
+import com.jay.oss.proxy.cache.ObjectLocationCache;
+import com.jay.oss.proxy.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DownloadService {
     private final DoveClient client;
-
     public DownloadService(DoveClient client) {
         this.client = client;
     }

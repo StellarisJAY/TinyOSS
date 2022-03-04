@@ -7,7 +7,7 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ObjectTracker;
-import com.jay.oss.tracker.track.bitcask.ObjectIndex;
+import com.jay.oss.common.bitcask.Index;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -27,59 +27,60 @@ import java.util.List;
  * @date 2022/03/01 14:39
  */
 @Slf4j
-public class BucketEditLogManager extends AbstractEditLogManager {
+public class TrackerEditLogManager extends AbstractEditLogManager {
 
 
     private final ObjectTracker objectTracker;
+    private final BucketManager bucketManager;
 
-    public BucketEditLogManager(ObjectTracker objectTracker) {
+    public TrackerEditLogManager(ObjectTracker objectTracker, BucketManager bucketManager) {
         this.objectTracker = objectTracker;
+        this.bucketManager = bucketManager;
     }
 
     @Override
-    public void loadAndCompress(Object manager) {
-        if(manager instanceof BucketManager){
-            BucketManager bucketManager = (BucketManager) manager;
-            try{
-                FileChannel channel = getChannel();
-                if(channel.size() == 0){
-                    log.info("No Bucket Edit log found, skipping loading Edit Log");
-                    return;
-                }
-                long start = System.currentTimeMillis();
-                int count = 0;
-                ByteBuf buffer = Unpooled.directBuffer();
-                buffer.writeBytes(channel, 0, (int)channel.size());
-                // 读取editLog
-                while(buffer.readableBytes() > 0){
-                    byte operation = buffer.readByte();
-                    int length = buffer.readInt();
-                    byte[] content = new byte[length];
-                    buffer.readBytes(content);
-                    EditOperation editOperation = EditOperation.get(operation);
-                    if(editOperation != null){
-                        switch (editOperation){
-                            case ADD: saveBucket(bucketManager, content); count++;break;
-                            case DELETE: deleteBucket(bucketManager, content);break;
-                            case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
-                            case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
-                            default: break;
-                        }
+    public void loadAndCompress() {
+        try{
+            FileChannel channel = getChannel();
+            if(channel.size() == 0){
+                log.info("No Bucket Edit log found, skipping loading Edit Log");
+                return;
+            }
+                /*
+                    加载过程，将所有的EditLog加载到内存中
+                    并且删除DELETED的记录
+                 */
+            long start = System.currentTimeMillis();
+            int count = 0;
+            ByteBuf buffer = Unpooled.directBuffer();
+            buffer.writeBytes(channel, 0, (int)channel.size());
+            // 读取editLog
+            while(buffer.readableBytes() > 0){
+                byte operation = buffer.readByte();
+                int length = buffer.readInt();
+                byte[] content = new byte[length];
+                buffer.readBytes(content);
+                EditOperation editOperation = EditOperation.get(operation);
+                if(editOperation != null){
+                    switch (editOperation){
+                        case ADD: saveBucket(bucketManager, content); count++;break;
+                        case DELETE: deleteBucket(content);break;
+                        case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
+                        case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
+                        default: break;
                     }
                 }
-                // 合并chunk文件
-                objectTracker.merge();
-                // 压缩editLog
-                compress(bucketManager);
-                /*
-                    object tracker清除内存中的已删除的key index
-                    并将合并的chunk改名
-                 */
-                objectTracker.completeMerge();
-                log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
-            }catch (Exception e){
-                log.error("load Bucket Edit Log Error ", e);
             }
+                /*
+                    压缩EditLog
+                    将内存中的EditLog重新写入硬盘，并将BitCask模型的chunk合并
+                 */
+            objectTracker.merge();
+            // 压缩editLog
+            compress(bucketManager);
+            log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
+        }catch (Exception e){
+            log.error("load Bucket Edit Log Error ", e);
         }
     }
 
@@ -105,11 +106,11 @@ public class BucketEditLogManager extends AbstractEditLogManager {
         buffer.readBytes(channel, buffer.readableBytes());
         buffer.clear();
         // 获取所有的object index
-        List<ObjectIndex> objectIndexes = objectTracker.listIndexes();
-        for (ObjectIndex index : objectIndexes) {
+        List<Index> indices = objectTracker.listIndexes();
+        for (Index index : indices) {
             if(!index.isRemoved()){
                 buffer.writeByte(EditOperation.BUCKET_PUT_OBJECT.value());
-                byte[] content = SerializeUtil.serialize(index, ObjectIndex.class);
+                byte[] content = SerializeUtil.serialize(index, Index.class);
                 buffer.writeInt(content.length);
                 buffer.writeBytes(content);
             }
@@ -134,12 +135,13 @@ public class BucketEditLogManager extends AbstractEditLogManager {
         bucketManager.saveBucket(bucket);
     }
 
-    private void deleteBucket(BucketManager bucketManager, byte[] content){
-        String bucketKey = new String(content, OssConfigs.DEFAULT_CHARSET);
+
+    private void deleteBucket(byte[] content){
+        log.info("deleted bucket: {}", content);
     }
 
     private void bucketPutObject(byte[] content){
-        ObjectIndex index = SerializeUtil.deserialize(content, ObjectIndex.class);
+        Index index = SerializeUtil.deserialize(content, Index.class);
         String key = index.getKey();
         objectTracker.saveObjectIndex(key, index);
     }

@@ -36,33 +36,19 @@ public class ConsistentHashRing {
     /**
      * 添加新的存储节点
      * @param node {@link StorageNodeInfo}
-     * @return List {@link SyncSource} 添加后该节点需要向哪些节点同步数据
      */
-    public List<SyncSource> addStorageNode(StorageNodeInfo node){
+    public void addStorageNode(StorageNodeInfo node){
         try{
             // 排他锁，保证Hash环的线程安全
             readWriteLock.writeLock().lock();
-            List<SyncSource> sources = new ArrayList<>(VIRTUAL_NODE_COUNT);
             String url = node.getUrl();
             int vnode = OssConfigs.vnodeCount();
-            boolean firstNode = ring.isEmpty();
             // 添加若干虚节点
             for(int i = 0; i < vnode; i++){
+                // 虚节点hash
                 int hash = hash(url + i);
-                // 获取tailMap
-                SortedMap<Integer, String> tailMap = ring.tailMap(hash, true);
-                if(!firstNode){
-                    // 如果hash值之前没有节点，表示新节点是最后一个，同步源是ring的最后一个
-                    int syncKey = tailMap.isEmpty() ? ring.firstKey() : tailMap.firstKey();
-                    // 圆环中的上一个节点
-                    String syncUrl = ring.get(syncKey);
-                    int syncStart = syncKey + 1;
-                    SyncSource syncSource = new SyncSource(syncUrl, syncStart, hash);
-                    sources.add(syncSource);
-                }
                 ring.put(hash, url);
             }
-            return sources;
         }finally {
             readWriteLock.writeLock().unlock();
         }

@@ -1,8 +1,6 @@
 package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
-import com.jay.dove.serialize.Serializer;
-import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.oss.common.config.OssConfigs;
@@ -10,17 +8,15 @@ import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.HttpUtil;
+import com.jay.oss.proxy.cache.ObjectLocationCache;
+import com.jay.oss.proxy.util.HttpUtil;
 import com.jay.oss.common.util.SerializeUtil;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * <p>
- *
+ *  Object 服务
  * </p>
  *
  * @author Jay

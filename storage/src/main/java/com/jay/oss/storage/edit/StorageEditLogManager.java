@@ -26,40 +26,42 @@ import java.util.List;
  */
 @Slf4j
 public class StorageEditLogManager extends AbstractEditLogManager {
+    private final MetaManager metaManager;
+
+    public StorageEditLogManager(MetaManager metaManager){
+        this.metaManager = metaManager;
+    }
     @Override
-    public void loadAndCompress(Object manager) {
-        if(manager instanceof MetaManager){
-            MetaManager metaManager = (MetaManager) manager;
-            try{
-                FileChannel channel = getChannel();
-                if(channel.size() == 0){
-                    log.info("No Edit Log content found, skipping loading and compression");
-                    return;
-                }
-                ByteBuf buffer = Unpooled.directBuffer();
-                buffer.writeBytes(channel, 0L, (int)channel.size());
-                int count = 0;
-                long start = System.currentTimeMillis();
-                while(buffer.readableBytes() > 0){
-                    byte operation = buffer.readByte();
-                    int length = buffer.readInt();
-                    byte[] content = new byte[length];
-                    buffer.readBytes(content);
-                    EditOperation editOperation = EditOperation.get(operation);
-                    if(editOperation != null){
-                        switch(editOperation){
-                            case ADD: addObject(metaManager, content); count++;break;
-                            case DELETE: deleteObject(metaManager, content);break;
-                            default: break;
-                        }
+    public void loadAndCompress() {
+        try{
+            FileChannel channel = getChannel();
+            if(channel.size() == 0){
+                log.info("No Edit Log content found, skipping loading and compression");
+                return;
+            }
+            ByteBuf buffer = Unpooled.directBuffer();
+            buffer.writeBytes(channel, 0L, (int)channel.size());
+            int count = 0;
+            long start = System.currentTimeMillis();
+            while(buffer.readableBytes() > 0){
+                byte operation = buffer.readByte();
+                int length = buffer.readInt();
+                byte[] content = new byte[length];
+                buffer.readBytes(content);
+                EditOperation editOperation = EditOperation.get(operation);
+                if(editOperation != null){
+                    switch(editOperation){
+                        case ADD: addObject(metaManager, content); count++;break;
+                        case DELETE: deleteObject(metaManager, content);break;
+                        default: break;
                     }
                 }
-                log.info("load edit log finished, loaded: {} objects, time used: {}ms", count, (System.currentTimeMillis() - start));
-                compress(metaManager);
-                setLastFlushTime(System.currentTimeMillis());
-            }catch (Exception e){
-                log.warn("load and compress edit log error ", e);
             }
+            log.info("load edit log finished, loaded: {} objects, time used: {}ms", count, (System.currentTimeMillis() - start));
+            compress(metaManager);
+            setLastFlushTime(System.currentTimeMillis());
+        }catch (Exception e){
+            log.warn("load and compress edit log error ", e);
         }
     }
     /**

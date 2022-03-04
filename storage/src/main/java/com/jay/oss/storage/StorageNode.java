@@ -66,7 +66,7 @@ public class StorageNode extends AbstractLifeCycle {
         CommandFactory commandFactory = new FastOssCommandFactory();
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
-        this.editLogManager = new StorageEditLogManager();
+        this.editLogManager = new StorageEditLogManager(metaManager);
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
@@ -85,7 +85,7 @@ public class StorageNode extends AbstractLifeCycle {
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         editLogManager.init();
         // 加载edit日志
-        editLogManager.loadAndCompress(this.metaManager);
+        editLogManager.loadAndCompress();
         // 加载chunk文件
         chunkManager.loadChunk();
         // 初始化注册中心客户端

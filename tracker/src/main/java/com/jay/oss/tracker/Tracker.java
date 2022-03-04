@@ -16,7 +16,7 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
-import com.jay.oss.tracker.edit.BucketEditLogManager;
+import com.jay.oss.tracker.edit.TrackerEditLogManager;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -57,7 +57,7 @@ public class Tracker extends AbstractLifeCycle {
         this.storageRegistry = new StorageRegistry(ring);
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
-        this.editLogManager = new BucketEditLogManager(objectTracker);
+        this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager);
         this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
@@ -79,7 +79,7 @@ public class Tracker extends AbstractLifeCycle {
         // 初始化objectTracker，加载bitCask chunks
         objectTracker.init();
         // 加载editLog并压缩日志，该过程会压缩bitCask chunk
-        editLogManager.loadAndCompress(bucketManager);
+        editLogManager.loadAndCompress();
         // 初始化远程注册中心客户端
         registry.init();
         // 初始化本地storage记录
