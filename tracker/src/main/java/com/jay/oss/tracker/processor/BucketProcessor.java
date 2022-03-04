@@ -17,7 +17,7 @@ import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
-import com.jay.oss.tracker.track.bitcask.ObjectIndex;
+import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -202,8 +202,8 @@ public class BucketProcessor extends AbstractProcessor {
     }
 
     private void appendBucketPutObjectLog(String objectKey){
-        ObjectIndex index = objectTracker.getIndex(objectKey);
-        byte[] serialized = SerializeUtil.serialize(index, ObjectIndex.class);
+        Index index = objectTracker.getIndex(objectKey);
+        byte[] serialized = SerializeUtil.serialize(index, Index.class);
         EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
         editLogManager.append(editLog);
     }
