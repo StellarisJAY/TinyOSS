@@ -1,10 +1,9 @@
-package com.jay.oss.tracker.track.bitcask;
+package com.jay.oss.common.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
 import lombok.Getter;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -28,11 +27,11 @@ public class Chunk {
     private FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
-    public Chunk(boolean merge) throws IOException {
+    public Chunk(String name, boolean merge) throws IOException {
         this.count = 0;
         this.chunkId = ID_PROVIDER.getAndIncrement();
         this.size = 0;
-        String path = OssConfigs.dataPath() + "/chunks/" + (merge ? "merged_chunks" : "chunk_" + chunkId);
+        String path = OssConfigs.dataPath() + "/chunks/" + name + (merge ? "_merged_chunks" : "_chunk_" + chunkId);
         File file = new File(path);
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
             throw new RuntimeException("can't make parent directory");
@@ -48,12 +47,13 @@ public class Chunk {
         this.chunkId = chunkId;
         this.size = size;
         this.activeChannel = channel;
+        this.count = count;
     }
 
     public static Chunk getChunkInstance(File file) throws Exception {
         String name = file.getName();
         int idx;
-        if(name.startsWith("chunk_") && (idx = name.lastIndexOf("_")) != -1){
+        if((idx = name.lastIndexOf("_")) != -1){
             int chunkId = Integer.parseInt(name.substring(idx + 1));
             int size = (int)file.length();
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
