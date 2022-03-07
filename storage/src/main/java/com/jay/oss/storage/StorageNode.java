@@ -65,8 +65,8 @@ public class StorageNode extends AbstractLifeCycle {
     private final PrometheusServer prometheusServer;
     private final int port;
 
-    public StorageNode(int port) {
-        ConfigsManager.loadConfigs();
+    public StorageNode(String configPath) {
+        ConfigsManager.loadConfigs(configPath);
         this.port = OssConfigs.port();
         CommandFactory commandFactory = new FastOssCommandFactory();
         FastOssConnectionFactory connectionFactory = new FastOssConnectionFactory();
@@ -142,8 +142,7 @@ public class StorageNode extends AbstractLifeCycle {
     }
 
     public static void main(String[] args) {
-        ConfigsManager.loadConfigs();
-        StorageNode storageNode = new StorageNode(OssConfigs.port());
+        StorageNode storageNode = new StorageNode("fast-oss.conf");
         storageNode.startup();
     }
 }
