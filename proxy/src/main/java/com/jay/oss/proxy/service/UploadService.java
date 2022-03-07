@@ -17,6 +17,8 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.common.util.UrlUtil;
+import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -25,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -69,9 +72,16 @@ public class UploadService {
         if(code.equals(FastOssProtocol.SUCCESS)){
             // 计算分片个数
             int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
+            String str = StringUtil.toString(bucketResponse.getContent());
+            int idx = str.lastIndexOf(";");
+            String versionId = str.substring(idx + 1);
             // 获取上传点
-            List<Url> urls = parseUploadUrls(bucketResponse.getContent());
-            httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key);
+            List<Url> urls = UrlUtil.parseUrls(str.substring(0, idx));
+
+            if(!StringUtil.isNullOrEmpty(versionId)){
+                objectKey = objectKey + "-" + versionId;
+            }
+            httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key, versionId);
         }else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
             httpResponse = HttpUtil.forbiddenResponse("Bucket Access Denied");
@@ -95,7 +105,7 @@ public class UploadService {
      * @param parts 分片个数
      * @param objectKey 对象Key
      */
-    private FullHttpResponse doUpload(List<Url> urls, ByteBuf content, int size, int parts, String objectKey, String fileName){
+    private FullHttpResponse doUpload(List<Url> urls, ByteBuf content, int size, int parts, String objectKey, String fileName, String versionId){
         FullHttpResponse httpResponse;
         int successReplica = 0;
         // 需要写入成功的数量
@@ -104,7 +114,7 @@ public class UploadService {
         // 没有成功写入的url集合
         List<Url> asyncWriteUrls = new ArrayList<>();
         List<Url> successUrls = new ArrayList<>();
-        UploadRequest request = UploadRequest.builder().key(objectKey).filename(fileName).parts(parts).build();
+        UploadRequest request = UploadRequest.builder().size(size).key(objectKey).filename(fileName).parts(parts).build();
         int i;
         for(i = 0; i < urls.size() && successReplica < writeCount; i++){
             Url url = urls.get(i);
@@ -135,7 +145,9 @@ public class UploadService {
             asyncWriteUrls.addAll(urls.subList(i, urls.size()));
             // 提交异步备份
             submitAsyncBackup(objectKey, asyncWriteUrls, successUrls);
-            httpResponse = HttpUtil.okResponse();
+
+            Result result = new Result().message("Success").putData("versionId",versionId);
+            httpResponse = HttpUtil.okResponse(result);
         }
         return httpResponse;
     }
@@ -175,7 +187,7 @@ public class UploadService {
     }
 
     /**
-     * 想存储桶put object
+     * 存储桶put object
      * 同时校验访问权限 和 分配上传点
      * @param bucket bucket
      * @param filename 对象名称
@@ -259,16 +271,6 @@ public class UploadService {
             log.warn("upload file parts failed, cause: ", e);
             throw e;
         }
-    }
-
-    private List<Url> parseUploadUrls(byte[] content){
-        String str = StringUtil.toString(content);
-        String[] urls = str.split(";");
-        List<Url> result = new ArrayList<>(urls.length);
-        for (String url : urls) {
-            result.add(Url.parseString(url));
-        }
-        return result;
     }
 
 

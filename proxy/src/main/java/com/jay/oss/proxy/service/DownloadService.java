@@ -8,6 +8,7 @@ import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.cache.CacheValue;
 import com.jay.oss.proxy.cache.ObjectLocationCache;
 import com.jay.oss.proxy.util.HttpUtil;
@@ -43,8 +44,9 @@ public class DownloadService {
      * @param rangeEnd 结束字节
      * @return {@link FullHttpResponse}
      */
-    public FullHttpResponse getObject(String key, String bucket, String token, int rangeStart, int rangeEnd){
-        String objectKey = bucket + "/" + key;
+    public FullHttpResponse getObject(String key, String bucket, String token, String versionId, int rangeStart, int rangeEnd){
+        String objectKey = bucket + "/" + key + (StringUtil.isNullOrEmpty(versionId) ? "" : "-" + versionId);
+        log.info("Get Object: {}", objectKey);
         // 根据范围判断下载类型，full或者ranged
         CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;
         // 创建下载请求
