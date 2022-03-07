@@ -71,12 +71,17 @@ public class FastOssProtocol implements Protocol {
 
     public static final CommandCode ASYNC_BACKUP = new CommandCode((short)120);
 
+    public static final CommandCode INIT_MULTIPART_UPLOAD = new CommandCode((short)131);
+    public static final CommandCode MULTIPART_UPLOAD_PART = new CommandCode((short)132);
+    public static final CommandCode LOOKUP_MULTIPART_UPLOAD = new CommandCode((short)133);
+
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
     public static final CommandCode REQUEST_TIMEOUT = new CommandCode((short)502);
     public static final CommandCode ACCESS_DENIED = new CommandCode((short)403);
     public static final CommandCode NOT_FOUND = new CommandCode((short)404);
     public static final CommandCode NO_ENOUGH_STORAGES = new CommandCode((short)600);
+    public static final CommandCode DUPLICATE_OBJECT_KEY = new CommandCode((short)700);
     /**
      * 默认命令处理器
      */

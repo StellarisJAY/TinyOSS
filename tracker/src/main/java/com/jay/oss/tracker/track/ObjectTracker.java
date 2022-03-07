@@ -56,13 +56,15 @@ public class ObjectTracker {
      * 保存object位置
      * @param objectKey objectKey
      * @param urls 位置urls
+     * @return boolean
      */
-    public void saveObjectLocation(String objectKey, String urls){
+    public boolean saveObjectLocation(String objectKey, String urls){
         try{
             byte[] urlBytes = urls.getBytes(OssConfigs.DEFAULT_CHARSET);
-            bitCaskStorage.put(objectKey, urlBytes);
+            return bitCaskStorage.put(objectKey, urlBytes);
         }catch (Exception e){
             log.error("Failed to save object location ", e);
+            return false;
         }
     }
 

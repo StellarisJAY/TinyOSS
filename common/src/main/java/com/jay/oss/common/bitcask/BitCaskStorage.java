@@ -100,16 +100,20 @@ public class BitCaskStorage {
      * @param value value byte[]
      * @throws IOException chunk写入异常
      */
-    public void put(String key, byte[] value) throws IOException {
+    public boolean put(String key, byte[] value) throws IOException {
         synchronized (writeLock){
-            byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
-            if(this.activeChunk == null || !activeChunk.isWritable()){
-                this.activeChunk = new Chunk(name, false);
-                chunks.add(activeChunk);
+            if(!indexCache.containsKey(key)){
+                byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
+                if(this.activeChunk == null || !activeChunk.isWritable()){
+                    this.activeChunk = new Chunk(name, false);
+                    chunks.add(activeChunk);
+                }
+                int offset = activeChunk.write(keyBytes, value);
+                Index index = new Index(key, activeChunk.getChunkId(), offset, false);
+                indexCache.put(key, index);
+                return true;
             }
-            int offset = activeChunk.write(keyBytes, value);
-            Index index = new Index(key, activeChunk.getChunkId(), offset, false);
-            indexCache.put(key, index);
+            return false;
         }
     }
 

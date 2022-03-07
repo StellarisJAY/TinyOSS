@@ -40,4 +40,9 @@ public class Bucket {
      * 访问密钥
      */
     private String secretKey;
+
+    /**
+     * 是否开启版本控制
+     */
+    private boolean versioning;
 }

@@ -19,6 +19,7 @@ import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.tracker.edit.TrackerEditLogManager;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
+import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
@@ -40,13 +41,12 @@ public class Tracker extends AbstractLifeCycle {
     private final StorageRegistry storageRegistry;
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
+    private final MultipartUploadTracker multipartUploadTracker;
     private final TrackerCommandHandler commandHandler;
     private final DoveServer server;
     private final Registry registry;
     private final ConsistentHashRing ring;
-
     private final EditLogManager editLogManager;
-
     private final PrometheusServer prometheusServer;
 
     public Tracker(){
@@ -57,8 +57,9 @@ public class Tracker extends AbstractLifeCycle {
         this.storageRegistry = new StorageRegistry(ring);
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
+        this.multipartUploadTracker = new MultipartUploadTracker();
         this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager);
-        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, commandFactory);
+        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, multipartUploadTracker, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
