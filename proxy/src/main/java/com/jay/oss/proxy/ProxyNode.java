@@ -22,10 +22,7 @@ import com.jay.oss.proxy.handler.BucketHandler;
 import com.jay.oss.proxy.handler.ObjectHandler;
 import com.jay.oss.proxy.http.HttpServer;
 import com.jay.oss.proxy.http.handler.HandlerMapping;
-import com.jay.oss.proxy.service.BucketService;
-import com.jay.oss.proxy.service.DownloadService;
-import com.jay.oss.proxy.service.ObjectService;
-import com.jay.oss.proxy.service.UploadService;
+import com.jay.oss.proxy.service.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
@@ -57,6 +54,7 @@ public class ProxyNode extends AbstractLifeCycle {
      * 存储节点访问客户端
      */
     private final DoveClient storageClient;
+    private final MultipartUploadService multipartUploadService;
     private final UploadService uploadService;
     private final DownloadService downloadService;
     private final ObjectService objectService;
@@ -83,6 +81,7 @@ public class ProxyNode extends AbstractLifeCycle {
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
         bucketService = new BucketService(storageClient);
+        multipartUploadService = new MultipartUploadService(storageClient);
         prometheusServer = new PrometheusServer();
     }
 
@@ -93,7 +92,7 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册FastOSS协议
         ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
         // 注册handler
-        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
+        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService, multipartUploadService));
         HandlerMapping.registerHandler("bucket", new BucketHandler(bucketService));
     }
 
