@@ -71,24 +71,7 @@ public class UploadService {
             int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
             // 获取上传点
             List<Url> urls = parseUploadUrls(bucketResponse.getContent());
-            Url url = urls.get(0);
-            // 创建上传请求
-            UploadRequest request = UploadRequest.builder()
-                    .key(objectKey)
-                    .filename(key).size(size)
-                    .parts(parts).build();
-            // 向存储节点发送文件信息，开启上传任务
-            FastOssCommand uploadHeaderResponse = uploadFileHeader(url, request);
-            CommandCode responseCode = uploadHeaderResponse.getCommandCode();
-            // 检查上传头状态
-            if(FastOssProtocol.SUCCESS.equals(responseCode)){
-                // 上传文件分片
-                FastOssCommand response = uploadFileParts(url, content, size, parts, objectKey);
-                httpResponse = HttpUtil.okResponse();
-            }else{
-                log.warn("upload file header failed, key: {}, bucket: {}", key, bucket);
-                httpResponse = HttpUtil.internalErrorResponse("upload file header failed");
-            }
+            httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key);
         }else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
             // bucket返回拒绝访问
             httpResponse = HttpUtil.forbiddenResponse("Bucket Access Denied");
@@ -131,7 +114,7 @@ public class UploadService {
                 if(uploadMeta.getCommandCode().equals(FastOssProtocol.SUCCESS)){
                     // 上传分片
                     FastOssCommand response = uploadFileParts(url, content, size, parts, objectKey);
-                    if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                    if(response.getCommandCode().equals(FastOssProtocol.RESPONSE_UPLOAD_DONE)){
                         // 全部分片上传成功
                         successReplica++;
                         successUrls.add(url);
@@ -142,6 +125,7 @@ public class UploadService {
                     asyncWriteUrls.add(url);
                 }
             }catch (Exception e){
+                log.warn("upload to storage failed, ", e);
                 asyncWriteUrls.add(url);
             }
         }
