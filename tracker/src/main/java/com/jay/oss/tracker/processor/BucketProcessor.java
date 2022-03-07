@@ -23,6 +23,7 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * <p>
@@ -134,6 +135,12 @@ public class BucketProcessor extends AbstractProcessor {
         FastOssCommand response;
         // 拥有权限，完成put object
         if(code.equals(FastOssProtocol.SUCCESS)){
+            // 判断桶是否开启了版本控制
+            String versionId = "";
+            if(bucketManager.getBucket(bucket).isVersioning()){
+                versionId = UUID.randomUUID().toString();
+                objectKey = objectKey + "-" + versionId;
+            }
             try{
                 // 选择上传点
                 List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
@@ -143,12 +150,17 @@ public class BucketProcessor extends AbstractProcessor {
                     builder.append(node.getUrl());
                     builder.append(";");
                 }
+                builder.append(versionId);
                 String urls = builder.toString();
-                // 保存object位置
-                objectTracker.saveObjectLocation(objectKey, urls);
-                // 日志记录put object
-                appendBucketPutObjectLog(objectKey);
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
+                // 保存object位置，判断object是否已经存在
+                if(objectTracker.saveObjectLocation(objectKey, urls)){
+                    // 日志记录put object
+                    appendBucketPutObjectLog(objectKey);
+                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
+                }else{
+                    // object key 重复
+                    response = (FastOssCommand)commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);
+                }
             }catch (Exception e){
                 log.error("bucket put object error ", e);
                 response = (FastOssCommand) commandFactory

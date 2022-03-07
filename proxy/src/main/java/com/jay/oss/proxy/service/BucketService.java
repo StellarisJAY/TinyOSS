@@ -39,11 +39,12 @@ public class BucketService {
      * @param acl 访问权限
      * @return {@link FullHttpResponse}
      */
-    public FullHttpResponse putBucket(String bucketName, String acl){
+    public FullHttpResponse putBucket(String bucketName, String acl, boolean versioning){
         // 创建桶
         Bucket bucket = Bucket.builder()
                 .bucketName(bucketName)
                 .acl(Acl.getAcl(acl))
+                .versioning(versioning)
                 .build();
         // 序列化
         byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
