@@ -78,8 +78,8 @@ public class StorageRegistry {
         // 从一致性hash环定位主备份位置
         String mainReplica = ring.locateObject(key);
         // 选择备份节点
-        List<StorageNodeInfo> result =  new ArrayList<>();
-        //replicaSelector.select(nodes, size, replica - 1, mainReplica);
+        List<StorageNodeInfo> result;
+        result = replicaSelector.select(nodes, size, replica - 1, mainReplica);
         // 将主副本节点添加到列表头部
         result.add(0, storages.get(mainReplica));
         return result;
