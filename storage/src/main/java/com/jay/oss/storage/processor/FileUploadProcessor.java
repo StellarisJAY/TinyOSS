@@ -113,12 +113,13 @@ public class FileUploadProcessor extends AbstractProcessor {
             duplicateKey.set(false);
             return meta;
         });
+        FileReceiver receiver;
         // 没能够成功进行computeIfAbsent的重复的key
-        if(duplicateKey.get()){
+        if(duplicateKey.get() && (receiver = fileReceivers.get(request.getKey())) == null){
             // 发送重复回复报文
             RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.ERROR);
             sendResponse(context, response);
-        }else{
+        } else{
             RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.SUCCESS);
             sendResponse(context, response);
         }
@@ -150,7 +151,8 @@ public class FileUploadProcessor extends AbstractProcessor {
         // 写入分片
         try{
             if(fileReceiver.receivePart(filePart)){
-                // 已收到所有分片
+                // 已收到最后一个key，删除receiver
+                fileReceivers.remove(key);
                 response = commandFactory.createResponse(command.getId(), filePart.getKey(), FastOssProtocol.RESPONSE_UPLOAD_DONE);
             }else{
                 // 收到部分分片

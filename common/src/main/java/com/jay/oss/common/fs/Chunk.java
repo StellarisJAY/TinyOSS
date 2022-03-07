@@ -3,6 +3,7 @@ package com.jay.oss.common.fs;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.FilePart;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.DefaultFileRegion;
 import lombok.Getter;
 import lombok.ToString;
@@ -133,6 +134,20 @@ public class Chunk {
             return new DefaultFileRegion(rf.getChannel(), position, length);
         } catch (FileNotFoundException e) {
             log.error("read file {} error", key, e);
+            return null;
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+    public ByteBuf readFileBytes(String key, int position, long length){
+        try{
+            readWriteLock.readLock().lock();
+            ByteBuf buffer = Unpooled.directBuffer((int)length);
+            buffer.writeBytes(fileChannel, position, (int) length);
+            return buffer;
+        } catch (IOException e) {
+            log.error("read file {} error ", key, e);
             return null;
         } finally {
             readWriteLock.readLock().unlock();
