@@ -1,7 +1,9 @@
 package com.jay.oss.proxy.util;
 
 import com.alibaba.fastjson.JSON;
+import com.jay.dove.transport.command.CommandCode;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
 import io.netty.buffer.ByteBuf;
@@ -9,6 +11,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.*;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * <p>
@@ -71,5 +75,37 @@ public class HttpUtil {
 
     public static FullHttpResponse forbiddenResponse(String message){
         return createHttpResponse(HttpResponseStatus.FORBIDDEN, message);
+    }
+
+    public static FullHttpResponse badRequestResponse(){
+        return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST);
+    }
+
+    public static FullHttpResponse bucketAclResponse(CommandCode code){
+        if(FastOssProtocol.NOT_FOUND.equals(code)){
+            return notFoundResponse("Bucket Not Found");
+        }else if(FastOssProtocol.ACCESS_DENIED.equals(code)){
+            return unauthorizedResponse("Bucket Access Denied");
+        }else{
+            return internalErrorResponse("Internal Server Error");
+        }
+    }
+
+    public static Map<String, String> parseUri(String uri){
+        Map<String, String> result = new HashMap<>();
+        int i = uri.indexOf("?");
+        if(i != -1){
+            String substring = uri.substring(i + 1);
+            String[] parameters = substring.split("&");
+            for (String parameter : parameters) {
+                int idx = parameter.indexOf("=");
+                if(idx == -1){
+                    result.put(parameter, "");
+                }else{
+                    result.put(parameter.substring(0, idx), parameter.substring(idx + 1));
+                }
+            }
+        }
+        return result;
     }
 }
