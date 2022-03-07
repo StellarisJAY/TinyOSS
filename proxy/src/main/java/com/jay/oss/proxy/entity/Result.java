@@ -22,7 +22,13 @@ public class Result implements Serializable {
     private String message;
     private Map<String, Object> data = new HashMap<>();
 
-    public void putData(String name, Object value){
+    public Result putData(String name, Object value){
         data.put(name, value);
+        return this;
+    }
+
+    public Result message(String message){
+        this.message = message;
+        return this;
     }
 }
