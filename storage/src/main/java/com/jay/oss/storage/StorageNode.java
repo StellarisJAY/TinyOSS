@@ -1,9 +1,11 @@
 package com.jay.oss.storage;
 
+import com.jay.dove.DoveClient;
 import com.jay.dove.DoveServer;
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.connection.ConnectionManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
@@ -14,6 +16,7 @@ import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCodec;
 import com.jay.oss.common.remoting.FastOssCommandFactory;
+import com.jay.oss.common.remoting.FastOssConnectionFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
@@ -42,6 +45,8 @@ public class StorageNode extends AbstractLifeCycle {
      * TCP 服务器
      */
     private final DoveServer server;
+
+    private final DoveClient client;
     /**
      * meta管理器
      */
@@ -64,6 +69,9 @@ public class StorageNode extends AbstractLifeCycle {
         ConfigsManager.loadConfigs();
         this.port = OssConfigs.port();
         CommandFactory commandFactory = new FastOssCommandFactory();
+        FastOssConnectionFactory connectionFactory = new FastOssConnectionFactory();
+        ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
+        this.client = new DoveClient(connectionManager, commandFactory);
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
         this.editLogManager = new StorageEditLogManager(metaManager);
@@ -71,7 +79,8 @@ public class StorageNode extends AbstractLifeCycle {
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
         // 命令处理器
-        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, chunkManager, metaManager, editLogManager);
+        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
+                chunkManager, metaManager, editLogManager, client);
         // FastOSS协议Dove服务器
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
         this.prometheusServer = new PrometheusServer();
