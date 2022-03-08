@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *
@@ -17,7 +19,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class LocateObjectRequest {
+public class LocateObjectRequest implements Serializable {
     private String objectKey;
     private String bucket;
     private String token;

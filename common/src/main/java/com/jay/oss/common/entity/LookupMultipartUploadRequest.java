@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *
@@ -17,7 +19,7 @@ import lombok.ToString;
 @NoArgsConstructor
 @Getter
 @ToString
-public class LookupMultipartUploadRequest {
+public class LookupMultipartUploadRequest implements Serializable {
     private String uploadId;
     private String objectKey;
     private String bucket;

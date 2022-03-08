@@ -4,6 +4,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *
@@ -15,7 +17,7 @@ import lombok.ToString;
 @Getter
 @Builder
 @ToString
-public class UploadRequest {
+public class UploadRequest implements Serializable {
     private String key;
     private String filename;
     private long size;

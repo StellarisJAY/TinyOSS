@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *  Bucket
@@ -18,7 +20,7 @@ import lombok.ToString;
 @Setter
 @Builder
 @ToString
-public class Bucket {
+public class Bucket implements Serializable {
     /**
      * 桶名称，不同用户可能创建相同名称的桶
      */
