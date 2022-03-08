@@ -1,5 +1,7 @@
 package com.jay.oss.common.config;
 
+import com.jay.dove.transport.Url;
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -45,7 +47,7 @@ public class OssConfigs {
      * 副本数量
      */
     private static final String REPLICA = "oss.replica.count";
-    private static final int DEFAULT_REPLICA_COUNT = 3;
+    private static final int DEFAULT_REPLICA_COUNT = 1;
 
     /**
      * 一致性hash环，虚节点数量
@@ -74,6 +76,10 @@ public class OssConfigs {
 
     public static String trackerServerHost(){
         return ConfigsManager.get(TRACKER_SERVER);
+    }
+
+    public static Url trackerServerUrl(){
+        return Url.parseString(ConfigsManager.get(TRACKER_SERVER));
     }
 
     public static int replicaCount(){

@@ -3,7 +3,6 @@ package com.jay.oss.common.entity;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 
 import java.io.Serializable;
 
@@ -13,14 +12,13 @@ import java.io.Serializable;
  * </p>
  *
  * @author Jay
- * @date 2022/03/02 12:02
+ * @date 2022/03/08 15:29
  */
 @AllArgsConstructor
 @Getter
 @Setter
-@ToString
-public class LocateObjectRequest implements Serializable {
+public class MultipartUploadTask implements Serializable {
+    private String uploadId;
     private String objectKey;
-    private String bucket;
-    private String token;
+    private String locations;
 }

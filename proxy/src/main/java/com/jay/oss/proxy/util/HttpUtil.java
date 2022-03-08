@@ -54,6 +54,10 @@ public class HttpUtil {
         return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, content);
     }
 
+    public static FullHttpResponse okResponse(String message){
+        return createHttpResponse(HttpResponseStatus.OK, message);
+    }
+
     public static FullHttpResponse okResponse(){
         return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
     }
@@ -77,8 +81,16 @@ public class HttpUtil {
         return createHttpResponse(HttpResponseStatus.FORBIDDEN, message);
     }
 
+    public static FullHttpResponse badRequestResponse(String message){
+        return createHttpResponse(HttpResponseStatus.BAD_REQUEST, message);
+    }
+
     public static FullHttpResponse badRequestResponse(){
         return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST);
+    }
+
+    public static FullHttpResponse partialContentResponse(ByteBuf content){
+        return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.PARTIAL_CONTENT, content);
     }
 
     public static FullHttpResponse bucketAclResponse(CommandCode code){
@@ -86,6 +98,10 @@ public class HttpUtil {
             return notFoundResponse("Bucket Not Found");
         }else if(FastOssProtocol.ACCESS_DENIED.equals(code)){
             return unauthorizedResponse("Bucket Access Denied");
+        }else if(FastOssProtocol.OBJECT_NOT_FOUND.equals(code)){
+            return notFoundResponse("Object Not Found");
+        }else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
+            return badRequestResponse("Duplicate Object key");
         }else{
             return internalErrorResponse("Internal Server Error");
         }

@@ -1,5 +1,7 @@
 package com.jay.oss.common.util;
 
+import com.jay.oss.common.config.OssConfigs;
+
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -17,5 +19,9 @@ public class StringUtil {
 
     public static String toString(byte[] bytes){
         return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    public static byte[] getBytes(String s){
+        return s.getBytes(OssConfigs.DEFAULT_CHARSET);
     }
 }

@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *  删除存储桶object记录请求
@@ -17,7 +19,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class DeleteObjectInBucketRequest {
+public class DeleteObjectInBucketRequest implements Serializable {
     private String key;
     private String bucket;
     private String token;

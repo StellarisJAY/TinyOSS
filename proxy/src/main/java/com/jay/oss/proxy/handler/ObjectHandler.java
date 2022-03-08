@@ -57,7 +57,8 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         ByteBuf content = request.content();
         try{
             if(parameters.containsKey(HttpConstants.UPLOAD_ID) && parameters.containsKey(HttpConstants.UPLOAD_PART_NUM)){
-                  return super.handlePut(context, request);
+                return multipartUploadService.putObject(key, bucket, auth, parameters.get(HttpConstants.UPLOAD_ID),
+                          parameters.get("versionId"), Integer.parseInt(parameters.get(HttpConstants.UPLOAD_PART_NUM)), content);
             }else{
                 return uploadService.putObject(key, bucket, auth, content);
             }

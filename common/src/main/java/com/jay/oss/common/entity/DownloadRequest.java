@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *  下载请求
@@ -15,7 +17,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @Getter
 @ToString
-public class DownloadRequest {
+public class DownloadRequest implements Serializable {
     /**
      * object key
      */

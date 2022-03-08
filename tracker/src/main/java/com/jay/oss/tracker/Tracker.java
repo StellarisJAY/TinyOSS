@@ -58,7 +58,7 @@ public class Tracker extends AbstractLifeCycle {
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
         this.multipartUploadTracker = new MultipartUploadTracker();
-        this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager);
+        this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
         this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, multipartUploadTracker, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);

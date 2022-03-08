@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *  List Bucket请求
@@ -15,7 +17,7 @@ import lombok.Setter;
 @AllArgsConstructor
 @Getter
 @Setter
-public class ListBucketRequest {
+public class ListBucketRequest implements Serializable {
     /**
      * 桶名称
      */

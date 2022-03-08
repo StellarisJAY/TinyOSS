@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *
@@ -17,7 +19,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class BucketPutObjectRequest {
+public class BucketPutObjectRequest implements Serializable {
     private String key;
     private String filename;
     private String bucket;

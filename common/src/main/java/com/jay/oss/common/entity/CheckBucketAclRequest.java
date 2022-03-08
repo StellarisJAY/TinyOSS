@@ -4,6 +4,8 @@ import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *  检查访问权限请求
@@ -14,7 +16,7 @@ import lombok.Getter;
  */
 @Builder
 @Getter
-public class CheckBucketAclRequest {
+public class CheckBucketAclRequest implements Serializable {
     /**
      * 桶，bucketName-AppId
      */

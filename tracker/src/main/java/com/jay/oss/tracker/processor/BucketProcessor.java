@@ -150,13 +150,13 @@ public class BucketProcessor extends AbstractProcessor {
                     builder.append(node.getUrl());
                     builder.append(";");
                 }
-                builder.append(versionId);
                 String urls = builder.toString();
+                builder.append(versionId);
                 // 保存object位置，判断object是否已经存在
                 if(objectTracker.saveObjectLocation(objectKey, urls)){
                     // 日志记录put object
                     appendBucketPutObjectLog(objectKey);
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, code);
+                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
                 }else{
                     // object key 重复
                     response = (FastOssCommand)commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);

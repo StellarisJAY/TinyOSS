@@ -66,7 +66,7 @@ public class ObjectProcessor extends AbstractProcessor {
             // 定位object
             String urls = objectTracker.locateObject(objectKey);
             if(StringUtil.isNullOrEmpty(urls)){
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "Object Not Found", FastOssProtocol.OBJECT_NOT_FOUND);
+                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
             }else{
                 response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }

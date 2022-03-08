@@ -3,14 +3,13 @@ package com.jay.oss.proxy.service;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.proxy.cache.ObjectLocationCache;
 import com.jay.oss.proxy.util.HttpUtil;
-import com.jay.oss.common.util.SerializeUtil;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,19 +45,14 @@ public class ObjectService {
             if(code.equals(FastOssProtocol.SUCCESS)){
                 // 创建删除object数据请求
                 DeleteRequest requestBody = DeleteRequest.builder().key(bucket + key).build();
-                byte[] content = SerializeUtil.serialize(requestBody, DeleteRequest.class);
-                FastOssCommand request = (FastOssCommand)client.getCommandFactory()
-                        .createRequest(content, FastOssProtocol.DELETE_OBJECT);
-                Url url = Url.parseString("127.0.0.1:9999?conn=10");
+                RemotingCommand request = client.getCommandFactory()
+                        .createRequest(requestBody, FastOssProtocol.DELETE_OBJECT, DeleteRequest.class);
+                Url url = Url.parseString("127.0.0.1:9999");
                 // 同步发送
                 FastOssCommand response = (FastOssCommand)client.sendSync(url, request, null);
                 httpResponse = HttpUtil.okResponse();
-            }else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
-                // 无访问权限
-                httpResponse = HttpUtil.forbiddenResponse("Access Denied");
             }else{
-                // 桶或者object不存在
-                httpResponse = HttpUtil.notFoundResponse("Not Found");
+                httpResponse = HttpUtil.bucketAclResponse(code);
             }
         }catch (Exception e){
             httpResponse = HttpUtil.internalErrorResponse("Internal server error");
@@ -78,9 +72,8 @@ public class ObjectService {
         Url url = Url.parseString(OssConfigs.trackerServerHost());
         DeleteObjectInBucketRequest request = DeleteObjectInBucketRequest.builder()
                 .bucket(bucket).key(key).token(token).build();
-        byte[] content = SerializeUtil.serialize(request, DeleteObjectInBucketRequest.class);
-        FastOssCommand command = (FastOssCommand) client.getCommandFactory()
-                .createRequest(content, FastOssProtocol.BUCKET_DELETE_OBJECT);
+        RemotingCommand command = client.getCommandFactory()
+                .createRequest(request, FastOssProtocol.BUCKET_DELETE_OBJECT, DeleteObjectInBucketRequest.class);
         return client.sendSync(url, command, null).getCommandCode();
     }
 }

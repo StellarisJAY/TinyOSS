@@ -4,6 +4,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 
+import java.io.Serializable;
+
 /**
  * <p>
  *
@@ -15,6 +17,6 @@ import lombok.ToString;
 @Builder
 @ToString
 @Getter
-public class DeleteRequest {
+public class DeleteRequest implements Serializable {
     private String key;
 }

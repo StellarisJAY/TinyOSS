@@ -6,9 +6,11 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.fs.FilePartWrapper;
+import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -50,6 +52,20 @@ public class FastOssCommandFactory implements CommandFactory {
             return builder.filePartWrapper(partWrapper)
                     .length(FastOssProtocol.HEADER_LENGTH + partWrapper.getKeyLength() + partWrapper.getLength() + 8)
                     .build();
+        }
+        return null;
+    }
+
+    @Override
+    public <T> RemotingCommand createRequest(T t, CommandCode commandCode, Class<T> aClass) {
+        if(t instanceof Serializable){
+            FastOssCommand.FastOssCommandBuilder builder = FastOssCommand.builder()
+                    .id(requestIdProvider.getAndIncrement())
+                    .commandCode(commandCode)
+                    .serializer(OssConfigs.DEFAULT_SERIALIZER)
+                    .timeout(System.currentTimeMillis() + 60 * 1000);
+            byte[] content = SerializeUtil.serialize(t, aClass);
+            return builder.content(content).length(FastOssProtocol.HEADER_LENGTH + content.length).build();
         }
         return null;
     }
