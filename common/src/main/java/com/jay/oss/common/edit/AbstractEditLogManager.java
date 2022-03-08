@@ -69,6 +69,24 @@ public abstract class AbstractEditLogManager implements EditLogManager{
     }
 
     @Override
+    public final void append(EditLog[] editLogs){
+        /*
+            因为是向同一个buffer追加数据，所以需要加锁避免多线程同时追加
+         */
+        synchronized (writeLock){
+            for (EditLog editLog : editLogs) {
+                // 写入syncBuffer
+                syncBuffer.writeByte(editLog.getOperation().value());
+                syncBuffer.writeInt(editLog.getContent().length);
+                syncBuffer.writeBytes(editLog.getContent());
+                unWrittenLogs ++;
+            }
+            // 尝试刷盘
+            flush(false);
+        }
+    }
+
+    @Override
     public final void flush(boolean force) {
         synchronized (writeLock){
             if(syncBuffer.readableBytes() > 0){

@@ -21,6 +21,12 @@ public interface EditLogManager {
     void append(EditLog editLog);
 
     /**
+     * 追加多条editLog
+     * @param editLogs EditLogs
+     */
+    void append(EditLog[] editLogs);
+
+    /**
      * 刷盘
      * @param force 是否强制刷盘
      */
