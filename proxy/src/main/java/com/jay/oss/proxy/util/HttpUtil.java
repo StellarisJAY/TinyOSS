@@ -81,11 +81,17 @@ public class HttpUtil {
         return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.BAD_REQUEST);
     }
 
+    public static FullHttpResponse partialContentResponse(ByteBuf content){
+        return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.PARTIAL_CONTENT, content);
+    }
+
     public static FullHttpResponse bucketAclResponse(CommandCode code){
         if(FastOssProtocol.NOT_FOUND.equals(code)){
             return notFoundResponse("Bucket Not Found");
         }else if(FastOssProtocol.ACCESS_DENIED.equals(code)){
             return unauthorizedResponse("Bucket Access Denied");
+        }else if(FastOssProtocol.OBJECT_NOT_FOUND.equals(code)){
+            return notFoundResponse("Object Not Found");
         }else{
             return internalErrorResponse("Internal Server Error");
         }
