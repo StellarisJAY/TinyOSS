@@ -1,7 +1,6 @@
 package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
-import com.jay.dove.config.DoveConfigs;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.callback.InvokeCallback;
 import com.jay.dove.transport.command.CommandCode;
@@ -27,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -77,21 +75,14 @@ public class UploadService {
             String versionId = str.substring(idx + 1);
             // 获取上传点
             List<Url> urls = UrlUtil.parseUrls(str.substring(0, idx));
-
             if(!StringUtil.isNullOrEmpty(versionId)){
                 objectKey = objectKey + "-" + versionId;
             }
             httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key, versionId);
-        }else if(code.equals(FastOssProtocol.ACCESS_DENIED)){
-            // bucket返回拒绝访问
-            httpResponse = HttpUtil.forbiddenResponse("Bucket Access Denied");
-        }else if(code.equals(FastOssProtocol.NOT_FOUND)){
-            // bucket不存在
-            httpResponse = HttpUtil.notFoundResponse("Bucket Not Found");
         }else if(code.equals(FastOssProtocol.NO_ENOUGH_STORAGES)){
             httpResponse = HttpUtil.internalErrorResponse("No enough Storages for replica");
         }else{
-            httpResponse = HttpUtil.internalErrorResponse("internal server error");
+            httpResponse = HttpUtil.bucketAclResponse(code);
         }
         return httpResponse;
     }
@@ -110,7 +101,6 @@ public class UploadService {
         int successReplica = 0;
         // 需要写入成功的数量
         int writeCount = urls.size() / 2 + 1;
-        List<FastOssCommand> responses = new ArrayList<>(urls.size());
         // 没有成功写入的url集合
         List<Url> asyncWriteUrls = new ArrayList<>();
         List<Url> successUrls = new ArrayList<>();
@@ -207,11 +197,9 @@ public class UploadService {
                 .filename(filename).key(objectKey)
                 .bucket(bucket).size(size).token(token)
                 .createTime(createTime).build();
-        // 序列化
-        byte[] content = SerializeUtil.serialize(request, BucketPutObjectRequest.class);
         // 发送
-        FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
-                .createRequest(content, FastOssProtocol.BUCKET_PUT_OBJECT);
+        RemotingCommand command = storageClient.getCommandFactory()
+                .createRequest(request, FastOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
         return (FastOssCommand) storageClient.sendSync(url, command, null);
     }
 
@@ -224,11 +212,9 @@ public class UploadService {
      * @throws InterruptedException e
      */
     private FastOssCommand uploadFileHeader(Url url, UploadRequest request) throws InterruptedException {
-        // 序列化
-        byte[] content = SerializeUtil.serialize(request, UploadRequest.class);
         // 创建请求报文
         RemotingCommand command = storageClient.getCommandFactory()
-                .createRequest(content, FastOssProtocol.UPLOAD_FILE_HEADER);
+                .createRequest(request, FastOssProtocol.UPLOAD_FILE_HEADER, UploadRequest.class);
         return (FastOssCommand) storageClient.sendSync(url, command, null);
     }
 
@@ -243,7 +229,7 @@ public class UploadService {
      */
     private FastOssCommand uploadFileParts(Url url, ByteBuf content, long size, int parts, String key) throws Exception {
         CommandFactory commandFactory = storageClient.getCommandFactory();
-        byte[] keyBytes = key.getBytes(DoveConfigs.DEFAULT_CHARSET);
+        byte[] keyBytes = StringUtil.getBytes(key);
         int keyLength = keyBytes.length;
         try{
             // future, 等待所有分片上传完成
@@ -262,7 +248,7 @@ public class UploadService {
                 // 将content refCnt + 1
                 content.retain();
                 // 创建请求
-                FastOssCommand request = (FastOssCommand)commandFactory.createRequest(partWrapper, FastOssProtocol.UPLOAD_FILE_PARTS);
+                RemotingCommand request = commandFactory.createRequest(partWrapper, FastOssProtocol.UPLOAD_FILE_PARTS);
                 // 发送文件分片，异步方式发送
                 storageClient.sendAsync(url, request, new UploadCallback(responseFuture, i, key));
             }

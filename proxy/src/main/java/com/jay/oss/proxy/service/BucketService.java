@@ -2,6 +2,7 @@ package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.Bucket;
@@ -10,8 +11,7 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
-import com.jay.oss.common.util.SerializeUtil;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
@@ -46,12 +46,8 @@ public class BucketService {
                 .acl(Acl.getAcl(acl))
                 .versioning(versioning)
                 .build();
-        // 序列化
-        byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
-        // 创建请求
-        FastOssCommand command = (FastOssCommand) client.getCommandFactory()
-                .createRequest(content, FastOssProtocol.PUT_BUCKET);
-
+        RemotingCommand command = client.getCommandFactory()
+                .createRequest(bucket, FastOssProtocol.PUT_BUCKET, Bucket.class);
         // 寻找目标storage地址
         Url url = Url.parseString(OssConfigs.trackerServerHost());
 
@@ -89,10 +85,8 @@ public class BucketService {
      */
     public FullHttpResponse listBucket(String bucket, String token, int count, int offset){
         ListBucketRequest request = new ListBucketRequest(bucket, token, count, offset);
-        // 序列化请求
-        byte[] content = SerializeUtil.serialize(request, ListBucketRequest.class);
-        FastOssCommand command = (FastOssCommand)client.getCommandFactory()
-                .createRequest(content, FastOssProtocol.LIST_BUCKET);
+        RemotingCommand command = client.getCommandFactory()
+                .createRequest(request, FastOssProtocol.LIST_BUCKET, ListBucketRequest.class);
         // 查询目标storage
         Url url = Url.parseString(OssConfigs.trackerServerHost());
 
