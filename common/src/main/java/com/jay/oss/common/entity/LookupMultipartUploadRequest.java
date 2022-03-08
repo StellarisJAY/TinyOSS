@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 /**
  * <p>
- *
+ *  查询分片上传任务请求
  * </p>
  *
  * @author Jay
