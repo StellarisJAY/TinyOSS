@@ -28,7 +28,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager,
                 objectTracker, commandFactory);
         ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, commandFactory);
-        MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(bucketManager, objectTracker,  storageRegistry, multipartUploadTracker, commandFactory);
+        MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(bucketManager, objectTracker,  storageRegistry, multipartUploadTracker, editLogManager, commandFactory);
         // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);
         this.registerProcessor(FastOssProtocol.LIST_BUCKET, bucketProcessor);
@@ -40,5 +40,6 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         this.registerProcessor(FastOssProtocol.LOCATE_OBJECT, objectProcessor);
 
         this.registerProcessor(FastOssProtocol.INIT_MULTIPART_UPLOAD, multipartUploadProcessor);
+        this.registerProcessor(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, multipartUploadProcessor);
     }
 }
