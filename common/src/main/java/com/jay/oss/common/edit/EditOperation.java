@@ -24,7 +24,11 @@ public enum EditOperation {
     /**
      * 删除桶内对象操作
      */
-    BUCKET_DELETE_OBJECT((byte)4)
+    BUCKET_DELETE_OBJECT((byte)4),
+    /**
+     * 分片上传任务
+     */
+    MULTIPART_UPLOAD((byte)5)
     ;
     private final byte code;
 

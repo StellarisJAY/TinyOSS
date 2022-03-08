@@ -4,8 +4,10 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.common.bitcask.Index;
 import io.netty.buffer.ByteBuf;
@@ -32,10 +34,12 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
 
     private final ObjectTracker objectTracker;
     private final BucketManager bucketManager;
+    private final MultipartUploadTracker multipartUploadTracker;
 
-    public TrackerEditLogManager(ObjectTracker objectTracker, BucketManager bucketManager) {
+    public TrackerEditLogManager(ObjectTracker objectTracker, BucketManager bucketManager, MultipartUploadTracker multipartUploadTracker) {
         this.objectTracker = objectTracker;
         this.bucketManager = bucketManager;
+        this.multipartUploadTracker = multipartUploadTracker;
     }
 
     @Override
@@ -67,6 +71,7 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                         case DELETE: deleteBucket(content);break;
                         case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
                         case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
+                        case MULTIPART_UPLOAD:saveMultipartUploadTask(content);break;
                         default: break;
                     }
                 }
@@ -115,6 +120,14 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                 buffer.writeBytes(content);
             }
         }
+
+        List<MultipartUploadTask> tasks = multipartUploadTracker.listUploadTasks();
+        for (MultipartUploadTask task : tasks) {
+            buffer.writeByte(EditOperation.MULTIPART_UPLOAD.value());
+            byte[] content = SerializeUtil.serialize(task, MultipartUploadTask.class);
+            buffer.writeInt(content.length);
+            buffer.writeBytes(content);
+        }
         buffer.readBytes(channel, buffer.readableBytes());
     }
 
@@ -149,6 +162,11 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     private void bucketDeleteObject(byte[] content){
         String key = new String(content, OssConfigs.DEFAULT_CHARSET);
         objectTracker.deleteObject(key);
+    }
+
+    private void saveMultipartUploadTask(byte[] content){
+        MultipartUploadTask task = SerializeUtil.deserialize(content, MultipartUploadTask.class);
+        multipartUploadTracker.saveUploadTask(task.getUploadId(), task);
     }
 
 }
