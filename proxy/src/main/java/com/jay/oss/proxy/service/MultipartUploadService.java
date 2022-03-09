@@ -18,6 +18,7 @@ import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.FullHttpResponse;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
  * @author Jay
  * @date 2022/03/07 14:10
  */
+@Slf4j
 public class MultipartUploadService {
 
     private final DoveClient client;
@@ -154,6 +156,7 @@ public class MultipartUploadService {
         for (i = 0; i < urls.size() && successCount < syncWriteReplicas; i++) {
             Url url = urls.get(i);
             try{
+                log.info("Sending part to : {}, size: {}", url, content.readableBytes());
                 FastOssCommand response = doUpload(url, uploadId, partNum, content);
                 if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
                     successUrls.add(url);
@@ -171,7 +174,7 @@ public class MultipartUploadService {
         }else if(i < totalReplicas){
             asyncBackupUrls.addAll(urls.subList(i, totalReplicas));
         }
-        submitAsyncBackup(successUrls, asyncBackupUrls, uploadId);
+        submitAsyncBackup(successUrls, asyncBackupUrls, uploadId, partNum);
         return HttpUtil.okResponse();
     }
 
@@ -183,13 +186,14 @@ public class MultipartUploadService {
                 .length(content.readableBytes())
                 .key(keyBytes).keyLength(keyBytes.length)
                 .build();
+        content.retain();
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(wrapper, FastOssProtocol.MULTIPART_UPLOAD_PART);
         return (FastOssCommand) client.sendSync(url, command, null);
     }
 
 
-    private void submitAsyncBackup(List<Url> successUrls, List<Url> asyncBackupUrls, String objectKey){
+    private void submitAsyncBackup(List<Url> successUrls, List<Url> asyncBackupUrls, String uploadId, int partNum){
         int successCount = successUrls.size();
         int asyncBackupCount = asyncBackupUrls.size();
         int j = 0;
@@ -201,10 +205,10 @@ public class MultipartUploadService {
                 urls = asyncBackupUrls.subList(j, asyncBackupCount).stream().map(Url::getOriginalUrl).collect(Collectors.toList());
             }
             // 发送异步备份请求
-            AsyncBackupRequest request = new AsyncBackupRequest(objectKey, urls);
+            AsyncBackupRequest request = new AsyncBackupRequest(uploadId, urls, partNum);
             byte[] content = SerializeUtil.serialize(request, AsyncBackupRequest.class);
             RemotingCommand command =  client.getCommandFactory()
-                    .createRequest(content, FastOssProtocol.ASYNC_BACKUP);
+                    .createRequest(content, FastOssProtocol.ASYNC_BACKUP_PART);
             client.sendOneway(successUrls.get(i), command);
         }
     }

@@ -46,7 +46,7 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
             异步备份处理器
          */
         this.registerProcessor(FastOssProtocol.ASYNC_BACKUP, asyncBackupProcessor);
-
+        this.registerProcessor(FastOssProtocol.ASYNC_BACKUP_PART, asyncBackupProcessor);
         /*
             分片上传处理器
          */
