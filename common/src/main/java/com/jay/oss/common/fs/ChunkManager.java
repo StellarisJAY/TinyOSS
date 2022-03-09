@@ -28,6 +28,13 @@ public final class ChunkManager {
     private final SortedMap<Long, BlockingQueue<Chunk>> chunkSizeMap = Collections.synchronizedSortedMap(new TreeMap<>());
 
     private final ConcurrentHashMap<Integer, Chunk> chunkMap = new ConcurrentHashMap<>();
+
+    /**
+     * 临时chunk集合
+     * 分片上传时存储分片的临时chunk
+     */
+    private final TreeMap<String, Chunk> tempChunkMap = new TreeMap<>();
+
     /**
      * chunk id provider
      */
@@ -94,6 +101,18 @@ public final class ChunkManager {
     public Chunk createChunkAndGet(){
         int id = chunkIdProvider.getAndIncrement();
         return new Chunk(id);
+    }
+
+    /**
+     * 获取一个临时chunk
+     * @param objectKey objectKey
+     * @param partNum 分片号
+     * @return {@link Chunk}
+     */
+    public Chunk getTempChunk(String objectKey, int partNum){
+        String tempChunkName = objectKey + "_" + partNum;
+        tempChunkMap.computeIfAbsent(tempChunkName, (key)-> new Chunk(tempChunkName));
+        return tempChunkMap.get(tempChunkName);
     }
 
     public List<Chunk> listChunks(){
