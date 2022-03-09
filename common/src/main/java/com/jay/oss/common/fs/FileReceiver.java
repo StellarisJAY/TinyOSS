@@ -1,7 +1,5 @@
 package com.jay.oss.common.fs;
 
-import com.jay.oss.common.entity.FileMeta;
-import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 
 import java.util.concurrent.atomic.AtomicInteger;

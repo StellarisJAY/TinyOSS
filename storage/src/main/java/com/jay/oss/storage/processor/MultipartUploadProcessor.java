@@ -69,7 +69,7 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         int partNum = data.readInt();
         RemotingCommand response;
         try{
-            Chunk tempChunk = chunkManager.getTempChunk(objectKey, partNum);
+            Chunk tempChunk = chunkManager.getTempChunkAndCreateIfAbsent(objectKey, partNum);
             tempChunk.write(data);
             response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
         }catch (IOException e){

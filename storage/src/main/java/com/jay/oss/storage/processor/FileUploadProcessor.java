@@ -113,9 +113,8 @@ public class FileUploadProcessor extends AbstractProcessor {
             duplicateKey.set(false);
             return meta;
         });
-        FileReceiver receiver;
         // 没能够成功进行computeIfAbsent的重复的key
-        if(duplicateKey.get() && (receiver = fileReceivers.get(request.getKey())) == null){
+        if(duplicateKey.get() && fileReceivers.get(request.getKey()) == null){
             // 发送重复回复报文
             RemotingCommand response = commandFactory.createResponse(command.getId(), request.getKey().getBytes(StandardCharsets.UTF_8), FastOssProtocol.ERROR);
             sendResponse(context, response);

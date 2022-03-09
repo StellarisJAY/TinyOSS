@@ -168,7 +168,7 @@ public class UploadService {
                 break;
             }
             // 发送异步备份请求
-            AsyncBackupRequest request = new AsyncBackupRequest(objectKey, urls);
+            AsyncBackupRequest request = new AsyncBackupRequest(objectKey, urls, -1);
             byte[] content = SerializeUtil.serialize(request, AsyncBackupRequest.class);
             FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
                     .createRequest(content, FastOssProtocol.ASYNC_BACKUP);
