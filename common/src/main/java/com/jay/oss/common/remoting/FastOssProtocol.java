@@ -75,6 +75,8 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode MULTIPART_UPLOAD_PART = new CommandCode((short)132);
     public static final CommandCode LOOKUP_MULTIPART_UPLOAD = new CommandCode((short)133);
     public static final CommandCode MULTIPART_UPLOAD_FINISHED = new CommandCode((short)134);
+    public static final CommandCode COMPLETE_MULTIPART_UPLOAD = new CommandCode((short)135);
+    public static final CommandCode CANCEL_MULTIPART_UPLOAD = new CommandCode((short)136);
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);

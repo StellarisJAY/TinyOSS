@@ -33,6 +33,10 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
                 ByteBuf filePart = createFilePartContent(command.getFilePartWrapper());
                 out.add(filePart);
             }
+            else if(FastOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
+                ByteBuf multipartContent = createMultipartContent(command.getFilePartWrapper());
+                out.add(multipartContent);
+            }
             // 处理下载的fileRegion
             else if(FastOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
                 out.add(command.getFileRegion());
@@ -73,6 +77,16 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
         int readerIndex = partWrapper.getFullContent().readerIndex();
         out.writeBytes(partWrapper.getFullContent(), partWrapper.getIndex(), partWrapper.getLength());
         // 释放一个 content refCnt
+        partWrapper.getFullContent().release();
+        return out;
+    }
+
+    private ByteBuf createMultipartContent(FilePartWrapper partWrapper){
+        ByteBuf out = Unpooled.directBuffer(partWrapper.getKeyLength() + 8 + partWrapper.getLength());
+        out.writeInt(partWrapper.getKeyLength());
+        out.writeBytes(partWrapper.getKey());
+        out.writeInt(partWrapper.getPartNum());
+        out.writeBytes(partWrapper.getFullContent());
         partWrapper.getFullContent().release();
         return out;
     }
