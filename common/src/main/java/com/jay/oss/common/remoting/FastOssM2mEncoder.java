@@ -73,8 +73,6 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
         out.writeBytes(partWrapper.getKey());
         // 写入分片号
         out.writeInt(partWrapper.getPartNum());
-        // 写入content
-        int readerIndex = partWrapper.getFullContent().readerIndex();
         out.writeBytes(partWrapper.getFullContent(), partWrapper.getIndex(), partWrapper.getLength());
         // 释放一个 content refCnt
         partWrapper.getFullContent().release();
@@ -86,7 +84,7 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
         out.writeInt(partWrapper.getKeyLength());
         out.writeBytes(partWrapper.getKey());
         out.writeInt(partWrapper.getPartNum());
-        out.writeBytes(partWrapper.getFullContent());
+        out.writeBytes(partWrapper.getFullContent(), 0, partWrapper.getLength());
         partWrapper.getFullContent().release();
         return out;
     }
