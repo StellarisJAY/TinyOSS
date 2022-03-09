@@ -102,6 +102,23 @@ public class HttpUtil {
             return notFoundResponse("Object Not Found");
         }else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
             return badRequestResponse("Duplicate Object key");
+        }else if(FastOssProtocol.MULTIPART_UPLOAD_FINISHED.equals(code)){
+            return badRequestResponse("Multipart Upload Already Finished");
+        }
+        else{
+            return internalErrorResponse("Internal Server Error");
+        }
+    }
+
+    public static FullHttpResponse errorResponse(CommandCode code){
+        if(FastOssProtocol.NOT_FOUND.equals(code)){
+            return notFoundResponse("Bucket Not Found");
+        }else if(FastOssProtocol.ACCESS_DENIED.equals(code)){
+            return unauthorizedResponse("Bucket Access Denied");
+        }else if(FastOssProtocol.OBJECT_NOT_FOUND.equals(code)){
+            return notFoundResponse("Object Not Found");
+        }else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
+            return badRequestResponse("Duplicate Object key");
         }else{
             return internalErrorResponse("Internal Server Error");
         }
