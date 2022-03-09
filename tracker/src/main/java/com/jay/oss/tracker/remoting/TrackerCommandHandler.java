@@ -39,7 +39,9 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         // object相关处理器
         this.registerProcessor(FastOssProtocol.LOCATE_OBJECT, objectProcessor);
 
+        // MultipartUpload 相关处理器
         this.registerProcessor(FastOssProtocol.INIT_MULTIPART_UPLOAD, multipartUploadProcessor);
         this.registerProcessor(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, multipartUploadProcessor);
+        this.registerProcessor(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, multipartUploadProcessor);
     }
 }
