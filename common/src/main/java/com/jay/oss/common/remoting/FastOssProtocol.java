@@ -70,6 +70,7 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode BUCKET_DELETE_OBJECT = new CommandCode((short)115);
 
     public static final CommandCode ASYNC_BACKUP = new CommandCode((short)120);
+    public static final CommandCode ASYNC_BACKUP_PART = new CommandCode((short)121);
 
     public static final CommandCode INIT_MULTIPART_UPLOAD = new CommandCode((short)131);
     public static final CommandCode MULTIPART_UPLOAD_PART = new CommandCode((short)132);
