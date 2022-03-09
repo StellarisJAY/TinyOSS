@@ -4,6 +4,7 @@ import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.AsyncBackupRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
@@ -14,6 +15,7 @@ import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -47,12 +49,15 @@ public class AsyncBackupProcessor extends AbstractProcessor {
             FastOssCommand command = (FastOssCommand) o;
             CommandCode code = command.getCommandCode();
             if(FastOssProtocol.ASYNC_BACKUP.equals(code)){
-                processAsyncBackup(channelHandlerContext, command);
+                processAsyncBackup(command);
+            }
+            else if(FastOssProtocol.ASYNC_BACKUP_PART.equals(code)){
+                processAsyncBackupPart(command);
             }
         }
     }
 
-    private void processAsyncBackup(ChannelHandlerContext context, FastOssCommand command){
+    private void processAsyncBackup(FastOssCommand command){
         byte[] content = command.getContent();
         AsyncBackupRequest request = SerializeUtil.deserialize(content, AsyncBackupRequest.class);
         String objectKey = request.getObjectKey();
@@ -97,10 +102,38 @@ public class AsyncBackupProcessor extends AbstractProcessor {
         FilePartWrapper wrapper = FilePartWrapper.builder()
                 .key(keyBytes).keyLength(keyBytes.length)
                 .index(0).length((int) meta.getSize())
-                .partNum(1).fullContent(fullContent)
+                .partNum(0).fullContent(fullContent)
                 .build();
         FastOssCommand command = (FastOssCommand) client.getCommandFactory()
                 .createRequest(wrapper, FastOssProtocol.UPLOAD_FILE_PARTS);
         return (FastOssCommand) client.sendSync(url, command, null);
+    }
+
+    public void processAsyncBackupPart(FastOssCommand command){
+        AsyncBackupRequest request = SerializeUtil.deserialize(command.getContent(), AsyncBackupRequest.class);
+        String uploadId = request.getObjectKey();
+        int partNum = request.getPartNum();
+        Chunk tempChunk = chunkManager.getTempChunk(uploadId, partNum);
+
+        if(tempChunk != null){
+            ByteBuf buffer = tempChunk.readFileBytes(uploadId, 0, tempChunk.size());
+            byte[] keyBytes = StringUtil.getBytes(uploadId);
+            FilePartWrapper wrapper = FilePartWrapper.builder()
+                    .key(keyBytes)
+                    .keyLength(keyBytes.length)
+                    .partNum(partNum)
+                    .length(buffer.readableBytes())
+                    .fullContent(buffer)
+                    .build();
+
+            RemotingCommand backupCommand = client.getCommandFactory()
+                    .createRequest(wrapper, FastOssProtocol.MULTIPART_UPLOAD_PART);
+            List<String> targets = request.getTargets();
+            for (String target : targets) {
+                Url url = Url.parseString(target);
+                buffer.retain();
+                client.sendAsync(url, backupCommand, null);
+            }
+        }
     }
 }

@@ -21,4 +21,5 @@ import java.util.List;
 public class AsyncBackupRequest implements Serializable {
     private String objectKey;
     private List<String> targets;
+    private int partNum;
 }
