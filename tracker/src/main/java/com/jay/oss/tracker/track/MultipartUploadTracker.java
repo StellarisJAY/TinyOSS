@@ -37,4 +37,8 @@ public class MultipartUploadTracker {
     public List<MultipartUploadTask> listUploadTasks(){
         return new ArrayList<>(uploads.values());
     }
+
+    public void remove(String uploadId){
+        uploads.remove(uploadId);
+    }
 }

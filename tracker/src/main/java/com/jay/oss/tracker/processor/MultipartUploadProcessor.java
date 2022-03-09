@@ -3,12 +3,15 @@ package com.jay.oss.tracker.processor;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
+import com.jay.oss.common.entity.CompleteMultipartUploadRequest;
 import com.jay.oss.common.entity.LookupMultipartUploadRequest;
 import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.registry.StorageNodeInfo;
@@ -63,6 +66,9 @@ public class MultipartUploadProcessor extends AbstractProcessor {
             }else if(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD.equals(code)){
                 lookupMultipartUpload(channelHandlerContext, command);
             }
+            else if(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD.equals(code)){
+                completeMultipartUpload(channelHandlerContext, command);
+            }
         }
     }
 
@@ -114,30 +120,69 @@ public class MultipartUploadProcessor extends AbstractProcessor {
      * @param command {@link FastOssCommand}
      */
     private void lookupMultipartUpload(ChannelHandlerContext context, FastOssCommand command){
-        LookupMultipartUploadRequest request = SerializeUtil.deserialize(command.getContent(), LookupMultipartUploadRequest.class);
+        LookupMultipartUploadRequest request = SerializeUtil.deserialize(command.getContent(),
+                LookupMultipartUploadRequest.class);
         String uploadId = request.getUploadId();
         String objectKey = request.getObjectKey();
         String token = request.getToken();
         String bucket = request.getBucket();
-        FastOssCommand response;
+        RemotingCommand response;
+
         // 检查访问权限
         CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
         if(code.equals(FastOssProtocol.SUCCESS)){
             MultipartUploadTask task = uploadTracker.getTask(uploadId);
             if(task == null){
                 // task为null，上传任务无效
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
             }else{
                 // 检查objectKey是否和上传任务相同
                 if(!task.getObjectKey().equals(objectKey)){
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+                    response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
                 }else{
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
+                    response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
                 }
             }
         }else{
             // 存储桶拒绝访问
-            response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", code);
+            response = commandFactory.createResponse(command.getId(), "", code);
+        }
+        sendResponse(context, response);
+    }
+
+    private void completeMultipartUpload(ChannelHandlerContext context, FastOssCommand command){
+        CompleteMultipartUploadRequest request = SerializeUtil.deserialize(command.getContent(), CompleteMultipartUploadRequest.class);
+        String bucket = request.getBucket();
+        String token = request.getToken();
+        String objectKey = request.getObjectKey();
+        String uploadId = request.getUploadId();
+
+        // 检查存储桶访问权限
+        CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
+        RemotingCommand response;
+        if(FastOssProtocol.SUCCESS.equals(code)){
+            // 获取上传任务记录
+            MultipartUploadTask task = uploadTracker.getTask(uploadId);
+            if(task == null || !task.getObjectKey().equals(objectKey)){
+                // 记录不存在 或者 记录的object和当前object不符
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
+            }
+            else{
+                uploadTracker.remove(uploadId);
+                // 保存object位置，判断是否是重复key
+                if(objectTracker.saveObjectLocation(task.getObjectKey(), task.getLocations())){
+                    Index index = objectTracker.getIndex(objectKey);
+                    appendObjectLocationLog(objectKey, index);
+                    response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
+                }
+                else{
+                    // key已存在，表示multipartUpload已经结束了
+                    response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
+                }
+            }
+        }
+        else{
+            response = commandFactory.createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
     }
@@ -156,5 +201,11 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         byte[] uploadTaskSerialized = SerializeUtil.serialize(task, MultipartUploadTask.class);
         EditLog uploadTaskLog = new EditLog(EditOperation.MULTIPART_UPLOAD, uploadTaskSerialized);
         editLogManager.append(uploadTaskLog);
+    }
+
+    private void appendObjectLocationLog(String objectKey, Index index){
+        byte[] serialized = SerializeUtil.serialize(index, Index.class);
+        EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
+        editLogManager.append(editLog);
     }
 }
