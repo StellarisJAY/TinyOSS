@@ -7,10 +7,7 @@ import com.jay.oss.common.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;
-import com.jay.oss.storage.processor.AsyncBackupProcessor;
-import com.jay.oss.storage.processor.FileDeleteProcessor;
-import com.jay.oss.storage.processor.FileDownloadProcessor;
-import com.jay.oss.storage.processor.FileUploadProcessor;
+import com.jay.oss.storage.processor.*;
 
 import java.util.concurrent.ExecutorService;
 
@@ -33,15 +30,28 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, commandFactory);
         FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         AsyncBackupProcessor asyncBackupProcessor = new AsyncBackupProcessor(client, metaManager, chunkManager);
+        MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         /*
-            注册处理器
+            Put Object处理器
          */
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
+        /*
+            Get Object 处理器
+         */
         this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DELETE_OBJECT, fileDeleteProcessor);
-
+        /*
+            异步备份处理器
+         */
         this.registerProcessor(FastOssProtocol.ASYNC_BACKUP, asyncBackupProcessor);
+        this.registerProcessor(FastOssProtocol.ASYNC_BACKUP_PART, asyncBackupProcessor);
+        /*
+            分片上传处理器
+         */
+        this.registerProcessor(FastOssProtocol.MULTIPART_UPLOAD_PART, multipartUploadProcessor);
+        this.registerProcessor(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, multipartUploadProcessor);
+        this.registerProcessor(FastOssProtocol.CANCEL_MULTIPART_UPLOAD, multipartUploadProcessor);
     }
 }

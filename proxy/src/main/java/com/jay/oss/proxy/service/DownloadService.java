@@ -59,7 +59,7 @@ public class DownloadService {
                 String respContent = new String(locateResponse.getContent(), OssConfigs.DEFAULT_CHARSET);
                 String[] urls = respContent.split(";");
                 // 尝试从url列表中下载object
-                return tryDownload(urls, command);
+                return tryDownload(urls, command, rangeEnd==-1);
             } else{
                 // 存储桶拒绝访问，或者object不存在
                 return HttpUtil.bucketAclResponse(code);
@@ -84,9 +84,10 @@ public class DownloadService {
      * 直到找到目标object
      * @param urls urls
      * @param command download request
+     * @param full download full content
      * @return {@link FullHttpResponse}
      */
-    private FullHttpResponse tryDownload(String[] urls, FastOssCommand command){
+    private FullHttpResponse tryDownload(String[] urls, FastOssCommand command, boolean full){
         for (String urlStr : urls) {
             Url url = Url.parseString(urlStr);
             try{
@@ -95,7 +96,7 @@ public class DownloadService {
                 CommandCode code = response.getCommandCode();
                 if(!code.equals(FastOssProtocol.OBJECT_NOT_FOUND)){
                     // 全量下载返回 200OK
-                    if(code.equals(FastOssProtocol.DOWNLOAD_FULL)){
+                    if(full){
                         return HttpUtil.okResponse(response.getData());
                     }else{
                         // 部分下载返回206 Partial Content

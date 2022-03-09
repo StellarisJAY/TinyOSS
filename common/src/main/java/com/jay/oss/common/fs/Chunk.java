@@ -45,7 +45,7 @@ public class Chunk {
     /**
      * chunk current size
      */
-    private AtomicInteger size;
+    private final AtomicInteger size;
 
     /**
      * chunk id
@@ -97,6 +97,21 @@ public class Chunk {
         }
     }
 
+    public Chunk(String tempName){
+        this.path = OssConfigs.dataPath() + "/" + tempName;
+        this.file = new File(path);
+        this.size = new AtomicInteger(0);
+        this.id = -1;
+        this.readWriteLock = new ReentrantReadWriteLock();
+        try{
+            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+            fileChannel = randomAccessFile.getChannel();
+        }catch (IOException e){
+            log.error("error creating chunk file: ", e);
+            throw new RuntimeException("can't create a chunk file: " + e);
+        }
+    }
+
 
     /**
      * 写入文件分片
@@ -112,6 +127,17 @@ public class Chunk {
             // 写入分片
             data.readBytes(fileChannel, offset, data.readableBytes());
         }finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    public void write(ByteBuf data) throws IOException {
+        try{
+            readWriteLock.writeLock().lock();
+            int length = data.readableBytes();
+            data.readBytes(fileChannel, 0, length);
+            size.set(length);
+        } finally {
             readWriteLock.writeLock().unlock();
         }
     }
@@ -213,7 +239,7 @@ public class Chunk {
 //    }
 
     public int getAndAddSize(int delta){
-        return size.addAndGet(delta);
+        return size.getAndAdd(delta);
     }
 
 }
