@@ -33,7 +33,7 @@ public final class ChunkManager {
      * 临时chunk集合
      * 分片上传时存储分片的临时chunk
      */
-    private final TreeMap<String, Chunk> tempChunkMap = new TreeMap<>();
+    private final ConcurrentHashMap<String, Chunk> tempChunkMap = new ConcurrentHashMap<>();
 
     /**
      * chunk id provider
@@ -41,6 +41,13 @@ public final class ChunkManager {
     private final AtomicInteger chunkIdProvider = new AtomicInteger(1);
 
     private final Object mutex = new Object();
+
+
+    public void init(){
+        loadChunk();
+        loadTempChunks();
+    }
+
     /**
      * 获取一个大小足够容纳FileMeta的chunk
      * @param size file size
@@ -105,13 +112,18 @@ public final class ChunkManager {
 
     /**
      * 获取一个临时chunk
-     * @param objectKey objectKey
+     * @param uploadId uploadId
      * @param partNum 分片号
      * @return {@link Chunk}
      */
-    public Chunk getTempChunk(String objectKey, int partNum){
-        String tempChunkName = objectKey + "_" + partNum;
+    public Chunk getTempChunkAndCreateIfAbsent(String uploadId, int partNum){
+        String tempChunkName = "temp_" + uploadId + "_" + partNum;
         tempChunkMap.computeIfAbsent(tempChunkName, (key)-> new Chunk(tempChunkName));
+        return tempChunkMap.get(tempChunkName);
+    }
+
+    public Chunk getTempChunk(String uploadId, int partNum){
+        String tempChunkName = "temp_" + uploadId + "_" + partNum;
         return tempChunkMap.get(tempChunkName);
     }
 
@@ -146,5 +158,27 @@ public final class ChunkManager {
             }
         }
         log.info("load chunk finished, loaded: {} chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
+    }
+
+    public void loadTempChunks(){
+        File file = new File(OssConfigs.dataPath());
+        File[] chunkFiles = file.listFiles(((dir, name) -> name.startsWith("temp_")));
+        if(chunkFiles == null || chunkFiles.length == 0){
+            log.info("no temp chunk file found, skipping temp chunk loading");
+            return;
+        }
+        long start = System.nanoTime();
+        int count = 0;
+        // 遍历chunk目录
+        for(File chunkFile : chunkFiles){
+            if(!chunkFile.isDirectory()){
+                String name = chunkFile.getName();
+                String partName = name.substring(name.indexOf("_"));
+                Chunk chunk = new Chunk(chunkFile.getPath(), chunkFile, -1);
+                tempChunkMap.put(partName, chunk);
+                count++;
+            }
+        }
+        log.info("load temp chunk finished, loaded: {} temp chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
     }
 }

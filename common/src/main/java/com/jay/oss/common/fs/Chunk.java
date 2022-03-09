@@ -45,7 +45,7 @@ public class Chunk {
     /**
      * chunk current size
      */
-    private AtomicInteger size;
+    private final AtomicInteger size;
 
     /**
      * chunk id
@@ -136,6 +136,7 @@ public class Chunk {
             readWriteLock.writeLock().lock();
             int length = data.readableBytes();
             data.readBytes(fileChannel, 0, length);
+            size.set(length);
         } finally {
             readWriteLock.writeLock().unlock();
         }
@@ -238,7 +239,7 @@ public class Chunk {
 //    }
 
     public int getAndAddSize(int delta){
-        return size.addAndGet(delta);
+        return size.getAndAdd(delta);
     }
 
 }
