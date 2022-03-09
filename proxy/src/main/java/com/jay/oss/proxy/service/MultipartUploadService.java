@@ -7,10 +7,12 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.AsyncBackupRequest;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
+import com.jay.oss.common.entity.CompleteMultipartUploadRequest;
 import com.jay.oss.common.entity.LookupMultipartUploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
@@ -156,7 +158,6 @@ public class MultipartUploadService {
         for (i = 0; i < urls.size() && successCount < syncWriteReplicas; i++) {
             Url url = urls.get(i);
             try{
-                log.info("Sending part to : {}, size: {}", url, content.readableBytes());
                 FastOssCommand response = doUpload(url, uploadId, partNum, content);
                 if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
                     successUrls.add(url);
@@ -168,7 +169,6 @@ public class MultipartUploadService {
                 asyncBackupUrls.add(url);
             }
         }
-
         if(successCount == 0){
             return HttpUtil.internalErrorResponse("Failed to upload object part to target storages");
         }else if(i < totalReplicas){
@@ -177,7 +177,6 @@ public class MultipartUploadService {
         submitAsyncBackup(successUrls, asyncBackupUrls, uploadId, partNum);
         return HttpUtil.okResponse();
     }
-
 
     private FastOssCommand doUpload(Url url, String uploadId, int partNum, ByteBuf content) throws InterruptedException {
         byte[] keyBytes = StringUtil.getBytes(uploadId);
@@ -211,5 +210,38 @@ public class MultipartUploadService {
                     .createRequest(content, FastOssProtocol.ASYNC_BACKUP_PART);
             client.sendOneway(successUrls.get(i), command);
         }
+    }
+
+    public FullHttpResponse completeMultipartUpload(String key, String bucket, String version, String token, String uploadId, long size){
+        String objectKey = KeyUtil.getObjectKey(key, bucket, version);
+        log.info("Complete upload");
+        CompleteMultipartUploadRequest request = CompleteMultipartUploadRequest.builder()
+                .objectKey(objectKey).bucket(bucket)
+                .token(token).uploadId(uploadId)
+                .filename(key).size(size)
+                .build();
+
+        Url url = OssConfigs.trackerServerUrl();
+        RemotingCommand command = client.getCommandFactory()
+                .createRequest(request, FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
+
+        FullHttpResponse httpResponse;
+        try{
+            RemotingCommand response = client.sendSync(url, command, null);
+            CommandCode code = response.getCommandCode();
+
+            if(code.equals(FastOssProtocol.SUCCESS)){
+                httpResponse = HttpUtil.okResponse(StringUtil.toString(response.getContent()));
+            }else{
+                httpResponse = HttpUtil.errorResponse(code);
+            }
+        }catch (Exception e){
+            httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
+        }
+        return httpResponse;
+    }
+
+    private FullHttpResponse completeStorageMultipartUpload(String objectKey, String uploadId, String filename, long size){
+        return null;
     }
 }

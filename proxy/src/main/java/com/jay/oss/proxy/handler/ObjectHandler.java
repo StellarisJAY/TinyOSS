@@ -121,11 +121,14 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String key = uri.substring(1, uri.indexOf("?"));
         int length = Integer.parseInt(headers.get("Content-Length"));
         Map<String, String> parameters = HttpUtil.parseUri(uri);
-
         if(parameters.containsKey(HttpConstants.INIT_UPLOAD_PARAMETER)){
             return multipartUploadService.initializeMultipartUpload(key, bucket, token, length);
         }
-
+        else if(parameters.containsKey(HttpConstants.UPLOAD_ID)){
+            String uploadId = parameters.get(HttpConstants.UPLOAD_ID);
+            String versionId = parameters.get(HttpConstants.VERSION_ID);
+            return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, length);
+        }
         return HttpUtil.badRequestResponse();
     }
 }
