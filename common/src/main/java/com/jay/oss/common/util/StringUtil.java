@@ -1,6 +1,7 @@
 package com.jay.oss.common.util;
 
 import com.jay.oss.common.config.OssConfigs;
+import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
 
@@ -23,5 +24,11 @@ public class StringUtil {
 
     public static byte[] getBytes(String s){
         return s.getBytes(OssConfigs.DEFAULT_CHARSET);
+    }
+
+    public static String readString(ByteBuf buffer, int length){
+        byte[] bytes = new byte[length];
+        buffer.readBytes(bytes);
+        return toString(bytes);
     }
 }
