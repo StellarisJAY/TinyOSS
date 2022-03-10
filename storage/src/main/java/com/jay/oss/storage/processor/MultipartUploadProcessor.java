@@ -103,7 +103,7 @@ public class MultipartUploadProcessor extends AbstractProcessor {
             Chunk tempChunk = chunkManager.getTempChunk(uploadId, i);
             if(tempChunk == null){
                 // 临时chunk不存在，表示分片丢失，自动中止MultipartUpload
-                doAbortMultipartUpload(uploadId, parts);
+                chunkManager.destroyTempChunks(uploadId, parts);
                 return;
             }
             else{
@@ -125,10 +125,15 @@ public class MultipartUploadProcessor extends AbstractProcessor {
 
     }
 
-    private void doAbortMultipartUpload(String uploadId, int parts){
 
-    }
-
+    /**
+     * 合并临时chunk
+     * @param tempChunks 临时chunk集合
+     * @param size 总共大小
+     * @param request {@link CompleteMultipartUploadRequest}
+     * @param requestId 请求ID
+     * @return {@link RemotingCommand}
+     */
     private RemotingCommand mergeTempChunks(List<Chunk> tempChunks, long size, CompleteMultipartUploadRequest request, int requestId){
         AtomicBoolean duplicateObject = new AtomicBoolean(true);
         AtomicBoolean mergeError = new AtomicBoolean(false);
@@ -155,7 +160,7 @@ public class MultipartUploadProcessor extends AbstractProcessor {
                 chunkManager.offerChunk(mergedChunk);
                 appendPutObjectLog(meta);
                 // 销毁临时chunk
-                destroyTempChunks(tempChunks);
+                chunkManager.destroyChunks(tempChunks);
             }catch (IOException e){
                 log.error("Merge Temp Chunk Failed, uploadId:{} ", request.getUploadId(), e);
                 mergeError.set(true);
@@ -174,12 +179,10 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         return response;
     }
 
-    private void destroyTempChunks(List<Chunk> tempChunks){
-        for (Chunk tempChunk : tempChunks) {
-            tempChunk.destroy();
-        }
-    }
-
+    /**
+     * 添加EditLog
+     * @param meta {@link com.jay.oss.common.entity.FileMetaWithChunkInfo}
+     */
     private void appendPutObjectLog(FileMetaWithChunkInfo meta){
         byte[] serialized = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
         // 生成编辑日志

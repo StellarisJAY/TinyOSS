@@ -181,4 +181,29 @@ public final class ChunkManager {
         }
         log.info("load temp chunk finished, loaded: {} temp chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
     }
+
+
+    /**
+     * 销毁chunk
+     * @param chunks chunk集合
+     */
+    public void destroyChunks(List<Chunk> chunks){
+        for (Chunk chunk : chunks) {
+            chunk.destroy();
+        }
+    }
+
+    /**
+     * 销毁临时chunk
+     * @param uploadId 上传任务ID
+     * @param parts 分片数量
+     */
+    public void destroyTempChunks(String uploadId, int parts){
+        for (int i = 1; i <= parts; i++) {
+            Chunk tempChunk = getTempChunk(uploadId, i);
+            if(tempChunk != null){
+                tempChunk.destroy();
+            }
+        }
+    }
 }
