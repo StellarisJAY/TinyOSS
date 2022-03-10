@@ -9,7 +9,7 @@ import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -42,8 +42,7 @@ public class DownloadService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse getObject(String key, String bucket, String token, String versionId, int rangeStart, int rangeEnd){
-        String objectKey = bucket + "/" + key + (StringUtil.isNullOrEmpty(versionId) ? "" : "-" + versionId);
-        log.info("Get Object: {}", objectKey);
+        String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         // 根据范围判断下载类型，full或者ranged
         CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;
         // 创建下载请求
@@ -104,7 +103,7 @@ public class DownloadService {
                     }
                 }
             }catch (Exception e){
-                log.warn("Failed to Get Object From: {}", urlStr);
+                log.warn("Failed to Get Object From: {}", urlStr, e);
             }
         }
         return HttpUtil.notFoundResponse("Object Not Found");
