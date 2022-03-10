@@ -2,7 +2,6 @@ package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
-import com.jay.dove.transport.callback.InvokeCallback;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
@@ -14,9 +13,11 @@ import com.jay.oss.common.entity.UploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
+import com.jay.oss.proxy.callback.UploadCallback;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
@@ -27,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
@@ -62,7 +62,7 @@ public class UploadService {
     public FullHttpResponse putObject(String key, String bucket, String token, ByteBuf content) throws Exception {
         FullHttpResponse httpResponse;
         long size = content.readableBytes();
-        String objectKey = bucket + "/" + key;
+        String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // 向存储桶put object
         FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token);
         CommandCode code = bucketResponse.getCommandCode();
@@ -162,7 +162,8 @@ public class UploadService {
             }else if(j < asyncBackupCount){
                 // 最后一个成功节点，负责剩下所有副本的同步
                 urls = asyncWriteUrls.subList(j, asyncBackupCount)
-                        .stream().map(Url::getOriginalUrl)
+                        .stream()
+                        .map(Url::getOriginalUrl)
                         .collect(Collectors.toList());
             }else{
                 break;
@@ -170,7 +171,7 @@ public class UploadService {
             // 发送异步备份请求
             AsyncBackupRequest request = new AsyncBackupRequest(objectKey, urls, -1);
             byte[] content = SerializeUtil.serialize(request, AsyncBackupRequest.class);
-            FastOssCommand command = (FastOssCommand) storageClient.getCommandFactory()
+            RemotingCommand command = storageClient.getCommandFactory()
                     .createRequest(content, FastOssProtocol.ASYNC_BACKUP);
             storageClient.sendOneway(successUrls.get(i), command);
         }
@@ -194,9 +195,10 @@ public class UploadService {
         Url url = Url.parseString(tracker);
         // 创建bucket put object请求
         BucketPutObjectRequest request = BucketPutObjectRequest.builder()
-                .filename(filename).key(objectKey)
-                .bucket(bucket).size(size).token(token)
-                .createTime(createTime).build();
+                .filename(filename).key(objectKey).bucket(bucket)
+                .size(size).token(token)
+                .createTime(createTime)
+                .build();
         // 发送
         RemotingCommand command = storageClient.getCommandFactory()
                 .createRequest(request, FastOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
@@ -259,48 +261,4 @@ public class UploadService {
         }
     }
 
-
-    /**
-     * 分片上传回调
-     */
-    static class UploadCallback implements InvokeCallback{
-        private final CompletableFuture<FastOssCommand> responseFuture;
-        private final int partNum;
-        private final String key;
-        public UploadCallback(CompletableFuture<FastOssCommand> responseFuture, int partNum, String key) {
-            this.responseFuture = responseFuture;
-            this.partNum = partNum;
-            this.key = key;
-        }
-
-        @Override
-        public void onComplete(RemotingCommand remotingCommand) {
-            if(remotingCommand instanceof FastOssCommand){
-                FastOssCommand response = (FastOssCommand) remotingCommand;
-                CommandCode code = response.getCommandCode();
-                if(code.equals(FastOssProtocol.ERROR)){
-                    // 上传分片出错, 重传
-                    responseFuture.completeExceptionally(new RuntimeException("Upload Parts Failed"));
-                }else if(code.equals(FastOssProtocol.RESPONSE_UPLOAD_DONE)){
-                    // 收到所有分片，上传成功
-                    responseFuture.complete(response);
-                }
-            }
-        }
-
-        @Override
-        public void exceptionCaught(Throwable throwable) {
-            responseFuture.completeExceptionally(throwable);
-        }
-
-        @Override
-        public void onTimeout(RemotingCommand remotingCommand) {
-            log.warn("upload file part timeout, part number: {}, key: {}", partNum, key);
-        }
-
-        @Override
-        public ExecutorService getExecutor() {
-            return null;
-        }
-    }
 }
