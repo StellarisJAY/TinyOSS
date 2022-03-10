@@ -69,9 +69,11 @@ public class ObjectService {
      * @throws Exception e
      */
     private CommandCode deleteObjectInBucket(String key, String bucket, String token)throws Exception{
-        Url url = Url.parseString(OssConfigs.trackerServerHost());
+        Url url = OssConfigs.trackerServerUrl();
         DeleteObjectInBucketRequest request = DeleteObjectInBucketRequest.builder()
-                .bucket(bucket).key(key).token(token).build();
+                .bucket(bucket).key(key)
+                .token(token)
+                .build();
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.BUCKET_DELETE_OBJECT, DeleteObjectInBucketRequest.class);
         return client.sendSync(url, command, null).getCommandCode();

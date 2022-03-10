@@ -25,5 +25,6 @@ public class CompleteMultipartUploadRequest implements Serializable {
     private String token;
 
     private String filename;
-    private long size;
+    private int parts;
+    private String md5;
 }

@@ -60,6 +60,8 @@ public class Chunk {
 
     private final ReentrantReadWriteLock readWriteLock;
 
+    private final AtomicBoolean available = new AtomicBoolean(true);
+
     /**
      * 未压缩标记
      */
@@ -121,6 +123,7 @@ public class Chunk {
     public void write(FilePart part, int offset0) throws IOException {
         try{
             readWriteLock.writeLock().lock();
+            checkAvailability();
             // 计算该分片的位置
             int offset = offset0 + part.getPartNum() * FilePart.DEFAULT_PART_SIZE;
             ByteBuf data = part.getData();
@@ -134,6 +137,7 @@ public class Chunk {
     public void write(ByteBuf data) throws IOException {
         try{
             readWriteLock.writeLock().lock();
+            checkAvailability();
             int length = data.readableBytes();
             data.readBytes(fileChannel, 0, length);
             size.set(length);
@@ -151,14 +155,16 @@ public class Chunk {
      * @return {@link DefaultFileRegion}
      */
     public DefaultFileRegion readFile(String key, int position, long length){
+        RandomAccessFile rf;
         try{
             // 加 共享锁
             readWriteLock.readLock().lock();
+            checkAvailability();
             // 创建RandomAccessFile，用Channel获取FileRegion
-            RandomAccessFile rf = new RandomAccessFile(file, "r");
+            rf = new RandomAccessFile(file, "r");
             // 返回FileRegion
             return new DefaultFileRegion(rf.getChannel(), position, length);
-        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
             log.error("read file {} error", key, e);
             return null;
         } finally {
@@ -169,6 +175,7 @@ public class Chunk {
     public ByteBuf readFileBytes(String key, int position, long length){
         try{
             readWriteLock.readLock().lock();
+            checkAvailability();
             ByteBuf buffer = Unpooled.directBuffer((int)length);
             buffer.writeBytes(fileChannel, position, (int) length);
             return buffer;
@@ -182,6 +189,41 @@ public class Chunk {
 
     public int size(){
         return size.get();
+    }
+
+    public void transferTo(Chunk target, int offset, int size) throws IOException {
+        fileChannel.transferTo(offset, size, target.getFileChannel());
+    }
+
+    public void transferFrom(Chunk src, int offset, int size) throws IOException {
+        fileChannel.transferFrom(src.getFileChannel(), offset, size);
+    }
+
+    public void checkAvailability() throws IOException {
+        if(!available.get()){
+            throw new IOException("Chunk File Not Available");
+        }
+    }
+
+    /**
+     * 销毁一个chunk
+     * 其中的数据会丢失
+     */
+    public void destroy(){
+        try{
+            readWriteLock.writeLock().lock();
+            fileChannel.close();
+
+            if(file.delete()){
+                available.set(false);
+            }else{
+                log.error("Failed to Destroy chunk: {}", path);
+            }
+        } catch (IOException e) {
+            log.error("Failed to Destroy Chunk: {}", path, e);
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
     }
 
 //    /**

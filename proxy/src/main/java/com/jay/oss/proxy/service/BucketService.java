@@ -42,15 +42,13 @@ public class BucketService {
     public FullHttpResponse putBucket(String bucketName, String acl, boolean versioning){
         // 创建桶
         Bucket bucket = Bucket.builder()
-                .bucketName(bucketName)
-                .acl(Acl.getAcl(acl))
+                .bucketName(bucketName).acl(Acl.getAcl(acl))
                 .versioning(versioning)
                 .build();
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(bucket, FastOssProtocol.PUT_BUCKET, Bucket.class);
-        // 寻找目标storage地址
-        Url url = Url.parseString(OssConfigs.trackerServerHost());
-
+        // 获取Tracker地址
+        Url url = OssConfigs.trackerServerUrl();
         FullHttpResponse httpResponse;
         try{
             // 发送请求
@@ -61,13 +59,12 @@ public class BucketService {
             String accessKey = keyPairs[1];
             String secretKey = keyPairs[2];
 
-            Result result = new Result();
-            result.setMessage("success");
-            result.putData("foss-AccessKey", accessKey);
-            result.putData("foss-SecretKey", secretKey);
-            result.putData("foss-AppId", appId);
+            Result result = new Result()
+                    .message("Success")
+                    .putData("foss-AccessKey", accessKey)
+                    .putData("foss-SecretKey", secretKey)
+                    .putData("foss-AppId", appId);
             httpResponse = HttpUtil.okResponse(result);
-            httpResponse.headers().set("Content-Type", "application/json");
         }catch (Exception e){
             log.warn("Put Bucket Error ", e);
             httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
