@@ -39,7 +39,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+    public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request)  {
         HttpHeaders headers = request.headers();
         String uri = request.uri();
         int idx = uri.indexOf("?");
@@ -69,7 +69,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request)  {
         HttpHeaders headers = request.headers();
         String uri = request.uri();
         int idx = uri.indexOf("?");
@@ -102,7 +102,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handleDelete(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+    public FullHttpResponse handleDelete(ChannelHandlerContext context, FullHttpRequest request)  {
         String key = request.uri();
         HttpHeaders headers = request.headers();
         String host = headers.get("Host");
@@ -112,7 +112,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handlePost(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+    public FullHttpResponse handlePost(ChannelHandlerContext context, FullHttpRequest request) {
         String uri = request.uri();
         HttpHeaders headers = request.headers();
         String host = headers.get("Host");
@@ -120,6 +120,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String bucket = host.trim().substring(0, host.indexOf("."));
         String key = uri.substring(1, uri.indexOf("?"));
         int length = Integer.parseInt(headers.get("Content-Length"));
+        String md5 = headers.get("Content-MD5");
         Map<String, String> parameters = HttpUtil.parseUri(uri);
         if(parameters.containsKey(HttpConstants.INIT_UPLOAD_PARAMETER)){
             return multipartUploadService.initializeMultipartUpload(key, bucket, token, length);
@@ -127,7 +128,8 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         else if(parameters.containsKey(HttpConstants.UPLOAD_ID)){
             String uploadId = parameters.get(HttpConstants.UPLOAD_ID);
             String versionId = parameters.get(HttpConstants.VERSION_ID);
-            return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, length);
+            int parts = Integer.parseInt(parameters.get("parts"));
+            return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, parts);
         }
         return HttpUtil.badRequestResponse();
     }

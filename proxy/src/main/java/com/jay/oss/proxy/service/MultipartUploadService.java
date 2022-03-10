@@ -2,6 +2,7 @@ package com.jay.oss.proxy.service;
 
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
+import com.jay.dove.transport.callback.InvokeCallback;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
@@ -25,6 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
@@ -153,7 +156,7 @@ public class MultipartUploadService {
         List<Url> asyncBackupUrls = new ArrayList<>();
         int successCount = 0;
         int totalReplicas = urls.size();
-        int syncWriteReplicas = totalReplicas/2 + 1;
+        int syncWriteReplicas = totalReplicas / 2 + 1;
         int i;
         for (i = 0; i < urls.size() && successCount < syncWriteReplicas; i++) {
             Url url = urls.get(i);
@@ -212,13 +215,13 @@ public class MultipartUploadService {
         }
     }
 
-    public FullHttpResponse completeMultipartUpload(String key, String bucket, String version, String token, String uploadId, long size){
+    public FullHttpResponse completeMultipartUpload(String key, String bucket, String version, String token, String uploadId, int parts){
         String objectKey = KeyUtil.getObjectKey(key, bucket, version);
-        log.info("Complete upload");
         CompleteMultipartUploadRequest request = CompleteMultipartUploadRequest.builder()
                 .objectKey(objectKey).bucket(bucket)
                 .token(token).uploadId(uploadId)
-                .filename(key).size(size)
+                .filename(key)
+                .parts(parts)
                 .build();
 
         Url url = OssConfigs.trackerServerUrl();
@@ -231,8 +234,10 @@ public class MultipartUploadService {
             CommandCode code = response.getCommandCode();
 
             if(code.equals(FastOssProtocol.SUCCESS)){
-                httpResponse = HttpUtil.okResponse(StringUtil.toString(response.getContent()));
-            }else{
+                List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
+                httpResponse = completeStorageMultipartUpload(urls, request);
+            }
+            else{
                 httpResponse = HttpUtil.errorResponse(code);
             }
         }catch (Exception e){
@@ -241,7 +246,67 @@ public class MultipartUploadService {
         return httpResponse;
     }
 
-    private FullHttpResponse completeStorageMultipartUpload(String objectKey, String uploadId, String filename, long size){
-        return null;
+    private FullHttpResponse completeStorageMultipartUpload(List<Url> urls, CompleteMultipartUploadRequest request) throws InterruptedException {
+        int replicas = urls.size();
+        List<Url> successUrls = new ArrayList<>();
+        List<Url> asyncBackupUrls = new ArrayList<>();
+        CountDownLatch countDownLatch = new CountDownLatch(replicas);
+        for (Url url : urls) {
+            RemotingCommand command = client.getCommandFactory()
+                    .createRequest(request, FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
+            // 发送异步请求
+            client.sendAsync(url, command, new CompleteMultipartUploadCallback(url, successUrls, asyncBackupUrls, countDownLatch));
+        }
+        // 等待异步返回
+        countDownLatch.await();
+        if(successUrls.size() > 0){
+            // 至少一个节点成功complete
+            return HttpUtil.okResponse();
+        }else{
+            return HttpUtil.internalErrorResponse("Complete Multipart Upload Failed");
+        }
     }
+
+    static class CompleteMultipartUploadCallback implements InvokeCallback{
+        private List<Url> successUrls;
+        private List<Url> asyncBackupUrls;
+        private Url url;
+        private CountDownLatch countDownLatch;
+
+        public CompleteMultipartUploadCallback(Url url, List<Url> successUrls, List<Url> asyncBackupUrls, CountDownLatch countDownLatch) {
+            this.successUrls = successUrls;
+            this.asyncBackupUrls = asyncBackupUrls;
+            this.url = url;
+            this.countDownLatch = countDownLatch;
+        }
+
+        @Override
+        public void onComplete(RemotingCommand remotingCommand) {
+            CommandCode code = remotingCommand.getCommandCode();
+            if(FastOssProtocol.SUCCESS.equals(code)){
+                successUrls.add(url);
+            }else{
+                asyncBackupUrls.add(url);
+            }
+            countDownLatch.countDown();
+        }
+
+        @Override
+        public void exceptionCaught(Throwable throwable) {
+            asyncBackupUrls.add(url);
+            countDownLatch.countDown();
+        }
+
+        @Override
+        public void onTimeout(RemotingCommand remotingCommand) {
+            asyncBackupUrls.add(url);
+            countDownLatch.countDown();
+        }
+
+        @Override
+        public ExecutorService getExecutor() {
+            return null;
+        }
+    }
+
 }
