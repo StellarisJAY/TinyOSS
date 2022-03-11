@@ -11,12 +11,15 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 /**
  * <p>
@@ -57,7 +60,7 @@ public class DownloadService {
             CommandCode code = locateResponse.getCommandCode();
             if(code.equals(FastOssProtocol.SUCCESS)){
                 String respContent = StringUtil.toString(locateResponse.getContent());
-                String[] urls = respContent.split(";");
+                List<Url> urls = UrlUtil.parseUrls(respContent);
                 // 尝试从url列表中下载object
                 return tryDownload(urls, command, rangeEnd==-1);
             } else{
@@ -87,9 +90,8 @@ public class DownloadService {
      * @param full download full content
      * @return {@link FullHttpResponse}
      */
-    private FullHttpResponse tryDownload(String[] urls, RemotingCommand command, boolean full){
-        for (String urlStr : urls) {
-            Url url = Url.parseString(urlStr);
+    private FullHttpResponse tryDownload(List<Url> urls, RemotingCommand command, boolean full){
+        for (Url url : urls) {
             try{
                 // 发送下载请求
                 FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
@@ -104,7 +106,7 @@ public class DownloadService {
                     }
                 }
             }catch (Exception e){
-                log.warn("Failed to Get Object From: {}", urlStr, e);
+                log.warn("Failed to Get Object From: {}", url, e);
             }
         }
         return HttpUtil.notFoundResponse("Object Not Found");

@@ -1,6 +1,7 @@
-package com.jay.oss.common.fs;
+package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -46,6 +47,12 @@ public final class ChunkManager {
     public void init(){
         loadChunk();
         loadTempChunks();
+    }
+
+    public void compactChunks(){
+        for (Chunk chunk : chunkMap.values()) {
+            chunk.compact();
+        }
     }
 
     /**

@@ -3,7 +3,9 @@ package com.jay.oss.tracker.processor;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -45,6 +47,9 @@ public class ObjectProcessor extends AbstractProcessor {
             if(FastOssProtocol.LOCATE_OBJECT.equals(code)){
                 locateObject(channelHandlerContext, command);
             }
+            else if(FastOssProtocol.DELETE_OBJECT.equals(code)){
+                deleteObject(channelHandlerContext, command);
+            }
         }
     }
 
@@ -59,19 +64,42 @@ public class ObjectProcessor extends AbstractProcessor {
         String bucket = request.getBucket();
         String token = request.getToken();
         String objectKey = request.getObjectKey();
-        FastOssCommand response;
+        RemotingCommand response;
         // 检查存储桶访问权限
         CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.READ);
         if(FastOssProtocol.SUCCESS.equals(code)){
             // 定位object
             String urls = objectTracker.locateObject(objectKey);
             if(StringUtil.isNullOrEmpty(urls)){
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
             }else{
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
+                response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }
         }else{
-            response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", code);
+            response = commandFactory.createResponse(command.getId(), "", code);
+        }
+        sendResponse(context, response);
+    }
+
+    /**
+     * 删除object
+     * @param context {@link ChannelHandlerContext}
+     * @param command {@link FastOssCommand}
+     */
+    private void deleteObject(ChannelHandlerContext context, FastOssCommand command){
+        DeleteObjectInBucketRequest request = SerializeUtil.deserialize(command.getContent(), DeleteObjectInBucketRequest.class);
+        String bucket = request.getBucket();
+        String objectKey = request.getObjectKey();
+        String token = request.getToken();
+
+        CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
+        RemotingCommand response;
+        if(FastOssProtocol.SUCCESS.equals(code)){
+            String urls = objectTracker.locateAndDeleteObject(objectKey);
+            response = commandFactory.createResponse(command.getId(), urls, urls==null ? FastOssProtocol.OBJECT_NOT_FOUND : FastOssProtocol.SUCCESS);
+        }
+        else{
+            response = commandFactory.createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
     }

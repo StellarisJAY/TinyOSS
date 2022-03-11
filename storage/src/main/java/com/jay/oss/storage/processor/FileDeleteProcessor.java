@@ -4,17 +4,23 @@ import com.jay.dove.serialize.Serializer;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.DeleteRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
-import com.jay.oss.common.fs.ChunkManager;
+import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.storage.fs.Chunk;
+import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.channel.ChannelHandlerContext;
+
+import java.util.List;
 
 /**
  * <p>
@@ -43,22 +49,27 @@ public class FileDeleteProcessor extends AbstractProcessor {
     public void process(ChannelHandlerContext channelHandlerContext, Object o) {
         if(o instanceof FastOssCommand){
             FastOssCommand command = (FastOssCommand) o;
-            byte[] content = command.getContent();
-            // 反序列化请求
-            Serializer serializer = SerializerManager.getSerializer(command.getSerializer());
-            DeleteRequest request = serializer.deserialize(content, DeleteRequest.class);
+            String objectKey = StringUtil.toString(command.getContent());
             // 删除meta
-            FileMetaWithChunkInfo meta = metaManager.delete(request.getKey());
-            FastOssCommand response;
+            FileMetaWithChunkInfo meta = metaManager.delete(objectKey);
+            RemotingCommand response;
             if(meta == null){
                 // 文件不存在
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "object not found", FastOssProtocol.OBJECT_NOT_FOUND);
+                response =  commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
                 sendResponse(channelHandlerContext, response);
                 return;
             }else{
                 meta.setRemoved(true);
-                appendEditLog(request.getKey());
-                response = (FastOssCommand)commandFactory.createResponse(command.getId(), "set delete tag error", FastOssProtocol.ERROR);
+                Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
+                if(chunk != null){
+                    // 从chunk删除object，该方法会返回一个offset被删除过程改变的meta集合
+                    List<FileMetaWithChunkInfo> offsetChangedMetas = chunk.deleteObject(meta);
+                    // 记录offset改变的editLog
+                    appendOffsetChangeLog(offsetChangedMetas);
+                }
+                // 记录删除editLog
+                appendEditLog(objectKey);
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
             }
             sendResponse(channelHandlerContext, response);
         }
@@ -68,5 +79,15 @@ public class FileDeleteProcessor extends AbstractProcessor {
         byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
         EditLog editLog = new EditLog(EditOperation.DELETE, keyBytes);
         editLogManager.append(editLog);
+    }
+
+    private void appendOffsetChangeLog(List<FileMetaWithChunkInfo> metas){
+        if(metas != null && !metas.isEmpty()){
+            for (FileMetaWithChunkInfo meta : metas) {
+                byte[] serialized = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
+                EditLog editLog = new EditLog(EditOperation.ADD, serialized);
+                editLogManager.append(editLog);
+            }
+        }
     }
 }

@@ -3,7 +3,7 @@ package com.jay.oss.storage.command;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.common.fs.ChunkManager;
+import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.storage.meta.MetaManager;

@@ -1,6 +1,7 @@
 package com.jay.oss.proxy.handler;
 
 import com.jay.oss.proxy.constant.HttpConstants;
+import com.jay.oss.proxy.http.OssHttpRequest;
 import com.jay.oss.proxy.http.handler.AbstractHttpRequestHandler;
 import com.jay.oss.proxy.service.DownloadService;
 import com.jay.oss.proxy.service.MultipartUploadService;
@@ -9,11 +10,12 @@ import com.jay.oss.proxy.service.UploadService;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.Map;
 
 /**
  * <p>
@@ -39,26 +41,17 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request)  {
-        HttpHeaders headers = request.headers();
-        String uri = request.uri();
-        int idx = uri.indexOf("?");
-        String key;
-        if(idx == -1){
-            key = uri.substring(1);
-        }else{
-            key = uri.substring(1, idx);
-        }
-        String host = headers.get("Host");
-        String auth = headers.get("Authorization");
-        String bucket = host.trim().substring(0, host.indexOf("."));
-        Map<String, String> parameters = HttpUtil.parseUri(uri);
+    public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
 
+        String host = request.host();
+        String auth = request.authorization();
+        String bucket = host.trim().substring(0, host.indexOf("."));
+        String key = request.getPath();
         ByteBuf content = request.content();
         try{
-            if(parameters.containsKey(HttpConstants.UPLOAD_ID) && parameters.containsKey(HttpConstants.UPLOAD_PART_NUM)){
-                return multipartUploadService.putObject(key, bucket, auth, parameters.get(HttpConstants.UPLOAD_ID),
-                          parameters.get("versionId"), Integer.parseInt(parameters.get(HttpConstants.UPLOAD_PART_NUM)), content);
+            if(request.containsParameter(HttpConstants.UPLOAD_ID) && request.containsParameter(HttpConstants.UPLOAD_PART_NUM)){
+                return multipartUploadService.putObject(key, bucket, auth, request.getParameter(HttpConstants.UPLOAD_ID),
+                        request.getParameter("versionId"), Integer.parseInt(request.getParameter(HttpConstants.UPLOAD_PART_NUM)), content);
             }else{
                 return uploadService.putObject(key, bucket, auth, content);
             }
@@ -69,22 +62,12 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request)  {
-        HttpHeaders headers = request.headers();
-        String uri = request.uri();
-        int idx = uri.indexOf("?");
-        String key;
-        if(idx == -1){
-            key = uri.substring(1);
-        }else{
-            key = uri.substring(1, idx);
-        }
-        String host = headers.get("Host");
-        String range = headers.get("Range");
-        String token = headers.get("Authorization");
+    public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request)  {
+        String key = request.getPath();
+        String host = request.host();
+        String token = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
-        Map<String, String> parameters = HttpUtil.parseUri(uri);
-
+        String range = request.range();
         int startByte = 0;
         int endByte = -1;
         if(!StringUtil.isNullOrEmpty(range)){
@@ -98,37 +81,32 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
                 }
             }
         }
-        return downloadService.getObject(key, bucket, token, parameters.get("versionId"),  startByte, endByte);
+        return downloadService.getObject(key, bucket, token, request.getParameter("versionId"),  startByte, endByte);
     }
 
     @Override
-    public FullHttpResponse handleDelete(ChannelHandlerContext context, FullHttpRequest request)  {
-        String key = request.uri();
-        HttpHeaders headers = request.headers();
-        String host = headers.get("Host");
+    public FullHttpResponse handleDelete(ChannelHandlerContext context, OssHttpRequest request)  {
+        String key = request.getPath();
+        String host = request.host();
+        String token = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
-        String token = headers.get("Authorization");
-        return objectService.deleteObject(key, bucket, token);
+        return objectService.deleteObject(key, bucket,request.getParameter(HttpConstants.VERSION_ID), token);
     }
 
     @Override
-    public FullHttpResponse handlePost(ChannelHandlerContext context, FullHttpRequest request) {
-        String uri = request.uri();
-        HttpHeaders headers = request.headers();
-        String host = headers.get("Host");
-        String token = headers.get("Authorization");
+    public FullHttpResponse handlePost(ChannelHandlerContext context, OssHttpRequest request) {
+        String key = request.getPath();
+        String host = request.host();
+        String token = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
-        String key = uri.substring(1, uri.indexOf("?"));
-        int length = Integer.parseInt(headers.get("Content-Length"));
-        String md5 = headers.get("Content-MD5");
-        Map<String, String> parameters = HttpUtil.parseUri(uri);
-        if(parameters.containsKey(HttpConstants.INIT_UPLOAD_PARAMETER)){
+        int length = request.contentLength();
+        if(request.containsParameter(HttpConstants.INIT_UPLOAD_PARAMETER)){
             return multipartUploadService.initializeMultipartUpload(key, bucket, token, length);
         }
-        else if(parameters.containsKey(HttpConstants.UPLOAD_ID)){
-            String uploadId = parameters.get(HttpConstants.UPLOAD_ID);
-            String versionId = parameters.get(HttpConstants.VERSION_ID);
-            int parts = Integer.parseInt(parameters.get("parts"));
+        else if(request.containsParameter(HttpConstants.UPLOAD_ID)){
+            String uploadId = request.getParameter(HttpConstants.UPLOAD_ID);
+            String versionId = request.getParameter(HttpConstants.VERSION_ID);
+            int parts = Integer.parseInt(request.getParameter("parts"));
             return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, parts);
         }
         return HttpUtil.badRequestResponse();

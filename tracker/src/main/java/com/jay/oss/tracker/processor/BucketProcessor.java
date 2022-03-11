@@ -189,13 +189,13 @@ public class BucketProcessor extends AbstractProcessor {
         // 权限通过
         if(code.equals(FastOssProtocol.SUCCESS)){
             // 删除object记录
-            boolean delete = bucketManager.deleteMeta(request.getBucket(), request.getKey());
+            boolean delete = bucketManager.deleteMeta(request.getBucket(), request.getObjectKey());
             if(!delete){
                 // 删除失败，object不存在
                 response = (FastOssCommand) commandFactory
                         .createResponse(command.getId(), "", FastOssProtocol.NOT_FOUND);
             }else{
-                appendBucketDeleteObjectLog(request.getKey());
+                appendBucketDeleteObjectLog(request.getObjectKey());
                 response = (FastOssCommand) commandFactory
                         .createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
             }

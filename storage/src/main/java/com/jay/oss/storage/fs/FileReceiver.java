@@ -1,4 +1,4 @@
-package com.jay.oss.common.fs;
+package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.entity.FilePart;
 

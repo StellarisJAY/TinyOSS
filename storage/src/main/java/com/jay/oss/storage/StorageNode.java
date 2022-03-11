@@ -10,7 +10,7 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.common.fs.ChunkManager;
+import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -74,7 +74,7 @@ public class StorageNode extends AbstractLifeCycle {
         this.client = new DoveClient(connectionManager, commandFactory);
         this.metaManager = new MetaManager();
         this.chunkManager = new ChunkManager();
-        this.editLogManager = new StorageEditLogManager(metaManager);
+        this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
         this.registry = new ZookeeperRegistry();
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
@@ -93,10 +93,11 @@ public class StorageNode extends AbstractLifeCycle {
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         editLogManager.init();
-        // 加载edit日志
-        editLogManager.loadAndCompress();
         // 加载chunk文件
         chunkManager.init();
+        // 加载edit日志
+        editLogManager.loadAndCompress();
+        chunkManager.compactChunks();
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoUtil.getStorageNodeInfo(port));

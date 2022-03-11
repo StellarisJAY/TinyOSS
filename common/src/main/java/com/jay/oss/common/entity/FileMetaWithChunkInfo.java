@@ -2,6 +2,7 @@ package com.jay.oss.common.entity;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * <p>
@@ -12,6 +13,7 @@ import lombok.Getter;
  * @date 2022/01/18 13:05
  */
 @Getter
+@Setter
 @Builder
 public class FileMetaWithChunkInfo {
     private String key;

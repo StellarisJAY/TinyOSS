@@ -52,6 +52,12 @@ public class ObjectTracker {
         }
     }
 
+    public String locateAndDeleteObject(String objectKey){
+        String result = locateObject(objectKey);
+        deleteObject(objectKey);
+        return result;
+    }
+
     /**
      * 保存object位置
      * @param objectKey objectKey
