@@ -11,9 +11,9 @@ import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 import com.jay.oss.common.entity.UploadRequest;
-import com.jay.oss.common.fs.Chunk;
-import com.jay.oss.common.fs.ChunkManager;
-import com.jay.oss.common.fs.FileReceiver;
+import com.jay.oss.storage.fs.Chunk;
+import com.jay.oss.storage.fs.ChunkManager;
+import com.jay.oss.storage.fs.FileReceiver;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
@@ -104,6 +104,7 @@ public class FileUploadProcessor extends AbstractProcessor {
                     .offset(offset).size(request.getSize())
                     .key(request.getKey()).filename(request.getFilename())
                     .createTime(System.currentTimeMillis()).build();
+            chunk.addObjectMeta(meta);
             // 创建文件接收器
             FileReceiver receiver = FileReceiver.createFileReceiver(chunk, request.getParts(), offset,  chunkManager);
             // 保存文件接收器
