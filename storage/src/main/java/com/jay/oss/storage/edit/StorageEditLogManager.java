@@ -5,6 +5,8 @@ import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.storage.fs.Chunk;
+import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -27,9 +29,11 @@ import java.util.List;
 @Slf4j
 public class StorageEditLogManager extends AbstractEditLogManager {
     private final MetaManager metaManager;
+    private final ChunkManager chunkManager;
 
-    public StorageEditLogManager(MetaManager metaManager){
+    public StorageEditLogManager(MetaManager metaManager, ChunkManager chunkManager){
         this.metaManager = metaManager;
+        this.chunkManager = chunkManager;
     }
     @Override
     public void loadAndCompress() {
@@ -51,8 +55,8 @@ public class StorageEditLogManager extends AbstractEditLogManager {
                 EditOperation editOperation = EditOperation.get(operation);
                 if(editOperation != null){
                     switch(editOperation){
-                        case ADD: addObject(metaManager, content); count++;break;
-                        case DELETE: deleteObject(metaManager, content);break;
+                        case ADD: addObject(content); count++;break;
+                        case DELETE: deleteObject(content);break;
                         default: break;
                     }
                 }
@@ -75,10 +79,12 @@ public class StorageEditLogManager extends AbstractEditLogManager {
         List<FileMetaWithChunkInfo> snapshot = metaManager.snapshot();
         ByteBuf buffer = Unpooled.directBuffer((int)getChannel().size());
         for (FileMetaWithChunkInfo meta : snapshot) {
-            buffer.writeByte(EditOperation.ADD.value());
-            byte[] content = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
-            buffer.writeInt(content.length);
-            buffer.writeBytes(content);
+            if(!meta.isRemoved()){
+                buffer.writeByte(EditOperation.ADD.value());
+                byte[] content = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
+                buffer.writeInt(content.length);
+                buffer.writeBytes(content);
+            }
         }
         buffer.readBytes(getChannel(), 0, buffer.readableBytes());
     }
@@ -95,13 +101,23 @@ public class StorageEditLogManager extends AbstractEditLogManager {
         }
     }
 
-    private void addObject(MetaManager metaManager, byte[] serialized){
+    private void addObject(byte[] serialized){
         FileMetaWithChunkInfo meta = SerializeUtil.deserialize(serialized, FileMetaWithChunkInfo.class);
         metaManager.saveMeta(meta);
+        // 找到object的chunk
+        Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
+        if(chunk != null){
+            // 将object对象放入chunk
+            chunk.addObjectMeta(meta);
+        }
     }
 
-    private void deleteObject(MetaManager metaManager, byte[] keyBytes){
+    private void deleteObject(byte[] keyBytes){
         String key = new String(keyBytes, OssConfigs.DEFAULT_CHARSET);
-        metaManager.delete(key);
+        FileMetaWithChunkInfo meta = metaManager.getMeta(key);
+        if(meta != null){
+            //设置object的删除标记
+            meta.setRemoved(true);
+        }
     }
 }
