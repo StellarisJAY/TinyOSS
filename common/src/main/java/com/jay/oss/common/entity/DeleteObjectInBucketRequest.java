@@ -20,7 +20,7 @@ import java.io.Serializable;
 @Setter
 @ToString
 public class DeleteObjectInBucketRequest implements Serializable {
-    private String key;
+    private String objectKey;
     private String bucket;
     private String token;
 }
