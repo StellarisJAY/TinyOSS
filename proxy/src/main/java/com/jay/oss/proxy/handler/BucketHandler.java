@@ -1,15 +1,11 @@
 package com.jay.oss.proxy.handler;
 
 import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.proxy.http.OssHttpRequest;
 import com.jay.oss.proxy.http.handler.AbstractHttpRequestHandler;
 import com.jay.oss.proxy.service.BucketService;
-import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-
-import java.util.Map;
 
 /**
  * <p>
@@ -31,26 +27,22 @@ public class BucketHandler extends AbstractHttpRequestHandler {
     }
 
     @Override
-    public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
-        HttpHeaders headers = request.headers();
-        String host = headers.get("Host");
+    public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
+        String host = request.host();
         String bucket = host.trim().substring(0, host.indexOf("."));
-        String acl = headers.get("foss-acl");
-        String uri = request.uri();
-        Map<String, String> parameters = HttpUtil.parseUri(uri);
+        String acl = request.acl();
 
         if(StringUtil.isNullOrEmpty(acl)){
             acl = "private";
         }
-        return bucketService.putBucket(bucket, acl, parameters.containsKey("versioning"));
+        return bucketService.putBucket(bucket, acl, request.containsParameter("versioning"));
     }
 
     @Override
-    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
-        HttpHeaders headers = request.headers();
-        String host = headers.get("Host");
+    public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request) {
+        String host = request.host();
+        String token = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
-        String token = headers.get("Authorization");
 
         return bucketService.listBucket(bucket, token, 10, 0);
     }
