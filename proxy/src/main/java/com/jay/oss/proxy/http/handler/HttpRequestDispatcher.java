@@ -1,5 +1,7 @@
 package com.jay.oss.proxy.http.handler;
 
+import com.jay.oss.proxy.http.OssHttpRequest;
+import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -8,6 +10,7 @@ import io.netty.util.internal.StringUtil;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -44,8 +47,9 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
                 // handler不存在，BAD_REQUEST
                 response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
             }else{
+                OssHttpRequest httpRequest = new OssHttpRequest(request);
                 // 调用处理器方法
-                response = handler.handle(ctx, request);
+                response = handler.handle(ctx, httpRequest);
             }
             ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
             totalInProgress.dec();

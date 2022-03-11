@@ -1,8 +1,11 @@
 package com.jay.oss.proxy.http.handler;
 
+import com.jay.oss.proxy.http.OssHttpRequest;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
+
+import java.util.Map;
 
 /**
  * <p>
@@ -19,5 +22,5 @@ public interface HttpRequestHandler {
      * @param request {@link FullHttpRequest}
      * @return {@link FullHttpResponse}
      */
-    FullHttpResponse handle(ChannelHandlerContext context, FullHttpRequest request);
+    FullHttpResponse handle(ChannelHandlerContext context, OssHttpRequest request);
 }

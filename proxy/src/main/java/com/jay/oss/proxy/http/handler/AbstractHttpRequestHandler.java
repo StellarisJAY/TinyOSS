@@ -1,9 +1,12 @@
 package com.jay.oss.proxy.http.handler;
 
+import com.jay.oss.proxy.http.OssHttpRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.*;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.Map;
 
 /**
  * <p>
@@ -17,24 +20,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
 
-    public FullHttpResponse handleGet(ChannelHandlerContext context, FullHttpRequest request) throws Exception{
+    public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request) throws Exception{
         return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
 
-    public FullHttpResponse handlePost(ChannelHandlerContext context, FullHttpRequest request) throws Exception{
+    public FullHttpResponse handlePost(ChannelHandlerContext context, OssHttpRequest request) throws Exception{
         return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
 
-    public FullHttpResponse handlePut(ChannelHandlerContext context, FullHttpRequest request) throws Exception {
+    public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request) throws Exception {
         return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
 
-    public FullHttpResponse handleDelete(ChannelHandlerContext context, FullHttpRequest request) throws Exception{
+    public FullHttpResponse handleDelete(ChannelHandlerContext context, OssHttpRequest request) throws Exception{
         return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
     @Override
-    public final FullHttpResponse handle(ChannelHandlerContext context, FullHttpRequest request) {
-        HttpMethod method = request.method();
+    public final FullHttpResponse handle(ChannelHandlerContext context, OssHttpRequest request) {
+        HttpMethod method = request.getMethod();
         try{
             if (HttpMethod.GET.equals(method)) {
                 return handleGet(context, request);
@@ -62,7 +65,7 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
 
     }
 
-    public FullHttpResponse handleOptions(ChannelHandlerContext context, FullHttpRequest request){
+    public FullHttpResponse handleOptions(ChannelHandlerContext context, OssHttpRequest request){
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.OK);
         HttpHeaders headers = response.headers();
         headers.set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, "POST, GET, OPTIONS, PUT, DELETE");
