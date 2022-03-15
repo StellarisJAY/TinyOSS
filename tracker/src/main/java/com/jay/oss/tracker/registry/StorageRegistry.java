@@ -123,7 +123,6 @@ public class StorageRegistry {
         }
 
         private void onNodeDataChanged(String path) throws Exception{
-            log.info("node data changed: {}", path);
             StorageNodeInfo node = registry.lookup(path);
             storages.put(node.getUrl(), node);
             // 更新free_space收集器

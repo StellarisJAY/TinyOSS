@@ -5,6 +5,9 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.edit.EditLog;
+import com.jay.oss.common.edit.EditLogManager;
+import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -31,11 +34,13 @@ public class ObjectProcessor extends AbstractProcessor {
 
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
+    private final EditLogManager editLogManager;
     private final CommandFactory commandFactory;
 
-    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, CommandFactory commandFactory) {
+    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.objectTracker = objectTracker;
+        this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
     }
 
@@ -91,16 +96,24 @@ public class ObjectProcessor extends AbstractProcessor {
         String bucket = request.getBucket();
         String objectKey = request.getObjectKey();
         String token = request.getToken();
-
+        // 检查存储桶权限
         CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
         RemotingCommand response;
         if(FastOssProtocol.SUCCESS.equals(code)){
+            // 定位并删除object
             String urls = objectTracker.locateAndDeleteObject(objectKey);
+            // editLog记录删除操作
+            appendDeleteObjectLog(objectKey);
             response = commandFactory.createResponse(command.getId(), urls, urls==null ? FastOssProtocol.OBJECT_NOT_FOUND : FastOssProtocol.SUCCESS);
         }
         else{
             response = commandFactory.createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
+    }
+
+    private void appendDeleteObjectLog(String objectKey){
+        EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, StringUtil.getBytes(objectKey));
+        editLogManager.append(editLog);
     }
 }

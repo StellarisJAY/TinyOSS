@@ -1,9 +1,11 @@
 package com.jay.oss.tracker.processor;
 
 import com.alibaba.fastjson.JSON;
+import com.jay.dove.transport.Remoting;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
@@ -14,6 +16,7 @@ import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -104,7 +107,7 @@ public class BucketProcessor extends AbstractProcessor {
         // 权限通过
         if(code.equals(FastOssProtocol.SUCCESS)){
             // list bucket
-            List<FileMeta> objects = bucketManager.listBucket(request.getBucket(), request.getCount(), request.getOffset());
+            List<String> objects = bucketManager.listBucket(request.getBucket(), request.getCount(), request.getOffset());
             // 转换成JSON
             String json = JSON.toJSONString(objects);
             response = (FastOssCommand) commandFactory
@@ -132,38 +135,34 @@ public class BucketProcessor extends AbstractProcessor {
         // 检查存储桶访问权限
         CommandCode code = BucketAclUtil
                 .checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
-        FastOssCommand response;
+        RemotingCommand response;
         // 拥有权限，完成put object
         if(code.equals(FastOssProtocol.SUCCESS)){
             // 判断桶是否开启了版本控制
             String versionId = "";
             if(bucketManager.getBucket(bucket).isVersioning()){
+                // 生成版本号
                 versionId = UUID.randomUUID().toString();
-                objectKey = objectKey + "-" + versionId;
+                objectKey = objectKey + "/" + versionId;
             }
             try{
                 // 选择上传点
                 List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
-                // 拼接候选url
-                StringBuilder builder = new StringBuilder();
-                for (StorageNodeInfo node : nodes) {
-                    builder.append(node.getUrl());
-                    builder.append(";");
-                }
-                String urls = builder.toString();
-                builder.append(versionId);
+                String urls = UrlUtil.stringifyFromNodes(nodes);
+                urls = urls + versionId;
                 // 保存object位置，判断object是否已经存在
                 if(objectTracker.saveObjectLocation(objectKey, urls)){
+                    bucketManager.putObject(bucket, objectKey);
                     // 日志记录put object
                     appendBucketPutObjectLog(objectKey);
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), builder.toString(), code);
+                    response = commandFactory.createResponse(command.getId(), urls, code);
                 }else{
                     // object key 重复
-                    response = (FastOssCommand)commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);
+                    response =commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);
                 }
             }catch (Exception e){
                 log.error("bucket put object error ", e);
-                response = (FastOssCommand) commandFactory
+                response = commandFactory
                         .createResponse(command.getId(), e.getMessage(), FastOssProtocol.NO_ENOUGH_STORAGES);
             }
         }else{
@@ -189,7 +188,7 @@ public class BucketProcessor extends AbstractProcessor {
         // 权限通过
         if(code.equals(FastOssProtocol.SUCCESS)){
             // 删除object记录
-            boolean delete = bucketManager.deleteMeta(request.getBucket(), request.getObjectKey());
+            boolean delete = bucketManager.deleteObject(request.getBucket(), request.getObjectKey());
             if(!delete){
                 // 删除失败，object不存在
                 response = (FastOssCommand) commandFactory
