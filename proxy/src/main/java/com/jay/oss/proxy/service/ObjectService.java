@@ -89,11 +89,13 @@ public class ObjectService {
         CountDownLatch countDownLatch = new CountDownLatch(urls.size());
         List<Url> successUrls = new ArrayList<>();
         List<Url> failedUrls = new ArrayList<>();
+        // 需要向每个Storage发送删除命令
         for (Url url : urls) {
             client.sendAsync(url, command, new AsyncBatchCallback(countDownLatch, successUrls, failedUrls, url));
         }
         countDownLatch.await();
-        if(successUrls.size() > 0){
+        // 必须所有服务器都成功删除才算成功
+        if(successUrls.size() == urls.size()){
             return HttpUtil.okResponse();
         }else{
             return HttpUtil.internalErrorResponse("Delete Object In Storages Failed");
