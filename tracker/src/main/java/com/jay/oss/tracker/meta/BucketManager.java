@@ -1,7 +1,6 @@
 package com.jay.oss.tracker.meta;
 
 import com.jay.oss.common.entity.Bucket;
-import com.jay.oss.common.entity.FileMeta;
 import com.jay.oss.common.util.AppIdUtil;
 
 import java.util.ArrayList;
@@ -27,7 +26,7 @@ public class BucketManager {
     /**
      * 桶内元数据缓存
      */
-    private final ConcurrentHashMap<String, List<FileMeta>> objectMetas = new ConcurrentHashMap<>(256);
+    private final ConcurrentHashMap<String, List<String>> objectMetas = new ConcurrentHashMap<>(256);
     /**
      * 添加bucket
      * @param bucket {@link Bucket}
@@ -66,25 +65,25 @@ public class BucketManager {
 
     /**
      * 保存object记录
-     * @param key bucket key
-     * @param fileMeta {@link FileMeta}
+     * @param bucket bucket Name
+     * @param objectKey objectKey
      */
-    public void saveMeta(String key, FileMeta fileMeta){
+    public void putObject(String bucket, String objectKey){
         // 创建object列表，concurrentHashMap的computeIfAbsent保证线程安全
-        objectMetas.computeIfAbsent(key, k-> new CopyOnWriteArrayList<>());
+        objectMetas.computeIfAbsent(bucket, k-> new CopyOnWriteArrayList<>());
         // copyOnWrite 添加记录
-        objectMetas.get(key).add(fileMeta);
+        objectMetas.get(bucket).add(objectKey);
     }
 
     /**
      * List bucket中一定范围的objects
-     * @param key bucketKey
+     * @param bucket bucket Name
      * @param count 获取数量
      * @param offset 起始位置
-     * @return {@link List<FileMeta>}
+     * @return {@link List<String>}
      */
-    public List<FileMeta> listBucket(String key, int count, int offset){
-        List<FileMeta> objects = objectMetas.get(key);
+    public List<String> listBucket(String bucket, int count, int offset){
+        List<String> objects = objectMetas.get(bucket);
         // offset 超出objects范围
         if(objects == null || offset >= objects.size()){
             // 返回空
@@ -102,15 +101,15 @@ public class BucketManager {
     /**
      * 删除存储桶中的object记录
      * @param bucket 桶
-     * @param key object key
+     * @param objectKey object key
      * @return boolean 删除是否成功
      */
-    public boolean deleteMeta(String bucket, String key){
+    public boolean deleteObject(String bucket, String objectKey){
         // 获取list
-        List<FileMeta> metas = objectMetas.get(bucket);
-        if(metas != null && !metas.isEmpty()){
+        List<String> objects = objectMetas.get(bucket);
+        if(objects != null && !objects.isEmpty()){
             // 按条件删除，该list是copyOnWriteList，保证了线程安全
-            return metas.removeIf((meta) -> meta.getKey().equals(key));
+            return objects.remove(objectKey);
         }
         return false;
     }
