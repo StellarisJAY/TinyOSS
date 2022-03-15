@@ -17,6 +17,14 @@ public class KeyUtil {
      * @return ObjectKey
      */
     public static String getObjectKey(String key, String bucket, String version){
-        return bucket + "/" + key + (StringUtil.isNullOrEmpty(version) ? "" : "-" + version);
+        return bucket + "/" + key + (StringUtil.isNullOrEmpty(version) ? "" : "/" + version);
+    }
+
+    public static String[] split(String objectKey){
+        return objectKey.split("/");
+    }
+
+    public static String getBucket(String objectKey){
+        return split(objectKey)[0];
     }
 }
