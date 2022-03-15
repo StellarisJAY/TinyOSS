@@ -108,7 +108,7 @@ public class StorageNode extends AbstractLifeCycle {
             }catch (Exception e){
                 log.warn("update storage node info error ", e);
             }
-        }, 5000, 5000, TimeUnit.MILLISECONDS);
+        }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
 
         Scheduler.scheduleAtFixedRate(()->editLogManager.flush(true),
                 OssConfigs.editLogFlushInterval(),
