@@ -28,9 +28,14 @@ public interface EditLogManager {
 
     /**
      * 刷盘
-     * @param force 是否强制刷盘
      */
-    void flush(boolean force);
+    void flush();
+
+    /**
+     * 交换buffer
+     * @param force 是否强制交换
+     */
+    void swapBuffer(boolean force);
 
     /**
      * 加载并压缩

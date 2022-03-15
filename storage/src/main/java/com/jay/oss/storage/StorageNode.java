@@ -108,15 +108,15 @@ public class StorageNode extends AbstractLifeCycle {
             }catch (Exception e){
                 log.warn("update storage node info error ", e);
             }
-        }, 5000, 5000, TimeUnit.MILLISECONDS);
+        }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
 
-        Scheduler.scheduleAtFixedRate(()->editLogManager.flush(true),
+        Scheduler.scheduleAtFixedRate(()->editLogManager.swapBuffer(true),
                 OssConfigs.editLogFlushInterval(),
                 OssConfigs.editLogFlushInterval(),
                 TimeUnit.MILLISECONDS);
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()->{
-            editLogManager.flush(true);
+            editLogManager.swapBuffer(true);
             editLogManager.close();
         }, "shutdown-log-flush"));
     }

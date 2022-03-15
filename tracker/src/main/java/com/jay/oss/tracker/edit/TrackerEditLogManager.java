@@ -93,6 +93,7 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
             objectTracker.merge();
             // 压缩editLog
             compress();
+            setLastSwapTime(System.currentTimeMillis());
             log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
         }catch (Exception e){
             log.error("load Bucket Edit Log Error ", e);

@@ -30,7 +30,7 @@ public class OssConfigs {
      * Zookeeper 地址
      */
     private static final String ZOOKEEPER_REGISTRY_HOST = "oss.registry.zookeeper.host";
-    public static final int ZOOKEEPER_SESSION_TIMEOUT = 3 * 1000;
+    public static final int ZOOKEEPER_SESSION_TIMEOUT = 10 * 1000;
 
     /**
      * 数据目录

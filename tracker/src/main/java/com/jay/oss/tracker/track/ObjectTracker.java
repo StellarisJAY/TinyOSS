@@ -3,6 +3,7 @@ package com.jay.oss.tracker.track;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
+import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -38,12 +39,27 @@ public class ObjectTracker {
         bitCaskStorage.init();
     }
 
+    /**
+     * 定位object在哪些主机上
+     * @param objectKey objectKey
+     * @return Url String
+     */
     public String locateObject(String objectKey){
         try{
+            // 从缓存获取
             String urls = locationCache.get(objectKey);
             if(urls == null){
+                // 缓存未命中，从BitCask获取
                 byte[] value = bitCaskStorage.get(objectKey);
-                return value != null ? new String(value, OssConfigs.DEFAULT_CHARSET) : null;
+                if(value != null){
+                    String result = StringUtil.toString(value);
+                    // 写入缓存
+                    locationCache.putIfAbsent(objectKey, result);
+                    return result;
+                }
+                else{
+                    return null;
+                }
             }
             return urls;
         }catch (Exception e){
@@ -52,6 +68,11 @@ public class ObjectTracker {
         }
     }
 
+    /**
+     * 定位并删除object
+     * @param objectKey objectKey
+     * @return Url String
+     */
     public String locateAndDeleteObject(String objectKey){
         String result = locateObject(objectKey);
         deleteObject(objectKey);
@@ -74,10 +95,20 @@ public class ObjectTracker {
         }
     }
 
+    /**
+     * 获取object的索引
+     * @param key objectKey
+     * @return {@link Index}
+     */
     public Index getIndex(String key){
         return bitCaskStorage.getIndex(key);
     }
 
+    /**
+     * 保存object索引
+     * @param key objectKey
+     * @param index {@link Index}
+     */
     public void saveObjectIndex(String key, Index index){
         bitCaskStorage.saveIndex(key, index);
     }
@@ -91,7 +122,6 @@ public class ObjectTracker {
      * BitCask存储模型merge
      */
     public void merge() throws Exception {
-        bitCaskStorage.init();
         bitCaskStorage.merge();
         bitCaskStorage.completeMerge();
     }
