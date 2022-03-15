@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -59,7 +58,6 @@ public class BitCaskStorage {
         File[] files = directory.listFiles((dir, fileName) -> fileName.startsWith(name + "_chunk_"));
         if(files != null){
             for(File chunkFile : files){
-                log.info("chunk file: {}", chunkFile);
                 // 从文件创建chunk instance
                 Chunk chunk = Chunk.getChunkInstance(chunkFile);
                 if(chunk != null){
@@ -151,18 +149,18 @@ public class BitCaskStorage {
                     }
                 }
             }
-            // 内存中删除其他chunk的对象
-            Iterator<Chunk> iterator = chunks.iterator();
-            while(iterator.hasNext()){
-                Chunk chunk = iterator.next();
-                chunk.closeChannel();
-                iterator.remove();
-            }
             this.activeChunk = mergedChunk;
         }
     }
 
     public void completeMerge() throws IOException {
+        // 内存中删除其他chunk的对象
+        Iterator<Chunk> iterator = chunks.iterator();
+        while(iterator.hasNext()){
+            Chunk chunk = iterator.next();
+            chunk.closeChannel();
+            iterator.remove();
+        }
         // 删除被无效的index
         for (String key : indexCache.keySet()) {
             if(indexCache.get(key).isRemoved()){
@@ -172,7 +170,7 @@ public class BitCaskStorage {
         // 删除已经合并完成的chunk文件
         String path = OssConfigs.dataPath() + "/chunks";
         File directory = new File(path);
-        File[] files = directory.listFiles((dir, name) -> name.startsWith(name + "_chunk_"));
+        File[] files = directory.listFiles((dir, fileName) -> fileName.startsWith(name + "_chunk_"));
         if(files != null){
             for(File chunkFile : files){
                 if(!chunkFile.delete()){
@@ -184,22 +182,24 @@ public class BitCaskStorage {
         resetActiveChunk();
     }
 
+    /**
+     * 重置activeChunk
+     * @throws IOException IOException
+     */
     private void resetActiveChunk() throws IOException {
         if(this.activeChunk != null){
-            String path = OssConfigs.dataPath() + "/chunks/" + name + "_merged_chunk";
+            String path = OssConfigs.dataPath() + "/chunks/" + name + "_merged_chunks";
             File file = new File(path);
             File chunk0 = new File(OssConfigs.dataPath() + "/chunks/" + name + "_chunk_0");
-            if(!chunk0.exists() && !chunk0.createNewFile()){
-                throw new RuntimeException("can't move merged chunks into chunk0");
-            }
-            RandomAccessFile raf = new RandomAccessFile(chunk0, "rw");
-            FileChannel chunk0Channel = raf.getChannel();
-            long transferred = this.activeChunk.getActiveChannel().transferTo(0, activeChunk.getSize(), chunk0Channel);
-            log.info("transferred: {}", transferred);
             this.activeChunk.closeChannel();
-            this.activeChunk.resetChannel(chunk0Channel);
-            chunks.add(this.activeChunk);
-            file.delete();
+            if(file.renameTo(chunk0)){
+                RandomAccessFile rf = new RandomAccessFile(chunk0, "rw");
+                this.activeChunk.resetChannel(rf.getChannel());
+                chunks.add(activeChunk);
+                file.delete();
+            }else {
+                log.error("Failed to Reset Active Chunk");
+            }
         }
     }
 

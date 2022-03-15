@@ -3,6 +3,7 @@ package com.jay.oss.tracker.track;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
+import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -43,7 +44,9 @@ public class ObjectTracker {
             String urls = locationCache.get(objectKey);
             if(urls == null){
                 byte[] value = bitCaskStorage.get(objectKey);
-                return value != null ? new String(value, OssConfigs.DEFAULT_CHARSET) : null;
+                String result = StringUtil.toString(value);
+                locationCache.putIfAbsent(objectKey, result);
+                return value != null ? result : null;
             }
             return urls;
         }catch (Exception e){
@@ -91,7 +94,6 @@ public class ObjectTracker {
      * BitCask存储模型merge
      */
     public void merge() throws Exception {
-        bitCaskStorage.init();
         bitCaskStorage.merge();
         bitCaskStorage.completeMerge();
     }
