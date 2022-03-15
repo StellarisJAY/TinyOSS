@@ -2,7 +2,7 @@ package com.jay.oss.proxy.http;
 
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.util.NamedThreadFactory;
-import com.jay.oss.common.fs.Chunk;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.proxy.http.handler.HttpRequestDispatcher;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
@@ -56,7 +56,7 @@ public class HttpServer extends AbstractLifeCycle {
                         ChannelPipeline pipeline = channel.pipeline();
                         // Http codec
                         pipeline.addLast(new HttpServerCodec());
-                        pipeline.addLast(new HttpObjectAggregator((int)Chunk.MAX_CHUNK_SIZE));
+                        pipeline.addLast(new HttpObjectAggregator(OssConfigs.maxRequestBodySize()));
                         // 请求分发器
                         pipeline.addLast(new HttpRequestDispatcher(handlerExecutor));
                     }

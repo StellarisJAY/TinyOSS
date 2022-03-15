@@ -47,7 +47,7 @@ public class OssConfigs {
      * 副本数量
      */
     private static final String REPLICA = "oss.replica.count";
-    private static final int DEFAULT_REPLICA_COUNT = 1;
+    private static final int DEFAULT_REPLICA_COUNT = 3;
 
     /**
      * 一致性hash环，虚节点数量
@@ -60,6 +60,12 @@ public class OssConfigs {
 
     private static final String EDIT_LOG_FLUSH_INTERVAL = "oss.log.flush_interval";
     private static final int DEFAULT_EDIT_LOG_FLUSH_INTERVAL = 20 * 1000;
+
+    private static final String REPLICA_WRITE_RULE = "oss.replica.write-rule";
+    private static final String DEFAULT_REPLICA_WRITE_RULE = "all";
+
+    private static final String HTTP_MAX_REQUEST_BODY_SIZE = "oss.http.max-request-body";
+    private static final int DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE = 16 * 1024 * 1024;
 
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
@@ -96,5 +102,9 @@ public class OssConfigs {
 
     public static int editLogFlushInterval(){
         return ConfigsManager.getInt(EDIT_LOG_FLUSH_INTERVAL, DEFAULT_EDIT_LOG_FLUSH_INTERVAL);
+    }
+
+    public static int maxRequestBodySize(){
+        return ConfigsManager.getInt(HTTP_MAX_REQUEST_BODY_SIZE, DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE);
     }
 }
