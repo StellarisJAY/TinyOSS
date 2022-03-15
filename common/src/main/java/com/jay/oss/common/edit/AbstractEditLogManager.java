@@ -1,6 +1,7 @@
 package com.jay.oss.common.edit;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.util.ThreadPoolUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
+import java.util.concurrent.ExecutorService;
 
 /**
  * <p>
@@ -21,18 +23,36 @@ import java.nio.channels.FileChannel;
 @Slf4j
 public abstract class AbstractEditLogManager implements EditLogManager{
     /**
-     * 日志缓存
-     * 编辑日志会先存储在缓存中，根据刷盘规则写入磁盘
+     * 同步缓存
+     * 写日志时直接向该缓存写入
+     * 当达到交换条件后，会将该缓存的内容复制到不可变缓存等待刷盘
      */
     private ByteBuf syncBuffer;
+    /**
+     * 不可变缓存
+     * 该缓存用于向日志文件写入
+     */
+    private ByteBuf immutableBuffer;
     /**
      * 日志文件channel
      */
     private FileChannel channel;
+    /**
+     * 写入锁
+     */
     private final Object writeLock = new Object();
+    /**
+     * 刷盘锁
+     */
+    private final Object flushLock = new Object();
     private volatile int unWrittenLogs = 0;
     private int maxUnWritten;
-    private long lastFlushTime;
+    private long lastSwapTime;
+
+    /**
+     * 异步flush线程池
+     */
+    private final ExecutorService asyncFlushExecutor = ThreadPoolUtil.newSingleThreadPool("Async-flush-");
 
     @Override
     public void init() {
@@ -47,6 +67,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
             this.channel = randomAccessFile.getChannel();
             channel.force(false);
             this.syncBuffer = Unpooled.buffer();
+            this.immutableBuffer = Unpooled.buffer();
         }catch (IOException e){
             throw new RuntimeException(e);
         }
@@ -64,7 +85,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
             syncBuffer.writeBytes(editLog.getContent());
             unWrittenLogs ++;
             // 尝试刷盘
-            flush(false);
+            swapBuffer(false);
         }
     }
 
@@ -81,35 +102,50 @@ public abstract class AbstractEditLogManager implements EditLogManager{
                 syncBuffer.writeBytes(editLog.getContent());
                 unWrittenLogs ++;
             }
-            // 尝试刷盘
-            flush(false);
+            // 尝试交换缓冲区
+            swapBuffer(false);
         }
     }
 
     @Override
-    public final void flush(boolean force) {
-        synchronized (writeLock){
-            if(syncBuffer.readableBytes() > 0){
-                // 判断是否到达刷盘阈值
-                if(force || unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastFlushTime) >= OssConfigs.editLogFlushInterval()){
-                    try{
-                        int length = syncBuffer.readableBytes();
-                        long offset = channel.size();
-                        // 写入channel
-                        int written = syncBuffer.readBytes(channel, offset, length);
-                        // 判断是否完全写入
-                        if(written == length){
-                            // 重置未写入数量 和 syncBuffer
-                            unWrittenLogs = 0;
-                            lastFlushTime = System.currentTimeMillis();
-                            syncBuffer.clear();
-                            log.info("edit log flushed, size: {} bytes", written);
-                        }
-                    }catch (Exception e){
-                        log.warn("flush edits log error ", e);
+    public final void flush() {
+        synchronized (flushLock){
+            if(immutableBuffer.readableBytes() > 0){
+                try{
+                    int length = immutableBuffer.readableBytes();
+                    long offset = channel.size();
+                    // 写入channel
+                    int written = immutableBuffer.readBytes(channel, offset, length);
+                    // 判断是否完全写入
+                    if(written == length){
+                        immutableBuffer.clear();
+                        log.info("edit log flushed, size: {} bytes", written);
                     }
+                }catch (Exception e){
+                    log.warn("flush edits log error ", e);
                 }
             }
+        }
+    }
+
+    @Override
+    public void swapBuffer(boolean force){
+        synchronized(writeLock){
+            doSwapBuffer(force);
+        }
+    }
+
+    public void doSwapBuffer(boolean force){
+        // 检查是否达到了交换缓存条件
+        if(force || unWrittenLogs >= maxUnWritten || (System.currentTimeMillis() - lastSwapTime) >= OssConfigs.editLogFlushInterval()){
+            // 转移到immutable buffer
+            immutableBuffer.ensureWritable(syncBuffer.readableBytes());
+            immutableBuffer.writeBytes(syncBuffer);
+            syncBuffer.clear();
+            unWrittenLogs = 0;
+            lastSwapTime = System.currentTimeMillis();
+            // 提交flush任务
+            asyncFlushExecutor.submit(this::flush);
         }
     }
 
@@ -121,8 +157,8 @@ public abstract class AbstractEditLogManager implements EditLogManager{
         this.channel = channel;
     }
 
-    public void setLastFlushTime(long lastFlushTime) {
-        this.lastFlushTime = lastFlushTime;
+    public void setLastSwapTime(long lastSwapTime) {
+        this.lastSwapTime = lastSwapTime;
     }
 
     @Override
