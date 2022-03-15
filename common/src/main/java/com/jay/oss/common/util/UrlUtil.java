@@ -1,13 +1,14 @@
 package com.jay.oss.common.util;
 
 import com.jay.dove.transport.Url;
+import com.jay.oss.common.registry.StorageNodeInfo;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * <p>
- *
+ *  Url工具
  * </p>
  *
  * @author Jay
@@ -27,6 +28,16 @@ public class UrlUtil {
         StringBuilder builder = new StringBuilder();
         for (Url url : urls) {
             builder.append(url.getOriginalUrl());
+            builder.append(";");
+        }
+        return builder.toString();
+    }
+
+    public static String stringifyFromNodes(List<StorageNodeInfo> nodes){
+        // 拼接候选url
+        StringBuilder builder = new StringBuilder();
+        for (StorageNodeInfo node : nodes) {
+            builder.append(node.getUrl());
             builder.append(";");
         }
         return builder.toString();
