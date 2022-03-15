@@ -87,9 +87,9 @@ public class Tracker extends AbstractLifeCycle {
         storageRegistry.init();
 
         // 系统关闭hook，关闭时flush日志
-        Runtime.getRuntime().addShutdownHook(new Thread(()-> {editLogManager.flush(true);editLogManager.close();}, "shutdown-log-flush"));
+        Runtime.getRuntime().addShutdownHook(new Thread(()-> {editLogManager.swapBuffer(true);editLogManager.close();}, "shutdown-log-flush"));
         // 定时flush任务
-        Scheduler.scheduleAtFixedRate(()-> editLogManager.flush(true), OssConfigs.editLogFlushInterval(), OssConfigs.editLogFlushInterval(), TimeUnit.MILLISECONDS);
+        Scheduler.scheduleAtFixedRate(()->editLogManager.swapBuffer(true), OssConfigs.editLogFlushInterval(), OssConfigs.editLogFlushInterval(), TimeUnit.MILLISECONDS);
     }
 
     @Override
