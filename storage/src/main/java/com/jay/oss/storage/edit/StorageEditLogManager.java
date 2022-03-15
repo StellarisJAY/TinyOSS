@@ -63,7 +63,7 @@ public class StorageEditLogManager extends AbstractEditLogManager {
             }
             log.info("load edit log finished, loaded: {} objects, time used: {}ms", count, (System.currentTimeMillis() - start));
             compress(metaManager);
-            setLastFlushTime(System.currentTimeMillis());
+            setLastSwapTime(System.currentTimeMillis());
         }catch (Exception e){
             log.warn("load and compress edit log error ", e);
         }
