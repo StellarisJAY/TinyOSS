@@ -1,7 +1,9 @@
 package com.jay.oss.proxy.service;
 
+import com.alibaba.fastjson.JSON;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
+import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.config.OssConfigs;
@@ -9,12 +11,14 @@ import com.jay.oss.common.entity.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * <p>
@@ -91,9 +95,19 @@ public class BucketService {
         try{
             // 发送List请求
             FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
-            httpResponse = HttpUtil.okResponse();
-            httpResponse.content().writeBytes(response.getContent());
+            CommandCode code = response.getCommandCode();
+            if(FastOssProtocol.SUCCESS.equals(code)){
+                byte[] content = response.getContent();
+                String json = StringUtil.toString(content);
+                List<String> list = JSON.parseArray(json, String.class);
+                Result result = new Result().message("Success")
+                        .putData("objects", list);
+                httpResponse = HttpUtil.okResponse(result);
+            }else{
+                httpResponse = HttpUtil.errorResponse(code);
+            }
         }catch (Exception e){
+            log.error("List Bucket Error: ", e);
             httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
         }
         return httpResponse;
