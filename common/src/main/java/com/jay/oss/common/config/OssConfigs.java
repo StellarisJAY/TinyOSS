@@ -67,6 +67,24 @@ public class OssConfigs {
     private static final String HTTP_MAX_REQUEST_BODY_SIZE = "oss.http.max-request-body";
     private static final int DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE = 16 * 1024 * 1024;
 
+    /**
+     * 纠删码分片大小
+     */
+    private static final String RS_SHARD_SIZE = "oss.reed-solomon.shard-size";
+    /**
+     * 默认分片大小是,32MB，最小的RS存储对象是128MB，也就是说会产生4个数据分片
+     */
+    private static final int DEFAULT_RS_SHARD_SIZE = 32 * 1024 * 1024;
+
+    /**
+     * 使用纠删码替代副本的对象大小阈值
+     */
+    private static final String RS_THRESHOLD_SIZE = "oss.reed-solomon.threshold-size";
+    /**
+     * 默认阈值是128MB，只要对象大小大于等于128MB就会采用纠删码存储，而不是多副本存储
+     */
+    private static final int DEFAULT_RS_THRESHOLD_SIZE = 128 * 1024 * 1024;
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -106,5 +124,13 @@ public class OssConfigs {
 
     public static int maxRequestBodySize(){
         return ConfigsManager.getInt(HTTP_MAX_REQUEST_BODY_SIZE, DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE);
+    }
+
+    public static int reedSolomonShardSize(){
+        return ConfigsManager.getInt(RS_SHARD_SIZE, DEFAULT_RS_SHARD_SIZE);
+    }
+
+    public static int reedSolomonThreshold(){
+        return ConfigsManager.getInt(RS_THRESHOLD_SIZE, DEFAULT_RS_THRESHOLD_SIZE);
     }
 }
