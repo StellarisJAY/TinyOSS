@@ -1,17 +1,20 @@
 package com.jay.oss.tracker.processor;
 
 import com.alibaba.fastjson.JSON;
-import com.jay.dove.transport.Remoting;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.*;
+import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.BucketPutObjectRequest;
+import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
+import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -20,7 +23,6 @@ import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
-import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -167,7 +169,7 @@ public class BucketProcessor extends AbstractProcessor {
             }
         }else{
             // 没有访问权限 或者 存储桶不存在
-            response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", code);
+            response = commandFactory.createResponse(command.getId(), "", code);
         }
         // 发送结果
         sendResponse(context, response);
