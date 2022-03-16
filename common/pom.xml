@@ -21,6 +21,8 @@
         <janino.version>3.1.2</janino.version>
         <junit.version>4.12</junit.version>
         <prometheus.version>0.9.0</prometheus.version>
+        <kafka.version>2.8.0</kafka.version>
+        <reed-solomon.version>1.0</reed-solomon.version>
     </properties>
 
     <dependencies>
@@ -88,6 +90,13 @@
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient_httpserver</artifactId>
             <version>${prometheus.version}</version>
+        </dependency>
+
+        <!--backblaze ReedSolomon Erasure code-->
+        <dependency>
+            <groupId>com.backblaze</groupId>
+            <artifactId>reed_solomon</artifactId>
+            <version>${reed-solomon.version}</version>
         </dependency>
     </dependencies>
 </project>
