@@ -1,13 +1,19 @@
 package com.jay.oss.tracker.track;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
+import com.jay.oss.common.entity.object.ObjectMeta;
+import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -25,10 +31,21 @@ public class ObjectTracker {
      * 热点数据缓存
      */
     private final ConcurrentHashMap<String, String> locationCache = new ConcurrentHashMap<>();
+
+    /**
+     * 热点元数据缓存
+     */
+    private final Cache<String, Object> cache = CacheBuilder.newBuilder()
+            .expireAfterAccess(60, TimeUnit.MINUTES)
+            .concurrencyLevel(10)
+            .maximumSize(100000)
+            .recordStats().build();
     /**
      * BitCask存储模型
      */
     private final BitCaskStorage bitCaskStorage = new BitCaskStorage("location");
+
+    private final BitCaskStorage metaStorage = new BitCaskStorage("meta");
 
     /**
      * 初始化object tracker
@@ -45,26 +62,46 @@ public class ObjectTracker {
      * @return Url String
      */
     public String locateObject(String objectKey){
+        ObjectMeta objectMeta = getObjectMeta(objectKey);
+        return objectMeta == null ? null : objectMeta.getLocations();
+    }
+
+    /**
+     * 读取object元数据
+     * @param objectKey objectKey
+     * @return {@link ObjectMeta}
+     */
+    public ObjectMeta getObjectMeta(String objectKey)  {
         try{
-            // 从缓存获取
-            String urls = locationCache.get(objectKey);
-            if(urls == null){
-                // 缓存未命中，从BitCask获取
-                byte[] value = bitCaskStorage.get(objectKey);
-                if(value != null){
-                    String result = StringUtil.toString(value);
-                    // 写入缓存
-                    locationCache.putIfAbsent(objectKey, result);
-                    return result;
+            Object object = cache.getIfPresent(objectKey);
+            if(object instanceof ObjectMeta){
+                return (ObjectMeta) object;
+            }else{
+                byte[] serialized = metaStorage.get(objectKey);
+                if(serialized != null && serialized.length > 0){
+                    return SerializeUtil.deserialize(serialized, ObjectMeta.class);
                 }
-                else{
-                    return null;
-                }
+                return null;
             }
-            return urls;
-        }catch (Exception e){
-            log.warn("locate object failed, key: {}, ", objectKey, e);
+        }catch (IOException e){
+            log.error("Get Object Meta Failed, meta: {}", objectKey, e);
             return null;
+        }
+    }
+
+    /**
+     * 保存object元数据
+     * @param meta {@link ObjectMeta}
+     * @return boolean 保存是否成功，如果是重复的key会导致返回false
+     */
+    public boolean putObjectMeta(ObjectMeta meta)  {
+        try{
+            byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
+            log.info("Object Key : {}", meta.getObjectKey());
+            return metaStorage.put(meta.getObjectKey(), serialized);
+        }catch (IOException e){
+            log.error("Write Object Meta Failed, meta: {}", meta.getObjectKey());
+            return false;
         }
     }
 
@@ -101,7 +138,7 @@ public class ObjectTracker {
      * @return {@link Index}
      */
     public Index getIndex(String key){
-        return bitCaskStorage.getIndex(key);
+        return metaStorage.getIndex(key);
     }
 
     /**
@@ -110,23 +147,23 @@ public class ObjectTracker {
      * @param index {@link Index}
      */
     public void saveObjectIndex(String key, Index index){
-        bitCaskStorage.saveIndex(key, index);
+        metaStorage.saveIndex(key, index);
     }
 
     public void deleteObject(String key){
         locationCache.remove(key);
-        bitCaskStorage.delete(key);
+        metaStorage.delete(key);
     }
 
     /**
      * BitCask存储模型merge
      */
     public void merge() throws Exception {
-        bitCaskStorage.merge();
-        bitCaskStorage.completeMerge();
+        metaStorage.merge();
+        metaStorage.completeMerge();
     }
 
     public List<Index> listIndexes(){
-        return bitCaskStorage.listIndex();
+        return metaStorage.listIndex();
     }
 }
