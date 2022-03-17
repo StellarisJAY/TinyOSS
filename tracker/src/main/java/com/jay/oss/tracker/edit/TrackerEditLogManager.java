@@ -62,7 +62,8 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                并且删除DELETED的记录
             */
             long start = System.currentTimeMillis();
-            int count = 0;
+            int bucketCount = 0;
+            int objectCount = 0;
             ByteBuf buffer = Unpooled.directBuffer();
             buffer.writeBytes(channel, 0, (int)channel.size());
             // 读取editLog
@@ -77,10 +78,10 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                 EditOperation editOperation = EditOperation.get(operation);
                 if(editOperation != null){
                     switch (editOperation){
-                        case ADD: saveBucket(bucketManager, content); count++;break;
+                        case ADD: saveBucket(bucketManager, content); bucketCount++;break;
                         case DELETE: deleteBucket(content);break;
-                        case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
-                        case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
+                        case BUCKET_PUT_OBJECT: bucketPutObject(content); objectCount++; break;
+                        case BUCKET_DELETE_OBJECT:bucketDeleteObject(content); objectCount--;break;
                         case MULTIPART_UPLOAD:saveMultipartUploadTask(content);break;
                         default: break;
                     }
@@ -95,7 +96,7 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
             // 压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
-            log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
+            log.info("edit log load and compressed, loaded bucket: {}, loaded object: {} time used: {}ms", bucketCount,objectCount, (System.currentTimeMillis() - start));
         }catch (Exception e){
             log.error("load Bucket Edit Log Error ", e);
         }
