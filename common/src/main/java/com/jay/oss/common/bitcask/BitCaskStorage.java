@@ -71,6 +71,7 @@ public class BitCaskStorage {
             }
             chunks.sort(Comparator.comparingInt(Chunk::getChunkId));
         }
+        log.info("BitCask Storage for {} loaded {} chunks", name, chunks.size());
     }
 
     public Index getIndex(String key){
@@ -92,7 +93,7 @@ public class BitCaskStorage {
         Chunk chunk;
         if(index  != null && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
             byte[] content = chunk.read(index.getOffset());
-            return CompressUtil.decompress(content);
+            return content != null ? CompressUtil.decompress(content) : null;
         }else if(index != null){
             log.info("unknown chunk id: {}", index.getChunkId());
         }
