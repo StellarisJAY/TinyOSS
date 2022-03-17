@@ -1,6 +1,7 @@
 package com.jay.oss.common.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.util.CompressUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -87,7 +88,8 @@ public class BitCaskStorage {
         Index index = indexCache.get(key);
         Chunk chunk;
         if(index  != null && (chunk = chunks.get(index.getChunkId())) != null){
-            return chunk.read(index.getOffset());
+            byte[] content = chunk.read(index.getOffset());
+            return CompressUtil.decompress(content);
         }
         return null;
     }
@@ -106,7 +108,8 @@ public class BitCaskStorage {
                     this.activeChunk = new Chunk(name, false);
                     chunks.add(activeChunk);
                 }
-                int offset = activeChunk.write(keyBytes, value);
+                byte[] compressedValue = CompressUtil.compress(value);
+                int offset = activeChunk.write(keyBytes, compressedValue);
                 Index index = new Index(key, activeChunk.getChunkId(), offset, false);
                 indexCache.put(key, index);
                 return true;
