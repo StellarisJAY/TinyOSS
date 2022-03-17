@@ -75,9 +75,7 @@ public class UploadService {
             String versionId = str.substring(idx + 1);
             // 获取上传点
             List<Url> urls = UrlUtil.parseUrls(str.substring(0, idx));
-            if(!StringUtil.isNullOrEmpty(versionId)){
-                objectKey = objectKey + "-" + versionId;
-            }
+            objectKey = KeyUtil.appendVersion(objectKey, versionId);
             httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key, versionId);
         }else if(code.equals(FastOssProtocol.NO_ENOUGH_STORAGES)){
             httpResponse = HttpUtil.internalErrorResponse("No enough Storages for replica");
@@ -198,7 +196,7 @@ public class UploadService {
                 .filename(filename).key(objectKey).bucket(bucket)
                 .size(size).token(token)
                 .createTime(createTime)
-                .md5(md5)
+                .md5(md5 == null ? "" : md5)
                 .build();
         // 发送
         RemotingCommand command = storageClient.getCommandFactory()
