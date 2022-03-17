@@ -47,13 +47,14 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String auth = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
         String key = request.getPath();
+        String md5 = request.contentMd5() == null ? "" : request.contentMd5();
         ByteBuf content = request.content();
         try{
             if(request.containsParameter(HttpConstants.UPLOAD_ID) && request.containsParameter(HttpConstants.UPLOAD_PART_NUM)){
                 return multipartUploadService.putObject(key, bucket, auth, request.getParameter(HttpConstants.UPLOAD_ID),
                         request.getParameter("versionId"), Integer.parseInt(request.getParameter(HttpConstants.UPLOAD_PART_NUM)), content);
             }else{
-                return uploadService.putObject(key, bucket, auth, content);
+                return uploadService.putObject(key, bucket, auth, md5, content);
             }
         }catch (Exception e){
             log.warn("put object error ", e);
@@ -110,5 +111,14 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
             return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, parts);
         }
         return HttpUtil.badRequestResponse();
+    }
+
+    @Override
+    public FullHttpResponse handleHead(ChannelHandlerContext context, OssHttpRequest request) throws Exception {
+        String key = request.getPath();
+        String host = request.host();
+        String token = request.authorization();
+        String bucket = host.trim().substring(0, host.indexOf("."));
+        return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
     }
 }

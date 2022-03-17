@@ -59,12 +59,12 @@ public class UploadService {
      * @return {@link FullHttpResponse}
      * @throws Exception e
      */
-    public FullHttpResponse putObject(String key, String bucket, String token, ByteBuf content) throws Exception {
+    public FullHttpResponse putObject(String key, String bucket, String token, String md5, ByteBuf content) throws Exception {
         FullHttpResponse httpResponse;
         long size = content.readableBytes();
         String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // 向存储桶put object
-        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token);
+        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token, md5);
         CommandCode code = bucketResponse.getCommandCode();
         // 向桶内添加对象记录
         if(code.equals(FastOssProtocol.SUCCESS)){
@@ -189,7 +189,7 @@ public class UploadService {
      * @return {@link FastOssCommand}
      * @throws Exception e
      */
-    private FastOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token)throws Exception{
+    private FastOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token, String md5)throws Exception{
         // 获取tracker服务器地址
         String tracker = OssConfigs.trackerServerHost();
         Url url = Url.parseString(tracker);
@@ -198,6 +198,7 @@ public class UploadService {
                 .filename(filename).key(objectKey).bucket(bucket)
                 .size(size).token(token)
                 .createTime(createTime)
+                .md5(md5)
                 .build();
         // 发送
         RemotingCommand command = storageClient.getCommandFactory()
