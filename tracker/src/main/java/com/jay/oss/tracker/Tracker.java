@@ -16,6 +16,7 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
+import com.jay.oss.tracker.db.SqlUtil;
 import com.jay.oss.tracker.edit.TrackerEditLogManager;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
@@ -48,6 +49,7 @@ public class Tracker extends AbstractLifeCycle {
     private final ConsistentHashRing ring;
     private final EditLogManager editLogManager;
     private final PrometheusServer prometheusServer;
+    private final SqlUtil sqlUtil;
 
     public Tracker(){
         ConfigsManager.loadConfigs();
@@ -55,11 +57,12 @@ public class Tracker extends AbstractLifeCycle {
         FastOssCommandFactory commandFactory = new FastOssCommandFactory();
         this.ring = new ConsistentHashRing();
         this.storageRegistry = new StorageRegistry(ring);
+        this.sqlUtil = new SqlUtil();
         this.bucketManager = new BucketManager();
         this.objectTracker = new ObjectTracker();
         this.multipartUploadTracker = new MultipartUploadTracker();
         this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
-        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, multipartUploadTracker, commandFactory);
+        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, multipartUploadTracker, sqlUtil, commandFactory);
         this.registry = new ZookeeperRegistry();
         this.storageRegistry.setRegistry(registry);
         this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
@@ -79,13 +82,17 @@ public class Tracker extends AbstractLifeCycle {
         editLogManager.init();
         // 初始化objectTracker，加载bitCask chunks
         objectTracker.init();
+        // 初始化bucketManager，加载bitCask chunks
+        bucketManager.init();
         // 加载editLog并压缩日志，该过程会压缩bitCask chunk
         editLogManager.loadAndCompress();
         // 初始化远程注册中心客户端
         registry.init();
         // 初始化本地storage记录
         storageRegistry.init();
-
+        if(OssConfigs.enableMysql()){
+            sqlUtil.init();
+        }
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()-> {editLogManager.swapBuffer(true);editLogManager.close();}, "shutdown-log-flush"));
         // 定时flush任务

@@ -3,7 +3,7 @@ package com.jay.oss.tracker.edit;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
@@ -91,6 +91,7 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                     将内存中的EditLog重新写入硬盘，并将BitCask模型的chunk合并
                  */
             objectTracker.merge();
+            bucketManager.merge();
             // 压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
@@ -151,13 +152,12 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
         FileChannel channel = rewriteChannel;
         ByteBuf buffer = Unpooled.directBuffer();
         // 获取所有存储桶
-        List<Bucket> buckets = bucketManager.snapshot();
-        for (Bucket bucket : buckets) {
-            // 写入日志
+        List<Index> indices = bucketManager.listIndexes();
+        for (Index index : indices) {
+            byte[] serialize = SerializeUtil.serialize(index, Index.class);
             buffer.writeByte(EditOperation.ADD.value());
-            byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
-            buffer.writeInt(content.length);
-            buffer.writeBytes(content);
+            buffer.writeInt(serialize.length);
+            buffer.writeBytes(serialize);
         }
         buffer.readBytes(channel, buffer.readableBytes());
         buffer.clear();
@@ -204,8 +204,9 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
 
 
     private void saveBucket(BucketManager bucketManager, byte[] content){
-        Bucket bucket = SerializeUtil.deserialize(content, Bucket.class);
-        bucketManager.saveBucket(bucket);
+        Index index = SerializeUtil.deserialize(content, Index.class);
+        // 记录bitCask位置索引
+        bucketManager.saveIndex(index.getKey(), index);
     }
 
 
