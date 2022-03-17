@@ -35,7 +35,7 @@ public class ObjectTracker {
     /**
      * 热点元数据缓存
      */
-    private final Cache<String, Object> cache = CacheBuilder.newBuilder()
+    private final Cache<String, ObjectMeta> cache = CacheBuilder.newBuilder()
             .expireAfterAccess(60, TimeUnit.MINUTES)
             .concurrencyLevel(10)
             .maximumSize(100000)
@@ -73,13 +73,15 @@ public class ObjectTracker {
      */
     public ObjectMeta getObjectMeta(String objectKey)  {
         try{
-            Object object = cache.getIfPresent(objectKey);
-            if(object instanceof ObjectMeta){
-                return (ObjectMeta) object;
+            ObjectMeta object = cache.getIfPresent(objectKey);
+            if(object != null){
+                return object;
             }else{
                 byte[] serialized = metaStorage.get(objectKey);
                 if(serialized != null && serialized.length > 0){
-                    return SerializeUtil.deserialize(serialized, ObjectMeta.class);
+                    ObjectMeta meta = SerializeUtil.deserialize(serialized, ObjectMeta.class);
+                    cache.put(objectKey, meta);
+                    return meta;
                 }
                 return null;
             }
@@ -94,11 +96,10 @@ public class ObjectTracker {
      * @param meta {@link ObjectMeta}
      * @return boolean 保存是否成功，如果是重复的key会导致返回false
      */
-    public boolean putObjectMeta(ObjectMeta meta)  {
+    public boolean putObjectMeta(String objectKey, ObjectMeta meta)  {
         try{
             byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
-            log.info("Object Key : {}", meta.getObjectKey());
-            return metaStorage.put(meta.getObjectKey(), serialized);
+            return metaStorage.put(objectKey, serialized);
         }catch (IOException e){
             log.error("Write Object Meta Failed, meta: {}", meta.getObjectKey());
             return false;
