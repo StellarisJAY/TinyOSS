@@ -1,6 +1,7 @@
 package com.jay.oss.common.config;
 
 import com.jay.dove.transport.Url;
+import com.jay.oss.common.GzipCompressor;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -20,12 +21,15 @@ public class OssConfigs {
      */
     public static final byte PROTOSTUFF_SERIALIZER = 1;
 
+    public static final byte GZIP_COMPRESSOR = GzipCompressor.CODE;
+
     public static final Charset DEFAULT_CHARSET =  StandardCharsets.UTF_8;
 
     /**
      * 默认序列化器
      */
     public static final byte DEFAULT_SERIALIZER = PROTOSTUFF_SERIALIZER;
+    public static final byte DEFAULT_COMPRESSOR = GZIP_COMPRESSOR;
     /**
      * Zookeeper 地址
      */
@@ -47,7 +51,7 @@ public class OssConfigs {
      * 副本数量
      */
     private static final String REPLICA = "oss.replica.count";
-    private static final int DEFAULT_REPLICA_COUNT = 3;
+    private static final int DEFAULT_REPLICA_COUNT = 1;
 
     /**
      * 一致性hash环，虚节点数量
@@ -84,6 +88,18 @@ public class OssConfigs {
      * 默认阈值是128MB，只要对象大小大于等于128MB就会采用纠删码存储，而不是多副本存储
      */
     private static final int DEFAULT_RS_THRESHOLD_SIZE = 128 * 1024 * 1024;
+
+    private static final String ENABLE_MYSQL = "oss.mysql.enable";
+    private static final boolean DEFAULT_ENABLE_MYSQL = false;
+
+    private static final String MYSQL_URL = "oss.mysql.url";
+    private static final String DEFAULT_MYSQL_URL = "jdbc:mysql://127.0.0.1:3306/db_fastoss";
+
+    private static final String MYSQL_USERNAME = "oss.mysql.username";
+    private static final String DEFAULT_MYSQL_USERNAME = "root";
+
+    private static final String MYSQL_PASSWORD = "oss.mysql.password";
+    private static final String DEFAULT_MYSQL_PASSWORD = "";
 
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
@@ -132,5 +148,21 @@ public class OssConfigs {
 
     public static int reedSolomonThreshold(){
         return ConfigsManager.getInt(RS_THRESHOLD_SIZE, DEFAULT_RS_THRESHOLD_SIZE);
+    }
+
+    public static String mysqlUrl(){
+        return ConfigsManager.get(MYSQL_URL, DEFAULT_MYSQL_URL);
+    }
+
+    public static String mysqlUsername(){
+        return ConfigsManager.get(MYSQL_USERNAME, DEFAULT_MYSQL_USERNAME);
+    }
+
+    public static String mysqlPassword(){
+        return ConfigsManager.get(MYSQL_PASSWORD, DEFAULT_MYSQL_PASSWORD);
+    }
+
+    public static boolean enableMysql(){
+        return ConfigsManager.getBoolean(ENABLE_MYSQL, DEFAULT_ENABLE_MYSQL);
     }
 }
