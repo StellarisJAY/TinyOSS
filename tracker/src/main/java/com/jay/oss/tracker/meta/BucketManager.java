@@ -1,13 +1,21 @@
 package com.jay.oss.tracker.meta;
 
-import com.jay.oss.common.entity.Bucket;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.jay.oss.common.bitcask.BitCaskStorage;
+import com.jay.oss.common.bitcask.Index;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.util.AppIdUtil;
+import com.jay.oss.common.util.SerializeUtil;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -17,16 +25,30 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @author Jay
  * @date 2022/02/21 10:09
  */
+@Slf4j
 public class BucketManager {
-    /**
-     * 桶缓存
-     * bucketKey: bucketName + appId
-     */
-    private final ConcurrentHashMap<String, Bucket> bucketCache = new ConcurrentHashMap<>(256);
     /**
      * 桶内元数据缓存
      */
     private final ConcurrentHashMap<String, List<String>> objectMetas = new ConcurrentHashMap<>(256);
+
+    /**
+     * 桶磁盘存储
+     */
+    private final BitCaskStorage bucketStorage = new BitCaskStorage("bucket");
+    /**
+     * 存储桶LRU缓存
+     */
+    private final Cache<String, Bucket> cache = CacheBuilder.newBuilder()
+            .maximumSize(2048).concurrencyLevel(10)
+            .expireAfterAccess(60, TimeUnit.MINUTES)
+            .recordStats()
+            .build();
+
+    public void init() throws Exception {
+        bucketStorage.init();
+    }
+
     /**
      * 添加bucket
      * @param bucket {@link Bucket}
@@ -42,17 +64,17 @@ public class BucketManager {
         String secretKey = UUID.randomUUID().toString();
         bucket.setAccessKey(accessKey);
         bucket.setSecretKey(secretKey);
-        bucketCache.put(key, bucket);
-        return bucket;
+
+        try{
+            byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
+            boolean status = bucketStorage.put(key, serialized);
+            return bucket;
+        }catch (Exception e){
+            log.error("Put Bucket Failed, key: {}", key, e);
+            return null;
+        }
     }
 
-    /**
-     * 保存存储桶
-     * @param bucket {@link Bucket}
-     */
-    public void saveBucket(Bucket bucket){
-        bucketCache.put(bucket.getBucketName() + "-" + bucket.getAppId(), bucket);
-    }
 
     /**
      * 获取存储桶
@@ -60,7 +82,24 @@ public class BucketManager {
      * @return {@link Bucket}
      */
     public Bucket getBucket(String key){
-        return bucketCache.get(key);
+        try{
+            Bucket bucket = cache.getIfPresent(key);
+            if(bucket == null){
+                byte[] serialized = bucketStorage.get(key);
+                if(serialized != null && serialized.length > 0){
+                    log.info("Serialized: {}", serialized);
+                    bucket = SerializeUtil.deserialize(serialized, Bucket.class);
+                    cache.put(key, bucket);
+                    log.info("Bucket: {}", bucket);
+                    return bucket;
+                }
+            }else{
+                return bucket;
+            }
+        }catch (IOException e){
+            log.error("Get Bucket Failed, key: {}", key, e);
+        }
+        return null;
     }
 
     /**
@@ -114,11 +153,20 @@ public class BucketManager {
         return false;
     }
 
-    /**
-     * 获取存储桶缓存快照
-     * @return {@link List<Bucket>}
-     */
-    public List<Bucket> snapshot(){
-        return new ArrayList<>(bucketCache.values());
+    public Index getIndex(String key){
+        return bucketStorage.getIndex(key);
+    }
+
+    public void saveIndex(String key, Index index){
+        bucketStorage.saveIndex(key, index);
+    }
+
+    public void merge() throws IOException {
+        bucketStorage.merge();
+        bucketStorage.completeMerge();
+    }
+
+    public List<Index> listIndexes(){
+        return bucketStorage.listIndex();
     }
 }
