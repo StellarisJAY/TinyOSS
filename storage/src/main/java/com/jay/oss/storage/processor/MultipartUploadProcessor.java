@@ -144,8 +144,7 @@ public class MultipartUploadProcessor extends AbstractProcessor {
             int offset = mergedChunk.getAndAddSize((int)size);
             int transferred = 0;
             FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
-                    .filename(request.getFilename())
-                    .size(size).createTime(System.currentTimeMillis())
+                    .size(size)
                     .key(request.getObjectKey())
                     .chunkId(mergedChunk.getId()).offset(offset)
                     .removed(false)

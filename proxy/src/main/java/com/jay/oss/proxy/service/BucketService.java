@@ -7,7 +7,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;

@@ -1,6 +1,7 @@
 package com.jay.oss.common.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.util.CompressUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -11,6 +12,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
@@ -47,6 +49,8 @@ public class BitCaskStorage {
      */
     private final String name;
 
+    private final AtomicInteger chunkIdProvider = new AtomicInteger(0);
+
     public BitCaskStorage(String name) {
         this.name = name;
     }
@@ -67,6 +71,7 @@ public class BitCaskStorage {
             }
             chunks.sort(Comparator.comparingInt(Chunk::getChunkId));
         }
+        log.info("BitCask Storage for {} loaded {} chunks", name, chunks.size());
     }
 
     public Index getIndex(String key){
@@ -86,8 +91,11 @@ public class BitCaskStorage {
     public byte[] get(String key) throws IOException {
         Index index = indexCache.get(key);
         Chunk chunk;
-        if(index  != null && (chunk = chunks.get(index.getChunkId())) != null){
-            return chunk.read(index.getOffset());
+        if(index  != null && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
+            byte[] content = chunk.read(index.getOffset());
+            return content != null ? CompressUtil.decompress(content) : null;
+        }else if(index != null){
+            log.info("unknown chunk id: {}", index.getChunkId());
         }
         return null;
     }
@@ -103,10 +111,11 @@ public class BitCaskStorage {
             if(!indexCache.containsKey(key)){
                 byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
                 if(this.activeChunk == null || !activeChunk.isWritable()){
-                    this.activeChunk = new Chunk(name, false);
+                    this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
                     chunks.add(activeChunk);
                 }
-                int offset = activeChunk.write(keyBytes, value);
+                byte[] compressedValue = CompressUtil.compress(value);
+                int offset = activeChunk.write(keyBytes, compressedValue);
                 Index index = new Index(key, activeChunk.getChunkId(), offset, false);
                 indexCache.put(key, index);
                 return true;
@@ -132,7 +141,7 @@ public class BitCaskStorage {
      */
     public void merge() throws IOException {
         synchronized (writeLock){
-            Chunk mergedChunk = new Chunk(name,true);
+            Chunk mergedChunk = new Chunk(name,true, 0);
             for (Index index : indexCache.values()) {
                 String key = index.getKey();
                 if(!index.isRemoved()){

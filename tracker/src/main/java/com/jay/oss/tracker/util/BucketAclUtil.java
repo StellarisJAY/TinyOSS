@@ -1,10 +1,9 @@
 package com.jay.oss.tracker.util;
 
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.acl.BucketAccessMode;
-import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.AccessTokenUtil;

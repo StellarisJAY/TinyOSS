@@ -25,6 +25,7 @@ public class BucketPutObjectRequest implements Serializable {
     private String bucket;
     private long size;
     private long createTime;
+    private String md5;
     private String token;
 
 }

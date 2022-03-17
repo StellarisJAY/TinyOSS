@@ -1,4 +1,4 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.bucket;
 
 import com.jay.oss.common.acl.Acl;
 import lombok.Builder;

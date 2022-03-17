@@ -102,8 +102,8 @@ public class FileUploadProcessor extends AbstractProcessor {
             FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
                     .chunkId(chunk.getId()).removed(false)
                     .offset(offset).size(request.getSize())
-                    .key(request.getKey()).filename(request.getFilename())
-                    .createTime(System.currentTimeMillis()).build();
+                    .key(request.getKey())
+                    .build();
             chunk.addObjectMeta(meta);
             // 创建文件接收器
             FileReceiver receiver = FileReceiver.createFileReceiver(chunk, request.getParts(), offset,  chunkManager);

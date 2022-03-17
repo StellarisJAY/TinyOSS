@@ -21,4 +21,6 @@ public class MultipartUploadTask implements Serializable {
     private String uploadId;
     private String objectKey;
     private String locations;
+    private String versionId;
+    private long createTime;
 }

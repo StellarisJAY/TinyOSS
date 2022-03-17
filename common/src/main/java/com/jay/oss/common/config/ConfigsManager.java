@@ -1,5 +1,6 @@
 package com.jay.oss.common.config;
 
+import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -53,6 +54,12 @@ public class ConfigsManager {
         return properties.getProperty(name);
     }
 
+
+    public static String get(String name, String defaultValue){
+        String property = properties.getProperty(name);
+        return StringUtil.isNullOrEmpty(property) ? defaultValue : property;
+    }
+
     public static int getInt(String name, int defaultValue){
         String s = get(name);
         return s != null ? Integer.parseInt(s) : defaultValue;
@@ -62,8 +69,8 @@ public class ConfigsManager {
         return getInt(name, 0);
     }
 
-    public static boolean getBool(String name){
+    public static boolean getBoolean(String name, boolean defaultValue){
         String s = get(name);
-        return Boolean.parseBoolean(s);
+        return StringUtil.isNullOrEmpty(s) ? defaultValue : Boolean.parseBoolean(s);
     }
 }

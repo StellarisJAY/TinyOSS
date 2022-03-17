@@ -97,6 +97,12 @@ public class TestReedSolomon {
         file.createNewFile();
         FileOutputStream outputStream = new FileOutputStream(file);
         for (int i = 0; i < DATA_SHARD_COUNT; i++) {
+            File shard = new File(decodePath + "output-" + i);
+            if(!shard.exists()){
+                FileOutputStream shardOutputStream = new FileOutputStream(shard);
+                shardOutputStream.write(shards[i]);
+                shardOutputStream.close();
+            }
             outputStream.write(shards[i]);
         }
         outputStream.close();

@@ -11,21 +11,26 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.ListBucketRequest;
+import com.jay.oss.common.entity.bucket.BucketEntity;
+import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.UrlUtil;
+import com.jay.oss.tracker.db.SqlUtil;
+import com.jay.oss.tracker.mapper.BucketMapper;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.session.SqlSession;
 
 import java.util.List;
 import java.util.UUID;
@@ -46,11 +51,13 @@ public class BucketProcessor extends AbstractProcessor {
     private final CommandFactory commandFactory;
     private final EditLogManager editLogManager;
     private final ObjectTracker objectTracker;
+    private final SqlUtil sqlUtil;
 
     public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager,
-                           ObjectTracker objectTracker, CommandFactory commandFactory) {
+                           ObjectTracker objectTracker, SqlUtil sqlUtil, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.commandFactory = commandFactory;
+        this.sqlUtil = sqlUtil;
         this.storageRegistry = storageRegistry;
         this.editLogManager = editLogManager;
         this.objectTracker = objectTracker;
@@ -151,12 +158,18 @@ public class BucketProcessor extends AbstractProcessor {
                 // 选择上传点
                 List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
                 String urls = UrlUtil.stringifyFromNodes(nodes);
-                urls = urls + versionId;
+                ObjectMeta meta = ObjectMeta.builder()
+                        .locations(urls).fileName(request.getFilename())
+                        .md5(request.getMd5()).objectKey(request.getKey())
+                        .size(size).createTime(request.getCreateTime())
+                        .versionId(versionId)
+                        .build();
                 // 保存object位置，判断object是否已经存在
-                if(objectTracker.saveObjectLocation(objectKey, urls)){
+                if(objectTracker.putObjectMeta(objectKey, meta)){
                     bucketManager.putObject(bucket, objectKey);
                     // 日志记录put object
                     appendBucketPutObjectLog(objectKey);
+                    urls = urls + versionId;
                     response = commandFactory.createResponse(command.getId(), urls, code);
                 }else{
                     // object key 重复
@@ -209,8 +222,10 @@ public class BucketProcessor extends AbstractProcessor {
 
 
     private void appendAddBucketLog(Bucket bucket){
-        byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
-        EditLog editLog = new EditLog(EditOperation.ADD, serialized);
+        String key = bucket.getBucketName() + "-" + bucket.getAppId();
+        Index index = bucketManager.getIndex(key);
+        byte[] content = SerializeUtil.serialize(index, Index.class);
+        EditLog editLog = new EditLog(EditOperation.ADD, content);
         editLogManager.append(editLog);
     }
 
@@ -224,5 +239,20 @@ public class BucketProcessor extends AbstractProcessor {
     private void appendBucketDeleteObjectLog(String objectKey){
         EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, objectKey.getBytes(OssConfigs.DEFAULT_CHARSET));
         editLogManager.append(editLog);
+    }
+
+    private void saveBucketToMySQL(Bucket bucket){
+        if(OssConfigs.enableMysql()){
+            SqlSession session = sqlUtil.getSession(true);
+            BucketMapper mapper = session.getMapper(BucketMapper.class);
+            BucketEntity bucketEntity = BucketEntity.builder()
+                    .bucketName(bucket.getBucketName()).appId(bucket.getAppId())
+                    .createTime(System.currentTimeMillis()).ownerId(0L)
+                    .secretKey(bucket.getSecretKey()).accessKey(bucket.getAccessKey())
+                    .versioning(bucket.isVersioning()).acl(bucket.getAcl().code)
+                    .build();
+            mapper.insertBucket(bucketEntity);
+            session.close();
+        }
     }
 }

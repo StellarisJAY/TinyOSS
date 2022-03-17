@@ -35,6 +35,10 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
     public FullHttpResponse handleDelete(ChannelHandlerContext context, OssHttpRequest request) throws Exception{
         return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
     }
+
+    public FullHttpResponse handleHead(ChannelHandlerContext context, OssHttpRequest request) throws Exception{
+        return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
+    }
     @Override
     public final FullHttpResponse handle(ChannelHandlerContext context, OssHttpRequest request) {
         HttpMethod method = request.getMethod();
@@ -49,6 +53,8 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
                 return handleDelete(context, request);
             } else if (HttpMethod.OPTIONS.equals(method)) {
                 return handleOptions(context, request);
+            }else if(HttpMethod.HEAD.equals(method)){
+                return handleHead(context, request);
             }
             return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
         }catch (Exception e){

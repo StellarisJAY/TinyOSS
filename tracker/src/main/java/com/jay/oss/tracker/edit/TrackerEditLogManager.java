@@ -3,7 +3,7 @@ package com.jay.oss.tracker.edit;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.Bucket;
+import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
@@ -62,7 +62,8 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                并且删除DELETED的记录
             */
             long start = System.currentTimeMillis();
-            int count = 0;
+            int bucketCount = 0;
+            int objectCount = 0;
             ByteBuf buffer = Unpooled.directBuffer();
             buffer.writeBytes(channel, 0, (int)channel.size());
             // 读取editLog
@@ -77,10 +78,10 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                 EditOperation editOperation = EditOperation.get(operation);
                 if(editOperation != null){
                     switch (editOperation){
-                        case ADD: saveBucket(bucketManager, content); count++;break;
+                        case ADD: saveBucket(bucketManager, content); bucketCount++;break;
                         case DELETE: deleteBucket(content);break;
-                        case BUCKET_PUT_OBJECT: bucketPutObject(content); break;
-                        case BUCKET_DELETE_OBJECT:bucketDeleteObject(content);break;
+                        case BUCKET_PUT_OBJECT: bucketPutObject(content); objectCount++; break;
+                        case BUCKET_DELETE_OBJECT:bucketDeleteObject(content); objectCount--;break;
                         case MULTIPART_UPLOAD:saveMultipartUploadTask(content);break;
                         default: break;
                     }
@@ -91,10 +92,11 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                     将内存中的EditLog重新写入硬盘，并将BitCask模型的chunk合并
                  */
             objectTracker.merge();
+            bucketManager.merge();
             // 压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
-            log.info("edit log load and compressed, loaded bucket: {}, time used: {}ms", count, (System.currentTimeMillis() - start));
+            log.info("edit log load and compressed, loaded bucket: {}, loaded object: {} time used: {}ms", bucketCount,objectCount, (System.currentTimeMillis() - start));
         }catch (Exception e){
             log.error("load Bucket Edit Log Error ", e);
         }
@@ -151,13 +153,12 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
         FileChannel channel = rewriteChannel;
         ByteBuf buffer = Unpooled.directBuffer();
         // 获取所有存储桶
-        List<Bucket> buckets = bucketManager.snapshot();
-        for (Bucket bucket : buckets) {
-            // 写入日志
+        List<Index> indices = bucketManager.listIndexes();
+        for (Index index : indices) {
+            byte[] serialize = SerializeUtil.serialize(index, Index.class);
             buffer.writeByte(EditOperation.ADD.value());
-            byte[] content = SerializeUtil.serialize(bucket, Bucket.class);
-            buffer.writeInt(content.length);
-            buffer.writeBytes(content);
+            buffer.writeInt(serialize.length);
+            buffer.writeBytes(serialize);
         }
         buffer.readBytes(channel, buffer.readableBytes());
         buffer.clear();
@@ -204,8 +205,9 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
 
 
     private void saveBucket(BucketManager bucketManager, byte[] content){
-        Bucket bucket = SerializeUtil.deserialize(content, Bucket.class);
-        bucketManager.saveBucket(bucket);
+        Index index = SerializeUtil.deserialize(content, Index.class);
+        // 记录bitCask位置索引
+        bucketManager.saveIndex(index.getKey(), index);
     }
 
 

@@ -56,11 +56,12 @@ public class MultipartUploadService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse initializeMultipartUpload(String key, String bucket, String token, int size){
-        String objectKey = bucket + "/" + key;
+        String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // Bucket Put Object请求
         BucketPutObjectRequest request = BucketPutObjectRequest.builder()
-                .bucket(bucket).key(objectKey).filename(key)
-                .token(token).size(size).createTime(System.currentTimeMillis()).build();
+                .bucket(bucket).key(objectKey).filename(key).token(token)
+                .size(size).createTime(System.currentTimeMillis())
+                .build();
 
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
@@ -71,13 +72,16 @@ public class MultipartUploadService {
             // 发送INIT_MULTIPART 请求
             FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
             CommandCode code = response.getCommandCode();
+
             if(code.equals(FastOssProtocol.SUCCESS)){
                 // 获取返回的uploadID
                 String content = new String(response.getContent(), OssConfigs.DEFAULT_CHARSET);
                 String[] split = content.split(";");
-                Result result = new Result().message("Multipart Upload Initialized")
+                Result result = new Result()
+                        .message("Multipart Upload Initialized")
                         .putData("uploadId", split[0])
                         .putData("versionId", split[1]);
+
                 httpResponse =  HttpUtil.okResponse(result);
             } else {
                 // bucket 权限response
@@ -99,7 +103,7 @@ public class MultipartUploadService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse putObject(String key, String bucket, String token, String uploadId, String versionId, int partNum, ByteBuf content){
-        String objectKey = bucket + "/" + key + (StringUtil.isNullOrEmpty(versionId) ? "" : "-" + versionId);
+        String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         FullHttpResponse httpResponse;
         try{
             // 用uploadId查询分片上传任务的storages
@@ -242,13 +246,15 @@ public class MultipartUploadService {
      * @param parts 分片数量
      * @return {@link FullHttpResponse}
      */
-    public FullHttpResponse completeMultipartUpload(String key, String bucket, String version, String token, String uploadId, int parts){
+    public FullHttpResponse completeMultipartUpload(String key, String bucket, String version, String token,
+                                                    String uploadId, int parts, String md5, int size){
         String objectKey = KeyUtil.getObjectKey(key, bucket, version);
         CompleteMultipartUploadRequest request = CompleteMultipartUploadRequest.builder()
                 .objectKey(objectKey).bucket(bucket)
-                .token(token).uploadId(uploadId)
-                .filename(key)
-                .parts(parts)
+                .token(token).uploadId(uploadId).filename(key)
+                .parts(parts).md5(md5 == null ? "" : md5)
+                .size(size)
+                .versionId(version)
                 .build();
         Url url = OssConfigs.trackerServerUrl();
         RemotingCommand command = client.getCommandFactory()

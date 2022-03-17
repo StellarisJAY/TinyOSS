@@ -24,7 +24,9 @@ public class CompleteMultipartUploadRequest implements Serializable {
     private String bucket;
     private String token;
 
+    private int size;
     private String filename;
     private int parts;
     private String md5;
+    private String versionId;
 }
