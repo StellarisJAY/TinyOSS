@@ -14,9 +14,11 @@ import com.jay.oss.common.entity.BucketPutObjectRequest;
 import com.jay.oss.common.entity.CompleteMultipartUploadRequest;
 import com.jay.oss.common.entity.LookupMultipartUploadRequest;
 import com.jay.oss.common.entity.MultipartUploadTask;
+import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
@@ -77,8 +79,9 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         BucketPutObjectRequest request = SerializeUtil.deserialize(content, BucketPutObjectRequest.class);
         String bucket = request.getBucket();
         String token = request.getToken();
+        // 无版本号key
         String objectKey = request.getKey();
-        FastOssCommand response;
+        RemotingCommand response;
         // 检查存储桶访问权限
         CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.WRITE);
         if(FastOssProtocol.SUCCESS.equals(code)){
@@ -87,28 +90,26 @@ public class MultipartUploadProcessor extends AbstractProcessor {
                 List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, request.getSize(), OssConfigs.replicaCount());
                 // 记录object位置
                 String location = nodesToUrls(nodes);
-                String versionId = null;
+                String versionId = "";
                 if(bucketManager.getBucket(bucket).isVersioning()){
                     versionId = UUID.randomUUID().toString();
+                    objectKey  = KeyUtil.appendVersion(objectKey, versionId);
                 }
-                objectKey = objectKey + (versionId==null?"":"-"+versionId);
                 // 生成上传ID
                 String uploadId = UUID.randomUUID().toString();
                 // 记录分片上传任务
-                MultipartUploadTask task = new MultipartUploadTask(uploadId, objectKey, location);
-                if(uploadTracker.saveUploadTask(uploadId, task)){
-                    // 记录EditLog
-                    appendInitMultipartUploadLog(objectKey, task);
-                    // 返回uploadID
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), uploadId+";"+versionId, FastOssProtocol.SUCCESS);
-                }else{
-                    response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);
-                }
+                MultipartUploadTask task = new MultipartUploadTask(uploadId, objectKey, location, versionId, request.getCreateTime());
+                uploadTracker.saveUploadTask(uploadId, task);
+                // 记录EditLog
+                appendInitMultipartUploadLog(objectKey, task);
+                // 返回uploadID
+                response = commandFactory.createResponse(command.getId(), uploadId+";"+versionId, FastOssProtocol.SUCCESS);
+
             }catch (Exception e){
-                response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", FastOssProtocol.NO_ENOUGH_STORAGES);
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.NO_ENOUGH_STORAGES);
             }
         }else{
-            response = (FastOssCommand) commandFactory.createResponse(command.getId(), "", code);
+            response = commandFactory.createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
     }
@@ -163,22 +164,21 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         if(FastOssProtocol.SUCCESS.equals(code)){
             // 获取上传任务记录
             MultipartUploadTask task = uploadTracker.getTask(uploadId);
-            if(task == null || !task.getObjectKey().equals(objectKey)){
+            if(task == null || !task.getObjectKey().equals(objectKey) || !task.getVersionId().equals(request.getVersionId())){
                 // 记录不存在 或者 记录的object和当前object不符
                 response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
             }
             else{
+                ObjectMeta objectMeta = ObjectMeta.builder()
+                        .md5(request.getMd5()).size((long)request.getSize())
+                        .locations(task.getLocations()).objectKey(request.getObjectKey())
+                        .fileName(request.getFilename()).versionId(request.getVersionId())
+                        .createTime(task.getCreateTime())
+                        .build();
                 uploadTracker.remove(uploadId);
-                // 保存object位置，判断是否是重复key
-                if(objectTracker.saveObjectLocation(task.getObjectKey(), task.getLocations())){
-                    Index index = objectTracker.getIndex(objectKey);
-                    appendObjectLocationLog(objectKey, index);
-                    response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
-                }
-                else{
-                    // key已存在，表示multipartUpload已经结束了
-                    response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
-                }
+                // 保存object
+                objectTracker.putObjectMeta(task.getObjectKey(), objectMeta);
+                response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
             }
         }
         else{
@@ -203,7 +203,8 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         editLogManager.append(uploadTaskLog);
     }
 
-    private void appendObjectLocationLog(String objectKey, Index index){
+    private void appendObjectLocationLog(String objectKey){
+        Index index = objectTracker.getIndex(objectKey);
         byte[] serialized = SerializeUtil.serialize(index, Index.class);
         EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
         editLogManager.append(editLog);

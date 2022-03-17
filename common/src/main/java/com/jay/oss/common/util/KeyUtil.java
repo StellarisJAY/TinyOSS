@@ -27,4 +27,8 @@ public class KeyUtil {
     public static String getBucket(String objectKey){
         return split(objectKey)[0];
     }
+
+    public static String appendVersion(String key, String versionId){
+        return StringUtil.isNullOrEmpty(versionId) ? key : key + "/" + versionId;
+    }
 }
