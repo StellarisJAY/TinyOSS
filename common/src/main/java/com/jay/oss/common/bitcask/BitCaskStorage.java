@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>
@@ -47,6 +48,8 @@ public class BitCaskStorage {
      * 系统中可以存在多个BitCask引擎，每个存储通过名称区分
      */
     private final String name;
+
+    private final AtomicInteger chunkIdProvider = new AtomicInteger(0);
 
     public BitCaskStorage(String name) {
         this.name = name;
@@ -87,9 +90,11 @@ public class BitCaskStorage {
     public byte[] get(String key) throws IOException {
         Index index = indexCache.get(key);
         Chunk chunk;
-        if(index  != null && (chunk = chunks.get(index.getChunkId())) != null){
+        if(index  != null && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
             byte[] content = chunk.read(index.getOffset());
             return CompressUtil.decompress(content);
+        }else if(index != null){
+            log.info("unknown chunk id: {}", index.getChunkId());
         }
         return null;
     }
@@ -105,7 +110,7 @@ public class BitCaskStorage {
             if(!indexCache.containsKey(key)){
                 byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
                 if(this.activeChunk == null || !activeChunk.isWritable()){
-                    this.activeChunk = new Chunk(name, false);
+                    this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
                     chunks.add(activeChunk);
                 }
                 byte[] compressedValue = CompressUtil.compress(value);
@@ -135,7 +140,7 @@ public class BitCaskStorage {
      */
     public void merge() throws IOException {
         synchronized (writeLock){
-            Chunk mergedChunk = new Chunk(name,true);
+            Chunk mergedChunk = new Chunk(name,true, 0);
             for (Index index : indexCache.values()) {
                 String key = index.getKey();
                 if(!index.isRemoved()){

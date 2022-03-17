@@ -27,9 +27,9 @@ public class Chunk {
     private FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
-    public Chunk(String name, boolean merge) throws IOException {
+    public Chunk(String name, boolean merge, int chunkId) throws IOException {
         this.count = 0;
-        this.chunkId = ID_PROVIDER.getAndIncrement();
+        this.chunkId = chunkId;
         this.size = 0;
         String path = OssConfigs.dataPath() + "/chunks/" + name + (merge ? "_merged_chunks" : "_chunk_" + chunkId);
         File file = new File(path);
