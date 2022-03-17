@@ -102,13 +102,15 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String bucket = host.trim().substring(0, host.indexOf("."));
         int length = request.contentLength();
         if(request.containsParameter(HttpConstants.INIT_UPLOAD_PARAMETER)){
+
             return multipartUploadService.initializeMultipartUpload(key, bucket, token, length);
         }
         else if(request.containsParameter(HttpConstants.UPLOAD_ID)){
+            String md5 = request.contentMd5();
             String uploadId = request.getParameter(HttpConstants.UPLOAD_ID);
             String versionId = request.getParameter(HttpConstants.VERSION_ID);
             int parts = Integer.parseInt(request.getParameter("parts"));
-            return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, parts);
+            return multipartUploadService.completeMultipartUpload(key, bucket, versionId, token, uploadId, parts, md5, length);
         }
         return HttpUtil.badRequestResponse();
     }
