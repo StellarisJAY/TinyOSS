@@ -17,9 +17,7 @@ import lombok.Setter;
 @Builder
 public class FileMetaWithChunkInfo {
     private String key;
-    private String filename;
     private long size;
-    private long createTime;
     /**
      * chunk 文件路径
      */

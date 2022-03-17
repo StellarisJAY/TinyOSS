@@ -68,7 +68,7 @@ public class AsyncBackupProcessor extends AbstractProcessor {
             if(chunk != null){
                 UploadRequest uploadRequest = UploadRequest.builder()
                         .key(objectKey).parts(1)
-                        .size(meta.getSize()).filename(meta.getFilename())
+                        .size(meta.getSize())
                         .build();
                 for (String target : targets) {
                     Url url = Url.parseString(target);
