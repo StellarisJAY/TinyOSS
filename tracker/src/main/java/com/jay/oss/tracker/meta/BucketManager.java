@@ -87,10 +87,8 @@ public class BucketManager {
             if(bucket == null){
                 byte[] serialized = bucketStorage.get(key);
                 if(serialized != null && serialized.length > 0){
-                    log.info("Serialized: {}", serialized);
                     bucket = SerializeUtil.deserialize(serialized, Bucket.class);
                     cache.put(key, bucket);
-                    log.info("Bucket: {}", bucket);
                     return bucket;
                 }
             }else{

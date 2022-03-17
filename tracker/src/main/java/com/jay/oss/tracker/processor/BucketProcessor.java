@@ -165,10 +165,10 @@ public class BucketProcessor extends AbstractProcessor {
                         .versionId(versionId)
                         .build();
                 // 保存object位置，判断object是否已经存在
-                if(objectTracker.putObjectMeta(meta)){
+                if(objectTracker.putObjectMeta(objectKey, meta)){
                     bucketManager.putObject(bucket, objectKey);
                     // 日志记录put object
-                    appendBucketPutObjectLog(meta.getObjectKey());
+                    appendBucketPutObjectLog(objectKey);
                     urls = urls + versionId;
                     response = commandFactory.createResponse(command.getId(), urls, code);
                 }else{
