@@ -10,6 +10,7 @@ import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
+import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
@@ -102,15 +103,50 @@ public class ObjectProcessor extends AbstractProcessor {
         if(FastOssProtocol.SUCCESS.equals(code)){
             // 定位并删除object
             String urls = objectTracker.locateAndDeleteObject(objectKey);
-            // editLog记录删除操作
-            appendDeleteObjectLog(objectKey);
-            response = commandFactory.createResponse(command.getId(), urls, urls==null ? FastOssProtocol.OBJECT_NOT_FOUND : FastOssProtocol.SUCCESS);
+            if(StringUtil.isNullOrEmpty(urls)){
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
+            }
+            else{
+                bucketManager.deleteObject(bucket, objectKey);
+                // editLog记录删除操作
+                appendDeleteObjectLog(objectKey);
+                response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
+            }
         }
         else{
             response = commandFactory.createResponse(command.getId(), "", code);
         }
         sendResponse(context, response);
     }
+
+
+    /**
+     * 获取object元数据
+     * @param context {@link ChannelHandlerContext}
+     * @param command {@link FastOssCommand}
+     */
+    private void getObjectMeta(ChannelHandlerContext context, FastOssCommand command){
+        LocateObjectRequest request = SerializeUtil.deserialize(command.getContent(), LocateObjectRequest.class);
+        String bucket = request.getBucket();
+        String objectKey = request.getObjectKey();
+        String token = request.getToken();
+        CommandCode code = BucketAclUtil.checkAuthorization(bucketManager, bucket, token, BucketAccessMode.READ);
+        RemotingCommand response;
+        if(FastOssProtocol.SUCCESS.equals(code)){
+            ObjectMeta objectMeta = objectTracker.getObjectMeta(objectKey);
+            if(objectMeta == null){
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
+            }else{
+                byte[] content = SerializeUtil.serialize(objectMeta, ObjectMeta.class);
+                response = commandFactory.createResponse(command.getId(), content, code);
+            }
+        }else{
+            response = commandFactory.createResponse(command.getId(), "", code);
+        }
+        sendResponse(context, response);
+    }
+
+
 
     private void appendDeleteObjectLog(String objectKey){
         EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, StringUtil.getBytes(objectKey));
