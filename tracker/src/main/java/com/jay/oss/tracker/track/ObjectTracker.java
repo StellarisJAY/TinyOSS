@@ -41,10 +41,8 @@ public class ObjectTracker {
             .maximumSize(100000)
             .recordStats().build();
     /**
-     * BitCask存储模型
+     * 元数据磁盘存储
      */
-    private final BitCaskStorage bitCaskStorage = new BitCaskStorage("location");
-
     private final BitCaskStorage metaStorage = new BitCaskStorage("meta");
 
     /**
@@ -53,7 +51,7 @@ public class ObjectTracker {
      * @throws Exception e
      */
     public void init() throws Exception {
-        bitCaskStorage.init();
+        metaStorage.init();
     }
 
     /**
@@ -115,22 +113,6 @@ public class ObjectTracker {
         String result = locateObject(objectKey);
         deleteObject(objectKey);
         return result;
-    }
-
-    /**
-     * 保存object位置
-     * @param objectKey objectKey
-     * @param urls 位置urls
-     * @return boolean
-     */
-    public boolean saveObjectLocation(String objectKey, String urls){
-        try{
-            byte[] urlBytes = urls.getBytes(OssConfigs.DEFAULT_CHARSET);
-            return bitCaskStorage.put(objectKey, urlBytes);
-        }catch (Exception e){
-            log.error("Failed to save object location ", e);
-            return false;
-        }
     }
 
     /**
