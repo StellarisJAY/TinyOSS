@@ -18,11 +18,11 @@ public class ThreadPoolUtil {
                 new LinkedBlockingQueue<>(), new NamedThreadFactory(name, true));
     }
 
-    public static ExecutorService newThreadPool(int core, int max, String name){
+    public static ExecutorService newThreadPool(int core, int max, String name, RejectedExecutionHandler rejectedExecutionHandler){
         return new ThreadPoolExecutor(core, max,
                 0, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>(),
-                new NamedThreadFactory(name, true));
+                new NamedThreadFactory(name, true), rejectedExecutionHandler);
     }
 
     /**
@@ -32,6 +32,6 @@ public class ThreadPoolUtil {
      */
     public static ExecutorService newIoThreadPool(String name){
         return newThreadPool(2 * Runtime.getRuntime().availableProcessors(),
-                2 * Runtime.getRuntime().availableProcessors(), name);
+                2 * Runtime.getRuntime().availableProcessors(), name, new ThreadPoolExecutor.CallerRunsPolicy());
     }
 }

@@ -225,6 +225,7 @@ public class Chunk {
             removedSize += meta.getSize();
             // 检查是否到达compact阈值
             if(removedSize >= COMPACT_THRESHOLD){
+                removedSize = 0;
                 // 压缩chunk文件
                 return compact();
             }
@@ -264,44 +265,30 @@ public class Chunk {
      */
     public List<FileMetaWithChunkInfo> compact() {
         try{
-            int removeStartOffset = -1;
-            int removeEndOffset;
-            // 已经删除的大小，用于改变后续文件的偏移量
-            int removedSize = 0;
-            int totalRemovedSize = 0;
+            int totalRemoved = 0;
             Iterator<FileMetaWithChunkInfo> iterator = objectList.iterator();
-            // 遍历文件列表
             while(iterator.hasNext()){
                 FileMetaWithChunkInfo meta = iterator.next();
-                // 更新文件偏移量
-                meta.setOffset(meta.getOffset() - totalRemovedSize);
-                // 判断是否被删除
+                // 修改offset，向前移
+                meta.setOffset(meta.getOffset() - totalRemoved);
                 if(meta.isRemoved()){
                     iterator.remove();
-                    // 添加被删除大小
-                    removedSize += meta.getSize();
-                    if(removeStartOffset == -1){
-                        // 记录删除起点
-                        removeStartOffset = meta.getOffset();
-                    }
-                }else if(removeStartOffset != -1){
-                    removeEndOffset = meta.getOffset();
-                    ByteBuf buffer = Unpooled.directBuffer(size.get() - removeEndOffset);
-                    // 将被删除部分之后的数据读入buffer
-                    buffer.writeBytes(fileChannel, removeEndOffset, size.get() - removeEndOffset);
-                    // 将buffer中数据写到被删除的起始位置
-                    buffer.readBytes(fileChannel, removeStartOffset, size.get() - removeEndOffset);
-                    // 重置删除起点
-                    removeStartOffset = -1;
-                    // 更新总删除数量
-                    totalRemovedSize += removedSize;
-                    // 更新chunk文件大小
-                    this.size.set(size.get() - totalRemovedSize);
+                    int startOffset = meta.getOffset();
+                    int removeSize = (int)meta.getSize();
+                    totalRemoved += removeSize;
+
+                    ByteBuf buffer = Unpooled.directBuffer(size.get() - startOffset - removeSize);
+                    // 将删除部分之后的数据读取到内存
+                    buffer.writeBytes(fileChannel, startOffset + removeSize, size.get() - startOffset - removeSize);
+                    // 将删除部分之后的数据写到被删除部分的位置
+                    buffer.readBytes(fileChannel, startOffset, buffer.readableBytes());
+                    size.set(size.get() - removeSize);
                 }
             }
-            this.removedSize = 0;
         }catch (IOException e){
             log.error("compression error: ", e);
+        }finally {
+            readWriteLock.writeLock().unlock();
         }
         return this.objectList;
     }

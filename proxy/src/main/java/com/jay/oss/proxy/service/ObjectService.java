@@ -6,6 +6,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
+import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
@@ -58,6 +59,7 @@ public class ObjectService {
                 httpResponse = HttpUtil.errorResponse(code);
             }
         }catch (Exception e){
+            log.error("Delete Object Failed ", e);
             httpResponse = HttpUtil.internalErrorResponse("Internal server error");
         }
         return httpResponse;
@@ -85,20 +87,30 @@ public class ObjectService {
 
     private FullHttpResponse deleteObjectInStorages(List<Url> urls, String objectKey) throws InterruptedException {
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(objectKey, FastOssProtocol.DELETE_OBJECT);
-        CountDownLatch countDownLatch = new CountDownLatch(urls.size());
-        List<Url> successUrls = new ArrayList<>();
-        List<Url> failedUrls = new ArrayList<>();
+                .createRequest(StringUtil.getBytes(objectKey), FastOssProtocol.DELETE_OBJECT);
         // 需要向每个Storage发送删除命令
         for (Url url : urls) {
-            client.sendAsync(url, command, new AsyncBatchCallback(countDownLatch, successUrls, failedUrls, url));
+            client.sendOneway(url, command);
         }
-        countDownLatch.await();
-        // 必须所有服务器都成功删除才算成功
-        if(successUrls.size() == urls.size()){
-            return HttpUtil.okResponse();
-        }else{
-            return HttpUtil.internalErrorResponse("Delete Object In Storages Failed");
+        return HttpUtil.okResponse();
+    }
+
+    public FullHttpResponse getObjectMeta(String key, String bucket, String version, String token){
+        String objectKey = KeyUtil.getObjectKey(key, bucket, version);
+        LocateObjectRequest request = new LocateObjectRequest(objectKey, bucket, token);
+        Url trackerUrl = OssConfigs.trackerServerUrl();
+        RemotingCommand command = client.getCommandFactory()
+                .createRequest(request, FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
+        try{
+            RemotingCommand response = client.sendSync(trackerUrl, command, null);
+            CommandCode code = response.getCommandCode();
+            if(FastOssProtocol.SUCCESS.equals(code)){
+                return HttpUtil.okResponse();
+            }else{
+                return HttpUtil.errorResponse(code);
+            }
+        }catch (Exception e){
+            return HttpUtil.internalErrorResponse("Internal Server Error");
         }
     }
 }

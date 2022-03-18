@@ -1,22 +1,19 @@
 package com.jay.oss.storage.processor;
 
-import com.jay.dove.serialize.Serializer;
-import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.common.entity.DeleteRequest;
+import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.remoting.FastOssCommand;
+import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.edit.EditLog;
-import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.storage.meta.MetaManager;
 import io.netty.channel.ChannelHandlerContext;
 

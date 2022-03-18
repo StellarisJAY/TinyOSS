@@ -6,6 +6,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.bitcask.HintIndex;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
@@ -224,6 +225,7 @@ public class BucketProcessor extends AbstractProcessor {
     private void appendAddBucketLog(Bucket bucket){
         String key = bucket.getBucketName() + "-" + bucket.getAppId();
         Index index = bucketManager.getIndex(key);
+        HintIndex hint = new HintIndex(key, index.getChunkId(), index.getOffset(), index.isRemoved());
         byte[] content = SerializeUtil.serialize(index, Index.class);
         EditLog editLog = new EditLog(EditOperation.ADD, content);
         editLogManager.append(editLog);
@@ -231,7 +233,8 @@ public class BucketProcessor extends AbstractProcessor {
 
     private void appendBucketPutObjectLog(String objectKey){
         Index index = objectTracker.getIndex(objectKey);
-        byte[] serialized = SerializeUtil.serialize(index, Index.class);
+        HintIndex hint = new HintIndex(objectKey, index.getChunkId(), index.getOffset(), index.isRemoved());
+        byte[] serialized = SerializeUtil.serialize(hint, HintIndex.class);
         EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
         editLogManager.append(editLog);
     }
