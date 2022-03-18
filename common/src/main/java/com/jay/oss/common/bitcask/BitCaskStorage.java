@@ -7,10 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -116,7 +113,7 @@ public class BitCaskStorage {
                 }
                 byte[] compressedValue = CompressUtil.compress(value);
                 int offset = activeChunk.write(keyBytes, compressedValue);
-                Index index = new Index(key, activeChunk.getChunkId(), offset, false);
+                Index index = new Index(activeChunk.getChunkId(), offset, false);
                 indexCache.put(key, index);
                 return true;
             }
@@ -142,8 +139,9 @@ public class BitCaskStorage {
     public void merge() throws IOException {
         synchronized (writeLock){
             Chunk mergedChunk = new Chunk(name,true, 0);
-            for (Index index : indexCache.values()) {
-                String key = index.getKey();
+            for (Map.Entry<String, Index> entry : indexCache.entrySet()) {
+                String key = entry.getKey();
+                Index index = entry.getValue();
                 if(!index.isRemoved()){
                     // 获取原来的chunk
                     Chunk chunk = chunks.get(index.getChunkId());

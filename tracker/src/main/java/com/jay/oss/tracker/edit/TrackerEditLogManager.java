@@ -1,5 +1,6 @@
 package com.jay.oss.tracker.edit;
 
+import com.jay.oss.common.bitcask.HintIndex;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
@@ -205,9 +206,10 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
 
 
     private void saveBucket(BucketManager bucketManager, byte[] content){
-        Index index = SerializeUtil.deserialize(content, Index.class);
+        HintIndex hint = SerializeUtil.deserialize(content, HintIndex.class);
+        Index index = new Index(hint.getChunkId(), hint.getOffset(), hint.isRemoved());
         // 记录bitCask位置索引
-        bucketManager.saveIndex(index.getKey(), index);
+        bucketManager.saveIndex(hint.getKey(), index);
     }
 
 
@@ -216,9 +218,10 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     }
 
     private void bucketPutObject(byte[] content){
-        Index index = SerializeUtil.deserialize(content, Index.class);
-        String objectKey = index.getKey();
+        HintIndex hint = SerializeUtil.deserialize(content, HintIndex.class);
+        String objectKey = hint.getKey();
         String bucket = KeyUtil.getBucket(objectKey);
+        Index index = new Index(hint.getChunkId(), hint.getOffset(), hint.isRemoved());
         // 记录object位置
         objectTracker.saveObjectIndex(objectKey, index);
         // 存储桶记录object

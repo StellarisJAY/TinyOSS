@@ -16,7 +16,6 @@ import lombok.*;
 @Setter
 @ToString
 public class Index {
-    private String key;
     /**
      * chunk id
      */
