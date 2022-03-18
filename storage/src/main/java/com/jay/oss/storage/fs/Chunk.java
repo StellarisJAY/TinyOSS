@@ -1,11 +1,8 @@
 package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.edit.EditLog;
-import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
-import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.DefaultFileRegion;
@@ -73,7 +70,7 @@ public class Chunk {
     /**
      * 执行Compact的阈值，当被删除对象的大小达到该阈值就会触发compact
      */
-    public static final int COMPACT_THRESHOLD = 64 * 1024 * 1024;
+    public static final double COMPACT_THRESHOLD_PERCENT = 0.6;
 
     private int removedSize = 0;
 
@@ -201,14 +198,27 @@ public class Chunk {
         return size.get();
     }
 
+    @Deprecated
     public void transferTo(Chunk target, int offset, int size) throws IOException {
         fileChannel.transferTo(offset, size, target.getFileChannel());
     }
 
+    /**
+     * 从目标chunk文件传输数据到当前chunk文件
+     * 零拷贝方法
+     * @param src 源chunk
+     * @param offset 转移起始偏移量
+     * @param size 转移长度
+     * @throws IOException IOException
+     */
     public void transferFrom(Chunk src, int offset, int size) throws IOException {
         fileChannel.transferFrom(src.getFileChannel(), offset, size);
     }
 
+    /**
+     * 检查chunk文件是否可读可写
+     * @throws IOException IOException
+     */
     public void checkAvailability() throws IOException {
         if(!available.get()){
             throw new IOException("Chunk File Not Available");
@@ -224,7 +234,7 @@ public class Chunk {
             readWriteLock.writeLock().lock();
             removedSize += meta.getSize();
             // 检查是否到达compact阈值
-            if(removedSize >= COMPACT_THRESHOLD){
+            if(removedSize >= compactThreshold()){
                 removedSize = 0;
                 // 压缩chunk文件
                 return compact();
@@ -233,6 +243,10 @@ public class Chunk {
         }finally {
             readWriteLock.writeLock().unlock();
         }
+    }
+
+    private int compactThreshold(){
+        return (int)(size.get() * COMPACT_THRESHOLD_PERCENT);
     }
 
     /**
@@ -265,6 +279,7 @@ public class Chunk {
      */
     public List<FileMetaWithChunkInfo> compact() {
         try{
+            readWriteLock.writeLock().lock();
             int totalRemoved = 0;
             Iterator<FileMetaWithChunkInfo> iterator = objectList.iterator();
             while(iterator.hasNext()){
@@ -284,6 +299,10 @@ public class Chunk {
                     buffer.readBytes(fileChannel, startOffset, buffer.readableBytes());
                     size.set(size.get() - removeSize);
                 }
+            }
+            if(totalRemoved > 0){
+                // Truncate文件后面的被删除数据
+                fileChannel.truncate(size.get());
             }
         }catch (IOException e){
             log.error("compression error: ", e);
