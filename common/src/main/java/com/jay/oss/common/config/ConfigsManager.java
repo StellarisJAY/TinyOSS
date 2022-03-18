@@ -30,7 +30,7 @@ public class ConfigsManager {
         int i = path.indexOf("!");
         if(i != -1){
             String jarPath = path.substring(0, i);
-            String dir = jarPath.substring(6, jarPath.lastIndexOf("/"));
+            String dir = jarPath.substring(5, jarPath.lastIndexOf("/"));
             File file = new File(dir + "/conf/" + configFileName);
             try(InputStream inputStream = new FileInputStream(file)){
                 properties.load(inputStream);
