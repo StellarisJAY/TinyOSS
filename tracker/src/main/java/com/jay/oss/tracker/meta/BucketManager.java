@@ -164,7 +164,8 @@ public class BucketManager {
         bucketStorage.completeMerge();
     }
 
-    public List<Index> listIndexes(){
-        return bucketStorage.listIndex();
+
+    public List<String> listBuckets(){
+        return bucketStorage.keys();
     }
 }
