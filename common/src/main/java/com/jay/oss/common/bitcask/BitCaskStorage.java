@@ -215,4 +215,8 @@ public class BitCaskStorage {
     public List<Index> listIndex(){
         return new ArrayList<>(indexCache.values());
     }
+
+    public List<String> keys(){
+        return new ArrayList<>(indexCache.keySet());
+    }
 }
