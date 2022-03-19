@@ -27,11 +27,12 @@ public class Chunk {
     private FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
+
     public Chunk(String name, boolean merge, int chunkId) throws IOException {
         this.count = 0;
         this.chunkId = chunkId;
         this.size = 0;
-        String path = OssConfigs.dataPath() + "/chunks/" + name + (merge ? "_merged_chunks" : "_chunk_" + chunkId);
+        String path = OssConfigs.dataPath() + BitCaskStorage.CHUNK_DIRECTORY + File.separator + name + (merge ? "_merged_chunks" : "_chunk_" + chunkId);
         File file = new File(path);
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
             throw new RuntimeException("can't make parent directory");
