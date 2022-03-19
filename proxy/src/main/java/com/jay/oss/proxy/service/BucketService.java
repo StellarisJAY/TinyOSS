@@ -9,8 +9,12 @@ import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
+import com.jay.oss.common.entity.bucket.BucketVO;
+import com.jay.oss.common.entity.bucket.GetServiceRequest;
+import com.jay.oss.common.entity.bucket.GetServiceResponse;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
@@ -111,5 +115,24 @@ public class BucketService {
             httpResponse = HttpUtil.internalErrorResponse("Internal Server Error");
         }
         return httpResponse;
+    }
+
+    public FullHttpResponse getService(int page, int pageSize){
+        GetServiceRequest request = new GetServiceRequest((page - 1) * pageSize, pageSize);
+        Url url = OssConfigs.trackerServerUrl();
+        try{
+            RemotingCommand command = client.getCommandFactory()
+                    .createRequest(request, FastOssProtocol.GET_SERVICE, GetServiceRequest.class);
+            RemotingCommand response = client.sendSync(url, command, null);
+            GetServiceResponse getServiceResponse = SerializeUtil.deserialize(response.getContent(), GetServiceResponse.class);
+
+            Result result = new Result()
+                    .message("Success")
+                    .putData("buckets", getServiceResponse.getBuckets())
+                    .putData("total", getServiceResponse.getTotal());
+            return HttpUtil.okResponse(result);
+        }catch (Exception e){
+            return HttpUtil.internalErrorResponse("Internal Server Error " + e);
+        }
     }
 }
