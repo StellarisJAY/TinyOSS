@@ -1,17 +1,15 @@
 package com.jay.oss.tracker.edit;
 
 import com.jay.oss.common.bitcask.HintIndex;
+import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.bucket.Bucket;
-import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
-import com.jay.oss.common.bitcask.Index;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
@@ -79,7 +77,7 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                 EditOperation editOperation = EditOperation.get(operation);
                 if(editOperation != null){
                     switch (editOperation){
-                        case ADD: saveBucket(bucketManager, content); bucketCount++;break;
+                        case ADD: saveBucket(content); bucketCount++;break;
                         case DELETE: deleteBucket(content);break;
                         case BUCKET_PUT_OBJECT: bucketPutObject(content); objectCount++; break;
                         case BUCKET_DELETE_OBJECT:bucketDeleteObject(content); objectCount--;break;
@@ -88,13 +86,14 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                     }
                 }
             }
-                /*
-                    压缩EditLog
-                    将内存中的EditLog重新写入硬盘，并将BitCask模型的chunk合并
-                 */
+
+            /*
+                BitCask存储压缩
+             */
             objectTracker.merge();
             bucketManager.merge();
-            // 压缩editLog
+            multipartUploadTracker.merge();
+            // 重写压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
             log.info("edit log load and compressed, loaded bucket: {}, loaded object: {} time used: {}ms", bucketCount,objectCount, (System.currentTimeMillis() - start));
@@ -117,7 +116,10 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
         removeOldFile();
     }
 
-
+    /**
+     * 打开重写channel
+     * @throws IOException IOException
+     */
     private void openRewriteChannel() throws IOException {
         String path = OssConfigs.dataPath() + File.separator + "rewrite" + System.currentTimeMillis() + ".log";
         rewriteFile = new File(path);
@@ -153,13 +155,16 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     private void compressBucketLog() throws IOException {
         FileChannel channel = rewriteChannel;
         ByteBuf buffer = Unpooled.directBuffer();
-        // 获取所有存储桶
-        List<Index> indices = bucketManager.listIndexes();
-        for (Index index : indices) {
-            byte[] serialize = SerializeUtil.serialize(index, Index.class);
-            buffer.writeByte(EditOperation.ADD.value());
-            buffer.writeInt(serialize.length);
-            buffer.writeBytes(serialize);
+        List<String> buckets = bucketManager.listBuckets();
+        for (String bucket : buckets) {
+            Index index = bucketManager.getIndex(bucket);
+            if(index != null && !index.isRemoved()){
+                HintIndex hint = new HintIndex(bucket, index.getChunkId(), index.getOffset(), index.isRemoved());
+                byte[] serialize = SerializeUtil.serialize(hint, HintIndex.class);
+                buffer.writeByte(EditOperation.ADD.value());
+                buffer.writeInt(serialize.length);
+                buffer.writeBytes(serialize);
+            }
         }
         buffer.readBytes(channel, buffer.readableBytes());
         buffer.clear();
@@ -172,19 +177,20 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     private void compressObjectLog() throws IOException {
         FileChannel channel = rewriteChannel;
         ByteBuf buffer = Unpooled.directBuffer();
-        // 获取所有的object index
-        List<Index> indices = objectTracker.listIndexes();
-        for (Index index : indices) {
-            if(!index.isRemoved()){
+        List<String> objects = objectTracker.listObject();
+        for (String objectKey : objects) {
+            Index index = objectTracker.getIndex(objectKey);
+            if(index != null && !index.isRemoved()){
+                HintIndex hint = new HintIndex(objectKey, index.getChunkId(), index.getOffset(), index.isRemoved());
                 buffer.writeByte(EditOperation.BUCKET_PUT_OBJECT.value());
-                byte[] content = SerializeUtil.serialize(index, Index.class);
+                byte[] content = SerializeUtil.serialize(hint, HintIndex.class);
                 buffer.writeInt(content.length);
                 buffer.writeBytes(content);
             }
         }
         buffer.readBytes(channel, buffer.readableBytes());
-        buffer.clear();
     }
+
 
     /**
      * 压缩MultipartUpload日志
@@ -194,18 +200,25 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     private void compressMultipartUploadLog() throws IOException {
         FileChannel channel = rewriteChannel;
         ByteBuf buffer = Unpooled.directBuffer();
-        List<MultipartUploadTask> tasks = multipartUploadTracker.listUploadTasks();
-        for (MultipartUploadTask task : tasks) {
-            buffer.writeByte(EditOperation.MULTIPART_UPLOAD.value());
-            byte[] content = SerializeUtil.serialize(task, MultipartUploadTask.class);
-            buffer.writeInt(content.length);
-            buffer.writeBytes(content);
+        List<String> uploads = multipartUploadTracker.listUploads();
+        for (String uploadId : uploads) {
+            Index index = multipartUploadTracker.getIndex(uploadId);
+            if(index != null && !index.isRemoved()){
+                HintIndex hint = new HintIndex(uploadId, index.getChunkId(), index.getOffset(),index.isRemoved());
+                byte[] serialized = SerializeUtil.serialize(hint, HintIndex.class);
+                buffer.writeByte(EditOperation.MULTIPART_UPLOAD.value());
+                buffer.writeInt(serialized.length);
+                buffer.writeBytes(serialized);
+            }
         }
         buffer.readBytes(channel, buffer.readableBytes());
     }
 
-
-    private void saveBucket(BucketManager bucketManager, byte[] content){
+    /**
+     * 加载添加存储同日志
+     * @param content byte[]
+     */
+    private void saveBucket(byte[] content){
         HintIndex hint = SerializeUtil.deserialize(content, HintIndex.class);
         Index index = new Index(hint.getChunkId(), hint.getOffset(), hint.isRemoved());
         // 记录bitCask位置索引
@@ -213,10 +226,18 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
     }
 
 
+    /**
+     * 加载删除存储桶日志
+     * @param content byte[]
+     */
     private void deleteBucket(byte[] content){
         log.info("deleted bucket: {}", content);
     }
 
+    /**
+     * 加载bucketPutObject日志
+     * @param content byte[]
+     */
     private void bucketPutObject(byte[] content){
         HintIndex hint = SerializeUtil.deserialize(content, HintIndex.class);
         String objectKey = hint.getKey();
@@ -228,6 +249,11 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
         bucketManager.putObject(bucket, objectKey);
     }
 
+
+    /**
+     * 加载bucket删除object记录的日志
+     * @param content byte[]
+     */
     private void bucketDeleteObject(byte[] content){
         String objectKey = new String(content, OssConfigs.DEFAULT_CHARSET);
         String bucket = KeyUtil.getBucket(objectKey);
@@ -237,9 +263,15 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
         bucketManager.deleteObject(bucket, objectKey);
     }
 
+    /**
+     * 保存multipartUpload任务的index
+     * @param content byte[]
+     */
     private void saveMultipartUploadTask(byte[] content){
-        MultipartUploadTask task = SerializeUtil.deserialize(content, MultipartUploadTask.class);
-        multipartUploadTracker.saveUploadTask(task.getUploadId(), task);
+        HintIndex hint = SerializeUtil.deserialize(content, HintIndex.class);
+        String uploadId = hint.getKey();
+        Index index = new Index(hint.getChunkId(), hint.getOffset(), hint.isRemoved());
+        multipartUploadTracker.saveIndex(uploadId, index);
     }
 
 }
