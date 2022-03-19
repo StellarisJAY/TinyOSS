@@ -68,6 +68,7 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode CHECK_BUCKET_ACL = new CommandCode((short)113);
     public static final CommandCode BUCKET_PUT_OBJECT = new CommandCode((short)114);
     public static final CommandCode BUCKET_DELETE_OBJECT = new CommandCode((short)115);
+    public static final CommandCode GET_SERVICE = new CommandCode((short)116);
 
     public static final CommandCode ASYNC_BACKUP = new CommandCode((short)120);
     public static final CommandCode ASYNC_BACKUP_PART = new CommandCode((short)121);

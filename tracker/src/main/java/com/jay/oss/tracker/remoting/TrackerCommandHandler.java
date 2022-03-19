@@ -37,6 +37,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         this.registerProcessor(FastOssProtocol.CHECK_BUCKET_ACL, bucketProcessor);
         this.registerProcessor(FastOssProtocol.BUCKET_PUT_OBJECT, bucketProcessor);
         this.registerProcessor(FastOssProtocol.BUCKET_DELETE_OBJECT, bucketProcessor);
+        this.registerProcessor(FastOssProtocol.GET_SERVICE, bucketProcessor);
 
         // object相关处理器
         this.registerProcessor(FastOssProtocol.LOCATE_OBJECT, objectProcessor);
