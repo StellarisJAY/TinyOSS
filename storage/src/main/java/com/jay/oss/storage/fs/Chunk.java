@@ -77,7 +77,7 @@ public class Chunk {
     public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
     public static final long CHUNK_COMPRESSION_PERIOD = 30 * 1000;
     public Chunk(int chunkId) {
-        this.path = OssConfigs.dataPath() + "/chunk_" +chunkId;
+        this.path = OssConfigs.dataPath() + File.separator + "chunk_" +chunkId;
         this.file = new File(path);
         this.id = chunkId;
         this.size = new AtomicInteger(0);
@@ -107,7 +107,7 @@ public class Chunk {
     }
 
     public Chunk(String tempName){
-        this.path = OssConfigs.dataPath() + "/" + tempName;
+        this.path = OssConfigs.dataPath() + File.separator + tempName;
         this.file = new File(path);
         this.size = new AtomicInteger(0);
         this.id = -1;

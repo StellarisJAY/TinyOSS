@@ -2,17 +2,14 @@ package com.jay.oss.tracker.track;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.util.SerializeUtil;
-import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -26,12 +23,6 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class ObjectTracker {
-    /**
-     * cache table
-     * 热点数据缓存
-     */
-    private final ConcurrentHashMap<String, String> locationCache = new ConcurrentHashMap<>();
-
     /**
      * 热点元数据缓存
      */
@@ -133,8 +124,12 @@ public class ObjectTracker {
         metaStorage.saveIndex(key, index);
     }
 
+    /**
+     * 删除object
+     * @param key objectKey
+     */
     public void deleteObject(String key){
-        locationCache.remove(key);
+        cache.invalidate(key);
         metaStorage.delete(key);
     }
 
@@ -146,7 +141,7 @@ public class ObjectTracker {
         metaStorage.completeMerge();
     }
 
-    public List<Index> listIndexes(){
-        return metaStorage.listIndex();
+    public List<String> listObject(){
+        return metaStorage.keys();
     }
 }

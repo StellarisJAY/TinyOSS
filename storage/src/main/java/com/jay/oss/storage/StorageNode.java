@@ -20,7 +20,7 @@ import com.jay.oss.common.remoting.FastOssConnectionFactory;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
-import com.jay.oss.common.util.NodeInfoUtil;
+import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
@@ -101,11 +101,11 @@ public class StorageNode extends AbstractLifeCycle {
         chunkManager.compactChunks();
         // 初始化注册中心客户端
         registry.init();
-        registry.register(NodeInfoUtil.getStorageNodeInfo(port));
+        registry.register(NodeInfoCollector.getStorageNodeInfo(port));
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
-                registry.update(NodeInfoUtil.getStorageNodeInfo(port));
+                registry.update(NodeInfoCollector.getStorageNodeInfo(port));
             }catch (Exception e){
                 log.warn("update storage node info error ", e);
             }

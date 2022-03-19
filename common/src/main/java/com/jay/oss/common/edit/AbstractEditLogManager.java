@@ -57,7 +57,7 @@ public abstract class AbstractEditLogManager implements EditLogManager{
     @Override
     public void init() {
         this.maxUnWritten = 100;
-        String path = OssConfigs.dataPath() + "\\edit.log";
+        String path = OssConfigs.dataPath() + File.separator + "edit.log";
         try{
             File file = new File(path);
             if(!file.exists() && !file.createNewFile()){

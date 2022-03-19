@@ -117,7 +117,9 @@ public class HttpUtil {
             return unauthorizedResponse("Bucket Access Denied");
         }else if(FastOssProtocol.OBJECT_NOT_FOUND.equals(code)){
             return notFoundResponse("Object Not Found");
-        }else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
+        }else if(FastOssProtocol.MULTIPART_UPLOAD_FINISHED.equals(code)){
+            return badRequestResponse("Multipart Upload Already Finished");
+        } else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
             return badRequestResponse("Duplicate Object key");
         }else{
             return internalErrorResponse("Internal Server Error");

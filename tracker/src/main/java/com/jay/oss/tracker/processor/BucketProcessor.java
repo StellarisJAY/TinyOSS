@@ -226,7 +226,7 @@ public class BucketProcessor extends AbstractProcessor {
         String key = bucket.getBucketName() + "-" + bucket.getAppId();
         Index index = bucketManager.getIndex(key);
         HintIndex hint = new HintIndex(key, index.getChunkId(), index.getOffset(), index.isRemoved());
-        byte[] content = SerializeUtil.serialize(index, Index.class);
+        byte[] content = SerializeUtil.serialize(hint, HintIndex.class);
         EditLog editLog = new EditLog(EditOperation.ADD, content);
         editLogManager.append(editLog);
     }

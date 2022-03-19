@@ -30,6 +30,19 @@ public class StorageNodeInfo {
 
     private boolean available = true;
 
+    /**
+     * 两次心跳之间的IO次数
+     * 该属性用来判断Storage服务器的繁忙程度
+     */
+    private long ioRate;
+
+    /**
+     * 可用的总内存大小
+     * 该属性用来判断Storage在集群中的权重
+     */
+    private long memoryTotal;
+
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

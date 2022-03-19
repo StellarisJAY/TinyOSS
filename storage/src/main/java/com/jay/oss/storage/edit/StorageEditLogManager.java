@@ -102,7 +102,7 @@ public class StorageEditLogManager extends AbstractEditLogManager {
      * @throws FileNotFoundException e
      */
     private void openRewriteChannel() throws FileNotFoundException {
-        rewriteFile = new File(OssConfigs.dataPath() + "/rewrite" + System.currentTimeMillis() + ".log");
+        rewriteFile = new File(OssConfigs.dataPath() + File.separator + "rewrite" + System.currentTimeMillis() + ".log");
         RandomAccessFile rf = new RandomAccessFile(rewriteFile, "rw");
         rewriteChannel = rf.getChannel();
     }
@@ -116,7 +116,7 @@ public class StorageEditLogManager extends AbstractEditLogManager {
         FileChannel channel = getChannel();
         channel.close();
         rewriteChannel.close();
-        File file = new File(OssConfigs.dataPath() + "/edit.log");
+        File file = new File(OssConfigs.dataPath() + File.separator + "edit.log");
         if(file.delete() && rewriteFile.renameTo(file)){
             RandomAccessFile rf = new RandomAccessFile(file, "rw");
             setChannel(rf.getChannel());

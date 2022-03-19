@@ -80,14 +80,15 @@ public class MultipartUploadService {
                 Result result = new Result()
                         .message("Multipart Upload Initialized")
                         .putData("uploadId", split[0])
-                        .putData("versionId", split[1]);
+                        .putData("versionId", split.length == 2 ? split[1] : "");
 
                 httpResponse =  HttpUtil.okResponse(result);
             } else {
                 // bucket 权限response
                 httpResponse = HttpUtil.bucketAclResponse(code);
             }
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
+            log.error("Init Multipart Upload Error, object={}", objectKey, e);
             httpResponse = HttpUtil.internalErrorResponse("Internal Server Error " +  e);
         }
         return httpResponse;
@@ -263,10 +264,13 @@ public class MultipartUploadService {
         try{
             RemotingCommand response = client.sendSync(url, command, null);
             CommandCode code = response.getCommandCode();
-
             if(code.equals(FastOssProtocol.SUCCESS)){
                 List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
                 return completeStorageMultipartUpload(urls, request);
+            }
+            else if(code.equals(FastOssProtocol.DUPLICATE_OBJECT_KEY)){
+                List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
+                return cancelStorageMultipartUpload(urls);
             }
             else{
                 return HttpUtil.errorResponse(code);
@@ -302,6 +306,10 @@ public class MultipartUploadService {
         }else{
             return HttpUtil.internalErrorResponse("Complete Multipart Upload Failed");
         }
+    }
+
+    private FullHttpResponse cancelStorageMultipartUpload(List<Url> urls){
+        return HttpUtil.badRequestResponse("Object Already Exists, Multipart Upload Canceled");
     }
 
 }

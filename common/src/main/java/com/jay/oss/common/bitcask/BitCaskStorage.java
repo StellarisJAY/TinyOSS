@@ -48,12 +48,14 @@ public class BitCaskStorage {
 
     private final AtomicInteger chunkIdProvider = new AtomicInteger(0);
 
+    public static final String CHUNK_DIRECTORY = File.separator + "chunks";
+
     public BitCaskStorage(String name) {
         this.name = name;
     }
 
     public void init() throws Exception {
-        String path = OssConfigs.dataPath() + "/chunks";
+        String path = OssConfigs.dataPath() + CHUNK_DIRECTORY;
         File directory = new File(path);
         // 加载文件目录下的属于该存储的chunk文件
         File[] files = directory.listFiles((dir, fileName) -> fileName.startsWith(name + "_chunk_"));
@@ -175,7 +177,7 @@ public class BitCaskStorage {
             }
         }
         // 删除已经合并完成的chunk文件
-        String path = OssConfigs.dataPath() + "/chunks";
+        String path = OssConfigs.dataPath() + CHUNK_DIRECTORY;
         File directory = new File(path);
         File[] files = directory.listFiles((dir, fileName) -> fileName.startsWith(name + "_chunk_"));
         if(files != null){
@@ -195,9 +197,9 @@ public class BitCaskStorage {
      */
     private void resetActiveChunk() throws IOException {
         if(this.activeChunk != null){
-            String path = OssConfigs.dataPath() + "/chunks/" + name + "_merged_chunks";
+            String path = OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + name + "_merged_chunks";
             File file = new File(path);
-            File chunk0 = new File(OssConfigs.dataPath() + "/chunks/" + name + "_chunk_0");
+            File chunk0 = new File(OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + name + "_chunk_0");
             this.activeChunk.closeChannel();
             if(file.renameTo(chunk0)){
                 RandomAccessFile rf = new RandomAccessFile(chunk0, "rw");
@@ -212,5 +214,9 @@ public class BitCaskStorage {
 
     public List<Index> listIndex(){
         return new ArrayList<>(indexCache.values());
+    }
+
+    public List<String> keys(){
+        return new ArrayList<>(indexCache.keySet());
     }
 }
