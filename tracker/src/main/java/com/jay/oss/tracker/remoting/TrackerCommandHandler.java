@@ -5,6 +5,7 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.tracker.db.SqlUtil;
+import com.jay.oss.tracker.kafka.TrackerProducer;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.processor.MultipartUploadProcessor;
 import com.jay.oss.tracker.processor.ObjectProcessor;
@@ -24,12 +25,12 @@ import com.jay.oss.tracker.registry.StorageRegistry;
 public class TrackerCommandHandler extends AbstractCommandHandler {
 
     public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry,
-                                 EditLogManager editLogManager, MultipartUploadTracker multipartUploadTracker,
+                                 EditLogManager editLogManager, MultipartUploadTracker multipartUploadTracker, TrackerProducer trackerProducer,
                                  SqlUtil sqlUtil, CommandFactory commandFactory) {
         super(commandFactory);
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager,
                 objectTracker,sqlUtil, commandFactory);
-        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, editLogManager, commandFactory);
+        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, editLogManager, trackerProducer, commandFactory);
         MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(bucketManager, objectTracker,  storageRegistry, multipartUploadTracker, editLogManager, commandFactory);
         // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);
