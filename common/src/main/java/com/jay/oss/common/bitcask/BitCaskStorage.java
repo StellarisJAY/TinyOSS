@@ -90,7 +90,7 @@ public class BitCaskStorage {
     public byte[] get(String key) throws IOException {
         Index index = indexCache.get(key);
         Chunk chunk;
-        if(index  != null && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
+        if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
             byte[] content = chunk.read(index.getOffset());
             return content != null ? CompressUtil.decompress(content) : null;
         }else if(index != null){
@@ -210,10 +210,6 @@ public class BitCaskStorage {
                 log.error("Failed to Reset Active Chunk");
             }
         }
-    }
-
-    public List<Index> listIndex(){
-        return new ArrayList<>(indexCache.values());
     }
 
     public List<String> keys(){
