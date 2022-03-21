@@ -10,16 +10,9 @@ import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
-import com.jay.oss.common.util.StringUtil;
-import com.jay.oss.common.util.UrlUtil;
-import com.jay.oss.proxy.callback.AsyncBatchCallback;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
 
 /**
  * <p>
@@ -48,16 +41,9 @@ public class ObjectService {
         String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         FullHttpResponse httpResponse;
         try{
-            // 从Tracker删除object记录，同时验证权限，并返回Storages集合
+            // 从Tracker删除object记录，同时验证权限
             FastOssCommand response = deleteObjectInTracker(objectKey, bucket, token);
-            CommandCode code = response.getCommandCode();
-            // 权限通过
-            if(code.equals(FastOssProtocol.SUCCESS)){
-                List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
-                httpResponse = deleteObjectInStorages(urls, objectKey);
-            }else{
-                httpResponse = HttpUtil.errorResponse(code);
-            }
+            return HttpUtil.httpResponseOfCode(response.getCommandCode());
         }catch (Exception e){
             log.error("Delete Object Failed ", e);
             httpResponse = HttpUtil.internalErrorResponse("Internal server error");
@@ -82,17 +68,6 @@ public class ObjectService {
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.DELETE_OBJECT, DeleteObjectInBucketRequest.class);
         return (FastOssCommand) client.sendSync(url, command, null);
-    }
-
-
-    private FullHttpResponse deleteObjectInStorages(List<Url> urls, String objectKey) throws InterruptedException {
-        RemotingCommand command = client.getCommandFactory()
-                .createRequest(StringUtil.getBytes(objectKey), FastOssProtocol.DELETE_OBJECT);
-        // 需要向每个Storage发送删除命令
-        for (Url url : urls) {
-            client.sendOneway(url, command);
-        }
-        return HttpUtil.okResponse();
     }
 
     public FullHttpResponse getObjectMeta(String key, String bucket, String version, String token){

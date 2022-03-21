@@ -5,6 +5,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
+import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
@@ -15,11 +16,15 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.tracker.kafka.TrackerProducer;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.RecordMetadata;
+
+import java.util.concurrent.Future;
 
 /**
  * <p>
@@ -32,17 +37,20 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ObjectProcessor extends AbstractProcessor {
-
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
     private final EditLogManager editLogManager;
+    private final TrackerProducer trackerProducer;
     private final CommandFactory commandFactory;
+    //private final KafkaProducer<String, String> deleteMessageProducer;
 
-    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, CommandFactory commandFactory) {
+    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, TrackerProducer trackerProducer, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.objectTracker = objectTracker;
         this.editLogManager = editLogManager;
+        this.trackerProducer = trackerProducer;
         this.commandFactory = commandFactory;
+        //this.deleteMessageProducer = new KafkaProducer<>(OssConfigs.getProperties(), new StringSerializer(), new StringSerializer());
     }
 
     @Override
@@ -110,7 +118,9 @@ public class ObjectProcessor extends AbstractProcessor {
                 bucketManager.deleteObject(bucket, objectKey);
                 // editLog记录删除操作
                 appendDeleteObjectLog(objectKey);
-                response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
+                // 发送删除object消息，由Storage收到消息后异步删除object数据
+                Future<RecordMetadata> future = trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, objectKey, objectKey);
+                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
             }
         }
         else{

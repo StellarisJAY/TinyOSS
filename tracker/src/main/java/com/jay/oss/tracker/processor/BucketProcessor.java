@@ -12,11 +12,10 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.bucket.Bucket;
+import com.jay.oss.common.entity.bucket.*;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.ListBucketRequest;
-import com.jay.oss.common.entity.bucket.BucketEntity;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -33,8 +32,10 @@ import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.session.SqlSession;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -80,6 +81,9 @@ public class BucketProcessor extends AbstractProcessor {
             }
             else if(FastOssProtocol.BUCKET_DELETE_OBJECT.equals(code)){
                 bucketDeleteObject(context, command);
+            }
+            else if(FastOssProtocol.GET_SERVICE.equals(code)){
+                processGetService(context, command);
             }
         }
     }
@@ -257,5 +261,36 @@ public class BucketProcessor extends AbstractProcessor {
             mapper.insertBucket(bucketEntity);
             session.close();
         }
+    }
+
+    private void processGetService(ChannelHandlerContext context, FastOssCommand command){
+        GetServiceRequest request = SerializeUtil.deserialize(command.getContent(), GetServiceRequest.class);
+        int count = request.getCount();
+        int offset = request.getOffset();
+        List<String> buckets = bucketManager.listBuckets();
+        RemotingCommand responseCommand;
+        GetServiceResponse response;
+        if(offset >= buckets.size()){
+            response = new GetServiceResponse(new ArrayList<>(), buckets.size());
+        }
+        else{
+            buckets.sort(String::compareTo);
+            List<BucketVO> vos = buckets.subList(offset, Math.min(offset + count, buckets.size()))
+                    .stream().map(key -> {
+                        Bucket bucket = bucketManager.getBucket(key);
+                        return bucketToVO(bucket);
+                    }).collect(Collectors.toList());
+            response = new GetServiceResponse(vos, buckets.size());
+        }
+        byte[] serialize = SerializeUtil.serialize(response, GetServiceResponse.class);
+        responseCommand = commandFactory.createResponse(command.getId(), serialize, FastOssProtocol.SUCCESS);
+        sendResponse(context, responseCommand);
+    }
+
+    private BucketVO bucketToVO(Bucket bucket){
+        return BucketVO.builder()
+                .acl(bucket.getAcl()).bucketName(bucket.getBucketName())
+                .appId(bucket.getAppId()).versioning(bucket.isVersioning())
+                .build();
     }
 }

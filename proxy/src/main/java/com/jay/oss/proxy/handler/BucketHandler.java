@@ -1,9 +1,11 @@
 package com.jay.oss.proxy.handler;
 
 import com.jay.oss.common.util.StringUtil;
+import com.jay.oss.proxy.constant.HttpConstants;
 import com.jay.oss.proxy.http.OssHttpRequest;
 import com.jay.oss.proxy.http.handler.AbstractHttpRequestHandler;
 import com.jay.oss.proxy.service.BucketService;
+import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpResponse;
 
@@ -44,6 +46,19 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         String token = request.authorization();
         String bucket = host.trim().substring(0, host.indexOf("."));
 
-        return bucketService.listBucket(bucket, token, 10, 0);
+        if(StringUtil.isNullOrEmpty(bucket)){
+            return HttpUtil.badRequestResponse("Missing Bucket Name");
+        }
+        if(HttpConstants.LIST_SERVICE.equals(bucket)){
+            if(request.containsParameter(HttpConstants.PAGE) && request.containsParameter(HttpConstants.PAGE_SIZE)){
+                int page = Integer.parseInt(request.getParameter(HttpConstants.PAGE));
+                int pageSize = Integer.parseInt(request.getParameter(HttpConstants.PAGE_SIZE));
+                return bucketService.getService(page, pageSize);
+            }
+            return bucketService.getService(1, 10);
+        }else{
+            return bucketService.listBucket(bucket, token, 10, 0);
+        }
+
     }
 }

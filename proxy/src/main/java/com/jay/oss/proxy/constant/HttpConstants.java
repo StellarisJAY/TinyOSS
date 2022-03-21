@@ -23,4 +23,9 @@ public class HttpConstants {
     public static final String AUTHORIZATION = "Authorization";
 
     public static final String ACL = "foss-acl";
+
+    public static final String LIST_SERVICE = "service";
+
+    public static final String PAGE = "pageNum";
+    public static final String PAGE_SIZE = "pageSize";
 }

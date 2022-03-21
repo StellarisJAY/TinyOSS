@@ -18,6 +18,7 @@ import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.tracker.db.SqlUtil;
 import com.jay.oss.tracker.edit.TrackerEditLogManager;
+import com.jay.oss.tracker.kafka.TrackerProducer;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.MultipartUploadTracker;
@@ -48,25 +49,33 @@ public class Tracker extends AbstractLifeCycle {
     private final Registry registry;
     private final ConsistentHashRing ring;
     private final EditLogManager editLogManager;
+    private final TrackerProducer trackerProducer;
     private final PrometheusServer prometheusServer;
     private final SqlUtil sqlUtil;
 
     public Tracker(){
-        ConfigsManager.loadConfigs();
-        int port = OssConfigs.port();
-        FastOssCommandFactory commandFactory = new FastOssCommandFactory();
-        this.ring = new ConsistentHashRing();
-        this.storageRegistry = new StorageRegistry(ring);
-        this.sqlUtil = new SqlUtil();
-        this.bucketManager = new BucketManager();
-        this.objectTracker = new ObjectTracker();
-        this.multipartUploadTracker = new MultipartUploadTracker();
-        this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
-        this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager, multipartUploadTracker, sqlUtil, commandFactory);
-        this.registry = new ZookeeperRegistry();
-        this.storageRegistry.setRegistry(registry);
-        this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
-        this.prometheusServer = new PrometheusServer();
+        try{
+            ConfigsManager.loadConfigs();
+            int port = OssConfigs.port();
+            FastOssCommandFactory commandFactory = new FastOssCommandFactory();
+            this.ring = new ConsistentHashRing();
+            this.storageRegistry = new StorageRegistry(ring);
+            this.sqlUtil = new SqlUtil();
+            this.bucketManager = new BucketManager();
+            this.objectTracker = new ObjectTracker();
+            this.multipartUploadTracker = new MultipartUploadTracker();
+            this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
+            this.trackerProducer = new TrackerProducer();
+            this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager,
+                    multipartUploadTracker, trackerProducer, sqlUtil, commandFactory);
+            this.registry = new ZookeeperRegistry();
+            this.storageRegistry.setRegistry(registry);
+            this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+
+            this.prometheusServer = new PrometheusServer();
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
     }
 
     private void init() throws Exception {

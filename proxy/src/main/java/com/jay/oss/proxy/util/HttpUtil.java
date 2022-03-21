@@ -143,4 +143,23 @@ public class HttpUtil {
         }
         return result;
     }
+
+    public static FullHttpResponse httpResponseOfCode(CommandCode code){
+        if(FastOssProtocol.SUCCESS.equals(code)){
+            return okResponse("Success");
+        } else if(FastOssProtocol.NOT_FOUND.equals(code)){
+            return notFoundResponse("Bucket Not Found");
+        }else if(FastOssProtocol.ACCESS_DENIED.equals(code)){
+            return unauthorizedResponse("Bucket Access Denied");
+        }else if(FastOssProtocol.OBJECT_NOT_FOUND.equals(code)){
+            return notFoundResponse("Object Not Found");
+        }else if(FastOssProtocol.DUPLICATE_OBJECT_KEY.equals(code)){
+            return badRequestResponse("Duplicate Object key");
+        }else if(FastOssProtocol.MULTIPART_UPLOAD_FINISHED.equals(code)){
+            return badRequestResponse("Multipart Upload Already Finished");
+        }
+        else{
+            return internalErrorResponse("Internal Server Error");
+        }
+    }
 }

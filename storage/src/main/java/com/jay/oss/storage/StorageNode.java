@@ -9,8 +9,8 @@ import com.jay.dove.transport.connection.ConnectionManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -25,6 +25,9 @@ import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.StorageEditLogManager;
+import com.jay.oss.storage.fs.ChunkManager;
+import com.jay.oss.storage.kafka.StorageNodeConsumer;
+import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,49 +44,42 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class StorageNode extends AbstractLifeCycle {
-    /**
-     * TCP 服务器
-     */
+
     private final DoveServer server;
-
     private final DoveClient client;
-    /**
-     * meta管理器
-     */
     private final MetaManager metaManager;
-    /**
-     * chunk管理器
-     */
     private final ChunkManager chunkManager;
-    /**
-     * 命令处理器
-     */
     private final StorageNodeCommandHandler commandHandler;
-
     private final EditLogManager editLogManager;
     private final Registry registry;
+    private final StorageNodeConsumer storageNodeConsumer;
     private final PrometheusServer prometheusServer;
     private final int port;
 
     public StorageNode(String configPath) {
-        ConfigsManager.loadConfigs(configPath);
-        this.port = OssConfigs.port();
-        CommandFactory commandFactory = new FastOssCommandFactory();
-        FastOssConnectionFactory connectionFactory = new FastOssConnectionFactory();
-        ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
-        this.client = new DoveClient(connectionManager, commandFactory);
-        this.metaManager = new MetaManager();
-        this.chunkManager = new ChunkManager();
-        this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
-        this.registry = new ZookeeperRegistry();
-        // commandHandler执行器线程池
-        ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
-        // 命令处理器
-        this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
-                chunkManager, metaManager, editLogManager, client);
-        // FastOSS协议Dove服务器
-        this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
-        this.prometheusServer = new PrometheusServer();
+        try{
+            ConfigsManager.loadConfigs(configPath);
+            this.port = OssConfigs.port();
+            CommandFactory commandFactory = new FastOssCommandFactory();
+            FastOssConnectionFactory connectionFactory = new FastOssConnectionFactory();
+            ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
+            this.client = new DoveClient(connectionManager, commandFactory);
+            this.metaManager = new MetaManager();
+            this.chunkManager = new ChunkManager();
+            this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
+            this.registry = new ZookeeperRegistry();
+            this.storageNodeConsumer = new StorageNodeConsumer();
+            // commandHandler执行器线程池
+            ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
+            // 命令处理器
+            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
+                    chunkManager, metaManager, editLogManager, client);
+            // FastOSS协议Dove服务器
+            this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+            this.prometheusServer = new PrometheusServer();
+        }catch (Exception e){
+            throw new RuntimeException(e);
+        }
     }
 
     private void init() throws Exception {
@@ -102,6 +98,8 @@ public class StorageNode extends AbstractLifeCycle {
         // 初始化注册中心客户端
         registry.init();
         registry.register(NodeInfoCollector.getStorageNodeInfo(port));
+        // 注册消息处理器
+        storageNodeConsumer.registerHandler(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(metaManager, chunkManager, editLogManager));
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
@@ -129,7 +127,11 @@ public class StorageNode extends AbstractLifeCycle {
         try{
             long start = System.currentTimeMillis();
             init();
+            // 启动storage服务器
             server.startup();
+            // 启动消息订阅循环
+            storageNodeConsumer.startup();
+            // 启动Prometheus监控
             prometheusServer.startup();
             log.info("Storage Node started, time used: {} ms", (System.currentTimeMillis() - start));
         }catch (Exception e){
@@ -141,6 +143,7 @@ public class StorageNode extends AbstractLifeCycle {
     public void shutdown() {
         super.shutdown();
         server.shutdown();
+        storageNodeConsumer.shutdown();
     }
 
     public static void main(String[] args) {
