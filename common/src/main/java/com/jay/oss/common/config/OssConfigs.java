@@ -5,6 +5,7 @@ import com.jay.oss.common.GzipCompressor;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 
 /**
  * <p>
@@ -101,6 +102,13 @@ public class OssConfigs {
     private static final String MYSQL_PASSWORD = "oss.mysql.password";
     private static final String DEFAULT_MYSQL_PASSWORD = "";
 
+
+    private static final String KAFKA_SERVERS = "kafka.bootstrap.servers";
+    private static final String DEFAULT_KAFKA_SERVERS = "127.0.0.1:9092";
+
+    private static final String KAFKA_ACKS = "kafka.acks";
+    private static final String DEFAULT_KAFKA_ACKS = "all";
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -164,5 +172,13 @@ public class OssConfigs {
 
     public static boolean enableMysql(){
         return ConfigsManager.getBoolean(ENABLE_MYSQL, DEFAULT_ENABLE_MYSQL);
+    }
+
+    public static String kafkaServers(){
+        return ConfigsManager.get(KAFKA_SERVERS, DEFAULT_KAFKA_SERVERS);
+    }
+
+    public static String kafkaAcks(){
+        return ConfigsManager.get(KAFKA_ACKS, DEFAULT_KAFKA_ACKS);
     }
 }
