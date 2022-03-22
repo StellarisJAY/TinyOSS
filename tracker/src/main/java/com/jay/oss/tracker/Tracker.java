@@ -6,7 +6,10 @@ import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
+import com.jay.oss.common.kafka.RecordConsumer;
+import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -18,13 +21,13 @@ import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.tracker.db.SqlUtil;
 import com.jay.oss.tracker.edit.TrackerEditLogManager;
-import com.jay.oss.tracker.kafka.TrackerProducer;
+import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.registry.StorageRegistry;
+import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
-import com.jay.oss.tracker.registry.StorageRegistry;
-import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -49,7 +52,8 @@ public class Tracker extends AbstractLifeCycle {
     private final Registry registry;
     private final ConsistentHashRing ring;
     private final EditLogManager editLogManager;
-    private final TrackerProducer trackerProducer;
+    private final RecordProducer trackerProducer;
+    private final RecordConsumer trackerConsumer;
     private final PrometheusServer prometheusServer;
     private final SqlUtil sqlUtil;
 
@@ -65,7 +69,8 @@ public class Tracker extends AbstractLifeCycle {
             this.objectTracker = new ObjectTracker();
             this.multipartUploadTracker = new MultipartUploadTracker();
             this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
-            this.trackerProducer = new TrackerProducer();
+            this.trackerProducer = new RecordProducer();
+            this.trackerConsumer = new RecordConsumer();
             this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager,
                     multipartUploadTracker, trackerProducer, sqlUtil, commandFactory);
             this.registry = new ZookeeperRegistry();
@@ -99,6 +104,10 @@ public class Tracker extends AbstractLifeCycle {
         registry.init();
         // 初始化本地storage记录
         storageRegistry.init();
+        /*
+            订阅消息主题
+         */
+        trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
         if(OssConfigs.enableMysql()){
             sqlUtil.init();
         }
@@ -115,6 +124,7 @@ public class Tracker extends AbstractLifeCycle {
         try{
             init();
             this.server.startup();
+            this.trackerConsumer.startup();
             prometheusServer.startup();
             log.info("tracker started, time used: {}ms", (System.currentTimeMillis() - start));
         }catch (Exception e){
