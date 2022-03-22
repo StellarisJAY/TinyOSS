@@ -5,6 +5,7 @@ import com.jay.oss.common.registry.StorageNodeInfo;
 
 import java.io.File;
 import java.net.Inet4Address;
+import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -40,5 +41,9 @@ public class NodeInfoCollector {
      */
     public static void incrementIoCount(){
         IO_COUNTER.incrementAndGet();
+    }
+
+    public static String getAddress() throws UnknownHostException {
+        return Inet4Address.getLocalHost().getHostAddress() + ":" + OssConfigs.port();
     }
 }
