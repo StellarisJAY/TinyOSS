@@ -19,6 +19,8 @@ public class OssConstants {
      */
     public static final String REPLICA_TOPIC = "copy_replica";
 
+    public static final String STORAGE_UPLOAD_COMPLETE = "storage_upload_complete";
+
     /**
      * 消费间隔
      */
