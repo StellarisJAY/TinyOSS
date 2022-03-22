@@ -22,15 +22,12 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.UrlUtil;
-import com.jay.oss.tracker.db.SqlUtil;
-import com.jay.oss.tracker.mapper.BucketMapper;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.session.SqlSession;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,13 +50,11 @@ public class BucketProcessor extends AbstractProcessor {
     private final CommandFactory commandFactory;
     private final EditLogManager editLogManager;
     private final ObjectTracker objectTracker;
-    private final SqlUtil sqlUtil;
 
     public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager,
-                           ObjectTracker objectTracker, SqlUtil sqlUtil, CommandFactory commandFactory) {
+                           ObjectTracker objectTracker, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.commandFactory = commandFactory;
-        this.sqlUtil = sqlUtil;
         this.storageRegistry = storageRegistry;
         this.editLogManager = editLogManager;
         this.objectTracker = objectTracker;
@@ -246,21 +241,6 @@ public class BucketProcessor extends AbstractProcessor {
     private void appendBucketDeleteObjectLog(String objectKey){
         EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, objectKey.getBytes(OssConfigs.DEFAULT_CHARSET));
         editLogManager.append(editLog);
-    }
-
-    private void saveBucketToMySQL(Bucket bucket){
-        if(OssConfigs.enableMysql()){
-            SqlSession session = sqlUtil.getSession(true);
-            BucketMapper mapper = session.getMapper(BucketMapper.class);
-            BucketEntity bucketEntity = BucketEntity.builder()
-                    .bucketName(bucket.getBucketName()).appId(bucket.getAppId())
-                    .createTime(System.currentTimeMillis()).ownerId(0L)
-                    .secretKey(bucket.getSecretKey()).accessKey(bucket.getAccessKey())
-                    .versioning(bucket.isVersioning()).acl(bucket.getAcl().code)
-                    .build();
-            mapper.insertBucket(bucketEntity);
-            session.close();
-        }
     }
 
     private void processGetService(ChannelHandlerContext context, FastOssCommand command){

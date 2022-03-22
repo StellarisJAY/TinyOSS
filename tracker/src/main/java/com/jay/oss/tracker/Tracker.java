@@ -19,7 +19,6 @@ import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
-import com.jay.oss.tracker.db.SqlUtil;
 import com.jay.oss.tracker.edit.TrackerEditLogManager;
 import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
@@ -55,7 +54,6 @@ public class Tracker extends AbstractLifeCycle {
     private final RecordProducer trackerProducer;
     private final RecordConsumer trackerConsumer;
     private final PrometheusServer prometheusServer;
-    private final SqlUtil sqlUtil;
 
     public Tracker(){
         try{
@@ -64,7 +62,6 @@ public class Tracker extends AbstractLifeCycle {
             FastOssCommandFactory commandFactory = new FastOssCommandFactory();
             this.ring = new ConsistentHashRing();
             this.storageRegistry = new StorageRegistry(ring);
-            this.sqlUtil = new SqlUtil();
             this.bucketManager = new BucketManager();
             this.objectTracker = new ObjectTracker();
             this.multipartUploadTracker = new MultipartUploadTracker();
@@ -72,7 +69,7 @@ public class Tracker extends AbstractLifeCycle {
             this.trackerProducer = new RecordProducer();
             this.trackerConsumer = new RecordConsumer();
             this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager,
-                    multipartUploadTracker, trackerProducer, sqlUtil, commandFactory);
+                    multipartUploadTracker, trackerProducer, commandFactory);
             this.registry = new ZookeeperRegistry();
             this.storageRegistry.setRegistry(registry);
             this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
@@ -108,9 +105,6 @@ public class Tracker extends AbstractLifeCycle {
             订阅消息主题
          */
         trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
-        if(OssConfigs.enableMysql()){
-            sqlUtil.init();
-        }
         // 系统关闭hook，关闭时flush日志
         Runtime.getRuntime().addShutdownHook(new Thread(()-> {editLogManager.swapBuffer(true);editLogManager.close();}, "shutdown-log-flush"));
         // 定时flush任务
