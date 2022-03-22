@@ -78,7 +78,7 @@ public class MultipartUploadProcessor extends AbstractProcessor {
         RemotingCommand response;
         try{
             Chunk tempChunk = chunkManager.getTempChunkAndCreateIfAbsent(objectKey, partNum);
-            tempChunk.write(data);
+            tempChunk.writeHead(data);
             response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
         }catch (IOException e){
             log.error("Failed to Write Object Part, object key: {}, partNum: {}", objectKey, partNum, e);

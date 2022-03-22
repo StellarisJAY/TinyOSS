@@ -1,4 +1,4 @@
-package com.jay.oss.tracker.kafka;
+package com.jay.oss.common.kafka;
 
 import com.jay.oss.common.config.OssConfigs;
 import lombok.extern.slf4j.Slf4j;
@@ -13,17 +13,17 @@ import java.util.concurrent.Future;
 
 /**
  * <p>
- *  Tracker端消息生产者
+ *  消息生产者
  * </p>
  *
  * @author Jay
- * @date 2022/03/21 11:59
+ * @date 2022/03/21 13:38
  */
 @Slf4j
-public class TrackerProducer {
+public class RecordProducer {
     private final KafkaProducer<String, String> producer;
 
-    public TrackerProducer(){
+    public RecordProducer(){
         this.producer = new KafkaProducer<>(getProperties(), new StringSerializer(), new StringSerializer());
     }
 
@@ -39,7 +39,7 @@ public class TrackerProducer {
      * @param topic 主题
      * @param key key
      * @param value value
-     * @return {@link Future<RecordMetadata>} 异步结果
+     * @return {@link Future < RecordMetadata >} 异步结果
      */
     public final Future<RecordMetadata> send(String topic, String key, String value){
         ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, value);
@@ -48,10 +48,6 @@ public class TrackerProducer {
                 // 消息发送错误，等待重发
                 log.error("Producer send record failed, topic: {}, key: {}", topic, key, exception);
             }
-            else{
-                log.info("Producer send record success, topic: {}, key: {}", topic, key);
-            }
         });
     }
-
 }

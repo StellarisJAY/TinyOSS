@@ -3,6 +3,7 @@ package com.jay.oss.storage.command;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.edit.EditLogManager;
+import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -23,10 +24,11 @@ import java.util.concurrent.ExecutorService;
 public class StorageNodeCommandHandler extends FastOssCommandHandler {
 
     public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor,
-                                     ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, DoveClient client) {
+                                     ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager,
+                                     DoveClient client, RecordProducer storageNodeProducer) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory, storageNodeProducer);
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, commandFactory);
         FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         AsyncBackupProcessor asyncBackupProcessor = new AsyncBackupProcessor(client, metaManager, chunkManager);

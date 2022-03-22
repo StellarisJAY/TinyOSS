@@ -8,9 +8,10 @@ import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;
-import com.jay.oss.storage.kafka.RecordHandler;
+import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import java.util.List;
@@ -37,7 +38,7 @@ public class DeleteHandler implements RecordHandler {
     }
 
     @Override
-    public void handle(Iterable<ConsumerRecord<String, String>> records) {
+    public void handle(Iterable<ConsumerRecord<String, String>> records, ConsumerGroupMetadata groupMetadata) {
         for (ConsumerRecord<String, String> record : records) {
             String objectKey = record.value();
             FileMetaWithChunkInfo meta = metaManager.getMeta(objectKey);

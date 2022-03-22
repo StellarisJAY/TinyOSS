@@ -92,7 +92,7 @@ public class BitCaskStorage {
         Chunk chunk;
         if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
             byte[] content = chunk.read(index.getOffset());
-            return content != null ? CompressUtil.decompress(content) : null;
+            return content != null && content.length > 0 ? CompressUtil.decompress(content) : null;
         }else if(index != null){
             log.info("unknown chunk id: {}", index.getChunkId());
         }

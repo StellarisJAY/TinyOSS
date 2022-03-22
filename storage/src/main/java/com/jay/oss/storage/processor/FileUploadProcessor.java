@@ -7,10 +7,13 @@ import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
 import com.jay.oss.common.entity.UploadRequest;
+import com.jay.oss.common.kafka.RecordProducer;
+import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.fs.FileReceiver;
@@ -24,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,27 +42,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public class FileUploadProcessor extends AbstractProcessor {
-    /**
-     * chunk管理器
-     */
-    private final ChunkManager chunkManager;
+
     /**
      * 文件接收器map。
      * key：文件key；value：Receiver
      */
     private final ConcurrentHashMap<String, FileReceiver> fileReceivers = new ConcurrentHashMap<>(256);
-
-    /**
-     * 元数据管理器
-     */
+    private final ChunkManager chunkManager;
     private final MetaManager metaManager;
     private final CommandFactory commandFactory;
     private final EditLogManager editLogManager;
-    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory) {
+    private final RecordProducer storageNodeProducer;
+
+    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
         this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
+        this.storageNodeProducer = storageNodeProducer;
     }
 
     @Override
@@ -153,6 +154,8 @@ public class FileUploadProcessor extends AbstractProcessor {
             if(fileReceiver.receivePart(filePart)){
                 // 已收到最后一个key，删除receiver
                 fileReceivers.remove(key);
+                // 向Tracker发送消息，object上传完成
+                sendUploadCompleteRecord(key);
                 response = commandFactory.createResponse(command.getId(), filePart.getKey(), FastOssProtocol.RESPONSE_UPLOAD_DONE);
             }else{
                 // 收到部分分片
@@ -179,5 +182,9 @@ public class FileUploadProcessor extends AbstractProcessor {
         // 生成编辑日志
         EditLog editLog = new EditLog(EditOperation.ADD, serialized);
         editLogManager.append(editLog);
+    }
+
+    private void sendUploadCompleteRecord(String objectKey) throws UnknownHostException {
+        storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, objectKey, NodeInfoCollector.getAddress());
     }
 }

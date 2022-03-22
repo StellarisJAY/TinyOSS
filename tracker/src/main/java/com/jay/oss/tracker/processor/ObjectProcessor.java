@@ -12,11 +12,11 @@ import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
 import com.jay.oss.common.entity.object.ObjectMeta;
+import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
-import com.jay.oss.tracker.kafka.TrackerProducer;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import com.jay.oss.tracker.util.BucketAclUtil;
@@ -40,11 +40,11 @@ public class ObjectProcessor extends AbstractProcessor {
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
     private final EditLogManager editLogManager;
-    private final TrackerProducer trackerProducer;
+    private final RecordProducer trackerProducer;
     private final CommandFactory commandFactory;
     //private final KafkaProducer<String, String> deleteMessageProducer;
 
-    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, TrackerProducer trackerProducer, CommandFactory commandFactory) {
+    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, RecordProducer trackerProducer, CommandFactory commandFactory) {
         this.bucketManager = bucketManager;
         this.objectTracker = objectTracker;
         this.editLogManager = editLogManager;

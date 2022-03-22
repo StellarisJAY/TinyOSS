@@ -76,6 +76,12 @@ public class Chunk {
 
     public static final long CHANNEL_CLOSE_THRESHOLD = 1024 * 1024;
     public static final long CHUNK_COMPRESSION_PERIOD = 30 * 1000;
+
+    /**
+     * 创建新的chunk
+     * 该方法会在chunk路径下创建一个文件名为 chunk_{chunkID}的文件
+     * @param chunkId chunkId 由{@link ChunkManager}统一生成
+     */
     public Chunk(int chunkId) {
         this.path = OssConfigs.dataPath() + File.separator + "chunk_" +chunkId;
         this.file = new File(path);
@@ -91,6 +97,13 @@ public class Chunk {
         }
     }
 
+    /**
+     * 加载原有的chunk文件
+     * 该方法不会创建新的chunk文件，只会把路径中的chunk文件信息加载进内存
+     * @param path 路径
+     * @param file 文件
+     * @param id id
+     */
     public Chunk(String path, File file, int id) {
         this.path = path;
         this.file = file;
@@ -106,6 +119,11 @@ public class Chunk {
         }
     }
 
+    /**
+     * 创建临时chunk
+     * 该方法会创建一个临时的chunk，名称为tempName
+     * @param tempName 临时名称
+     */
     public Chunk(String tempName){
         this.path = OssConfigs.dataPath() + File.separator + tempName;
         this.file = new File(path);
@@ -127,7 +145,7 @@ public class Chunk {
      * @param part {@link FilePart}
      * @throws IOException IOException
      */
-    public void write(FilePart part, int offset0) throws IOException {
+    public void writeHead(FilePart part, int offset0) throws IOException {
         try{
             readWriteLock.writeLock().lock();
             checkAvailability();
@@ -141,13 +159,35 @@ public class Chunk {
         }
     }
 
-    public void write(ByteBuf data) throws IOException {
+    /**
+     * 从头部写入数据并覆盖后面所有数据
+     * @param data {@link ByteBuf}
+     * @throws IOException IOException
+     */
+    public void writeHead(ByteBuf data) throws IOException {
         try{
             readWriteLock.writeLock().lock();
             checkAvailability();
             int length = data.readableBytes();
             data.readBytes(fileChannel, 0, length);
             size.set(length);
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * 写入数据到指定位置
+     * @param data {@link ByteBuf}
+     * @param offset 写入位置
+     * @throws IOException IOException
+     */
+    public void writeHead(ByteBuf data, int offset) throws IOException {
+        try{
+            readWriteLock.writeLock().lock();
+            checkAvailability();
+            int length = data.readableBytes();
+            data.readBytes(fileChannel, offset, length);
         } finally {
             readWriteLock.writeLock().unlock();
         }

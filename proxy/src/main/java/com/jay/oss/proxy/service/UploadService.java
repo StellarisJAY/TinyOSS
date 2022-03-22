@@ -98,10 +98,7 @@ public class UploadService {
         FullHttpResponse httpResponse;
         int successReplica = 0;
         // 需要写入成功的数量
-        int writeCount = urls.size() / 2 + 1;
-        // 没有成功写入的url集合
-        List<Url> asyncWriteUrls = new ArrayList<>();
-        List<Url> successUrls = new ArrayList<>();
+        int writeCount = 1;
         UploadRequest request = UploadRequest.builder().size(size).key(objectKey).filename(fileName).parts(parts).build();
         int i;
         for(i = 0; i < urls.size() && successReplica < writeCount; i++){
@@ -115,25 +112,15 @@ public class UploadService {
                     if(response.getCommandCode().equals(FastOssProtocol.RESPONSE_UPLOAD_DONE)){
                         // 全部分片上传成功
                         successReplica++;
-                        successUrls.add(url);
-                    }else{
-                        asyncWriteUrls.add(url);
                     }
-                }else{
-                    asyncWriteUrls.add(url);
                 }
             }catch (Exception e){
                 log.warn("upload to storage failed, ", e);
-                asyncWriteUrls.add(url);
             }
         }
         if(successReplica == 0){
            httpResponse = HttpUtil.internalErrorResponse("Upload Object Data Failed");
         }else{
-            asyncWriteUrls.addAll(urls.subList(i, urls.size()));
-            // 提交异步备份
-            submitAsyncBackup(objectKey, asyncWriteUrls, successUrls);
-
             Result result = new Result().message("Success").putData("versionId",versionId);
             httpResponse = HttpUtil.okResponse(result);
         }

@@ -1,7 +1,6 @@
 package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -129,13 +128,15 @@ public final class ChunkManager {
         return tempChunkMap.get(tempChunkName);
     }
 
+    /**
+     * 获取临时chunk
+     * @param uploadId 上传ID
+     * @param partNum 分片号
+     * @return {@link Chunk} 临时chunk文件
+     */
     public Chunk getTempChunk(String uploadId, int partNum){
         String tempChunkName = "temp_" + uploadId + "_" + partNum;
         return tempChunkMap.get(tempChunkName);
-    }
-
-    public List<Chunk> listChunks(){
-        return new ArrayList<>(chunkMap.values());
     }
 
     /**
@@ -167,6 +168,9 @@ public final class ChunkManager {
         log.info("load chunk finished, loaded: {} chunks, time used: {} ms", count, (System.nanoTime() - start)/(1000000));
     }
 
+    /**
+     * 加载所有的临时chunk
+     */
     public void loadTempChunks(){
         File file = new File(OssConfigs.dataPath());
         File[] chunkFiles = file.listFiles(((dir, name) -> name.startsWith("temp_")));
