@@ -125,10 +125,9 @@ public class BitCaskStorage {
             if(!indexCache.containsKey(key)){
                 byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
                 if(this.activeChunk == null || !activeChunk.isWritable()){
-                    // 把旧的activeChunk添加到old chunk列表
-                    chunks.add(activeChunk);
                     // 创建新的active chunk
                     this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
+                    chunks.add(activeChunk);
                 }
                 byte[] compressedValue = CompressUtil.compress(value);
                 int offset = activeChunk.write(keyBytes, compressedValue);
