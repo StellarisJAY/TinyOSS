@@ -5,6 +5,7 @@ import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.meta.MetaManager;
@@ -62,13 +63,17 @@ public class StorageEditLogManager extends AbstractEditLogManager {
                 if(editOperation != null){
                     switch(editOperation){
                         case ADD: addObject(content); count++;break;
-                        case DELETE: deleteObject(content);break;
+                        case DELETE: deleteObject(content); count--;break;
+                        case MARK_DELETE: markObjectDeleted(content);break;
                         default: break;
                     }
                 }
             }
             log.info("load edit log finished, loaded: {} objects, time used: {}ms", count, (System.currentTimeMillis() - start));
+            // 重写editLog
             compress(metaManager);
+            removeOldFile();
+            // 重置日志buffer交换时间
             setLastSwapTime(System.currentTimeMillis());
         }catch (Exception e){
             log.warn("load and compress edit log error ", e);
@@ -86,11 +91,17 @@ public class StorageEditLogManager extends AbstractEditLogManager {
         List<FileMetaWithChunkInfo> snapshot = metaManager.snapshot();
         ByteBuf buffer = Unpooled.directBuffer();
         for (FileMetaWithChunkInfo meta : snapshot) {
-            if(!meta.isRemoved()){
+            if(!meta.isRemoved() && !meta.isMarkRemoved()){
                 buffer.writeByte(EditOperation.ADD.value());
                 byte[] content = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
                 buffer.writeInt(content.length);
                 buffer.writeBytes(content);
+            }
+            else if(!meta.isRemoved()){
+                buffer.writeByte(EditOperation.MARK_DELETE.value());
+                byte[] keyBytes = StringUtil.getBytes(meta.getKey());
+                buffer.writeInt(keyBytes.length);
+                buffer.writeBytes(keyBytes);
             }
         }
         // 写入channel
@@ -149,8 +160,26 @@ public class StorageEditLogManager extends AbstractEditLogManager {
         String key = new String(keyBytes, OssConfigs.DEFAULT_CHARSET);
         FileMetaWithChunkInfo meta = metaManager.getMeta(key);
         if(meta != null){
-            //设置object的删除标记
-            meta.setRemoved(true);
+            Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
+            if(chunk != null){
+                chunk.deleteObjectFromList(meta);
+                //设置object的删除标记
+                meta.setMarkRemoved(true);
+                meta.setRemoved(true);
+            }
+        }
+    }
+
+    /**
+     * 对象被标记删除
+     * @param keyBytes 对象Key
+     */
+    private void markObjectDeleted(byte[] keyBytes){
+        String key = new String(keyBytes, OssConfigs.DEFAULT_CHARSET);
+        FileMetaWithChunkInfo meta = metaManager.getMeta(key);
+        if(meta != null){
+            meta.setMarkRemoved(true);
+            meta.setRemoved(false);
         }
     }
 }
