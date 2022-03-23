@@ -36,7 +36,6 @@ public class StorageUploadCompleteHandler implements RecordHandler {
         for (ConsumerRecord<String, String> record : records) {
             String objectKey = record.key();
             String storageUrl = record.value();
-            log.info("Object upload completed, object: {}, storage: {}", objectKey, storageUrl);
             String urls = objectTracker.locateObject(objectKey);
             if(!StringUtil.isNullOrEmpty(urls)){
                 String[] storages = urls.split(";");

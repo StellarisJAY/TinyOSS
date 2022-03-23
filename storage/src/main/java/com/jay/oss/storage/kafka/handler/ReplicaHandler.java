@@ -60,6 +60,7 @@ public class ReplicaHandler implements RecordHandler {
             String value = record.value();
             String[] split = value.split(";");
             if(split.length == 2 && split[1].equals(nodeUrl)){
+                log.info("Starting Get Backup From {}, object={}", split[0], objectKey);
                 getObject(objectKey, split[0]);
             }
         }
