@@ -1,4 +1,4 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,24 +1,25 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import com.jay.oss.common.acl.BucketAccessMode;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 /**
  * <p>
- *  删除存储桶object记录请求
+ *  查询分片上传任务请求
  * </p>
  *
  * @author Jay
- * @date 2022/02/18 11:57
+ * @date 2022/03/07 15:37
  */
-@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
-@Setter
 @ToString
-public class DeleteObjectInBucketRequest implements BucketAccessRequest {
+public class LookupMultipartUploadRequest implements BucketAccessRequest {
+    private String uploadId;
     private String objectKey;
     private String bucket;
     private String token;

@@ -5,7 +5,7 @@ import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.entity.DownloadRequest;
+import com.jay.oss.common.entity.request.DownloadRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;

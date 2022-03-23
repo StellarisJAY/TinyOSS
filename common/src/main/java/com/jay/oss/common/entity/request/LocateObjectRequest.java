@@ -1,27 +1,24 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
-
-import java.io.Serializable;
 
 /**
  * <p>
- *  查询分片上传任务请求
+ *
  * </p>
  *
  * @author Jay
- * @date 2022/03/07 15:37
+ * @date 2022/03/02 12:02
  */
 @AllArgsConstructor
-@NoArgsConstructor
 @Getter
+@Setter
 @ToString
-public class LookupMultipartUploadRequest implements BucketAccessRequest {
-    private String uploadId;
+public class LocateObjectRequest implements BucketAccessRequest {
     private String objectKey;
     private String bucket;
     private String token;
