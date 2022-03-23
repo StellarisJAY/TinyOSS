@@ -1,14 +1,14 @@
 package com.jay.oss.storage.kafka.handler;
 
-import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;
-import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
@@ -43,28 +43,37 @@ public class DeleteHandler implements RecordHandler {
             String objectKey = record.value();
             FileMetaWithChunkInfo meta = metaManager.getMeta(objectKey);
 
-            if(meta != null && !meta.isRemoved()){
-                meta.setRemoved(true);
+            if(meta != null && !meta.isMarkRemoved() && !meta.isRemoved()){
+                meta.setMarkRemoved(true);
                 // 找到存储object的块
                 Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
                 if(chunk != null){
-                    // 惰性删除，如果返回列表不为空，表示完成了一次压缩，有object的位置改变需要重写EditLog
-                    List<FileMetaWithChunkInfo> offsetChanged = chunk.deleteObject(meta);
-                    appendOffsetChangeLog(offsetChanged);
+                    // 惰性删除，如果返回列表不为空，表示完成了一次压缩，返回的列表是压缩后offset改变和完全删除的对象
+                    List<FileMetaWithChunkInfo> changed = chunk.deleteObject(meta);
+                    if(changed != null){
+                        // 重写EditLog
+                        appendChangedEditLog(changed);
+                        log.info("Object Deleted and Chunk compact done, object: {}, chunk: {}", objectKey, chunk.getId());
+                    }else{
+                        appendMarkRemovedEditLog(objectKey);
+                        log.info("Object Marked deleted, object: {}", objectKey);
+                    }
                 }
-                appendEditLog(objectKey);
-                log.info("Deleted object: {}, meta: {}", objectKey, meta);
+                else{
+                    log.warn("Can't delete object, chunk not found, object: {}, chunk: {}", objectKey, meta.getChunkId());
+                }
             }
         }
     }
 
+
     /**
-     * 添加object删除editLog
-     * @param key objectKey
+     * 添加标记删除editLog
+     * @param objectKey objectKey
      */
-    private void appendEditLog(String key){
-        byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
-        EditLog editLog = new EditLog(EditOperation.DELETE, keyBytes);
+    private void appendMarkRemovedEditLog(String objectKey){
+        byte[] keyBytes = StringUtil.getBytes(objectKey);
+        EditLog editLog = new EditLog(EditOperation.MARK_DELETE, keyBytes);
         editLogManager.append(editLog);
     }
 
@@ -72,12 +81,18 @@ public class DeleteHandler implements RecordHandler {
      * 添加chunk压缩后的object偏移量改变editLog
      * @param metas object meta集合
      */
-    private void appendOffsetChangeLog(List<FileMetaWithChunkInfo> metas){
+    private void appendChangedEditLog(List<FileMetaWithChunkInfo> metas){
         if(metas != null && !metas.isEmpty()){
             for (FileMetaWithChunkInfo meta : metas) {
-                byte[] serialized = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
-                EditLog editLog = new EditLog(EditOperation.ADD, serialized);
-                editLogManager.append(editLog);
+                if(meta.isRemoved()){
+                    EditLog editLog = new EditLog(EditOperation.DELETE, StringUtil.getBytes(meta.getKey()));
+                    editLogManager.append(editLog);
+                }
+                else{
+                    byte[] serialized = SerializeUtil.serialize(meta, FileMetaWithChunkInfo.class);
+                    EditLog editLog = new EditLog(EditOperation.ADD, serialized);
+                    editLogManager.append(editLog);
+                }
             }
         }
     }
