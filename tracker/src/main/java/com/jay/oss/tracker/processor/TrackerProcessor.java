@@ -11,6 +11,7 @@ import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,7 @@ import java.util.Map;
  * @author Jay
  * @date 2022/03/23 15:40
  */
+@Slf4j
 public abstract class TrackerProcessor extends AbstractProcessor {
     /**
      * 命令码 与 请求类的映射
@@ -57,19 +59,23 @@ public abstract class TrackerProcessor extends AbstractProcessor {
     @Override
     public final void process(ChannelHandlerContext context, Object o) {
         if(o instanceof FastOssCommand){
-            RemotingCommand response;
             FastOssCommand command = (FastOssCommand) o;
-            if(REQUEST_CLASS_MAPPING.containsKey(command.getCommandCode())){
-                CommandCode code = filter(command);
-                if(code.equals(FastOssProtocol.SUCCESS)){
-                    response = doProcess(command);
+            try{
+                Class<? extends BucketAccessRequest> requestClazz;
+                if((requestClazz = REQUEST_CLASS_MAPPING.get(command.getCommandCode())) != null){
+                    CommandCode auth = checkAuthorization(command, requestClazz);
+                    if(auth.equals(FastOssProtocol.SUCCESS)){
+                        sendResponse(context, doProcess(command));
+                    }else{
+                        sendResponse(context, commandFactory.createResponse(command.getId(), "", auth));
+                    }
                 }else{
-                    response = commandFactory.createResponse(command.getId(), "", code);
+                    sendResponse(context, doProcess(command));
                 }
-            } else{
-                response = doProcess(command);
+            }catch (Exception e){
+                log.error("Tracker Processor Error ", e);
+                sendResponse(context, commandFactory.createResponse(command.getId(), e.getMessage(), FastOssProtocol.ERROR));
             }
-            sendResponse(context, response);
         }
     }
 
@@ -77,10 +83,10 @@ public abstract class TrackerProcessor extends AbstractProcessor {
      * 请求过滤
      * 过滤掉没有访问权限的请求
      * @param command {@link FastOssCommand}
+     * @param requestClazz {@link Class}
      * @return {@link CommandCode}
      */
-    private CommandCode filter(FastOssCommand command){
-        Class<? extends BucketAccessRequest> requestClazz = REQUEST_CLASS_MAPPING.get(command.getCommandCode());
+    private CommandCode checkAuthorization(FastOssCommand command, Class<? extends BucketAccessRequest> requestClazz){
         // 反序列化
         BucketAccessRequest request = SerializeUtil.deserialize(command.getContent(), requestClazz);
         // 验证访问权限
@@ -91,6 +97,7 @@ public abstract class TrackerProcessor extends AbstractProcessor {
      * 实际的处理逻辑
      * @param command {@link FastOssCommand}
      * @return {@link RemotingCommand}
+     * @throws Exception exception
      */
-    public abstract RemotingCommand doProcess(FastOssCommand command);
+    public abstract RemotingCommand doProcess(FastOssCommand command) throws Exception;
 }
