@@ -285,6 +285,18 @@ public class Chunk {
         }
     }
 
+    /**
+     * 从chunk的对象列表删除记录
+     * @param meta 元数据
+     */
+    public void deleteObjectFromList(FileMetaWithChunkInfo meta){
+        objectList.remove(meta);
+    }
+
+    /**
+     * 获取压缩阈值
+     * @return 压缩阈值
+     */
     private int compactThreshold(){
         return (int)(size.get() * COMPACT_THRESHOLD_PERCENT);
     }
@@ -318,6 +330,7 @@ public class Chunk {
      * 压缩chunk文件
      */
     public List<FileMetaWithChunkInfo> compact() {
+        List<FileMetaWithChunkInfo> changedMetas = new ArrayList<>();
         try{
             readWriteLock.writeLock().lock();
             int totalRemoved = 0;
@@ -326,8 +339,9 @@ public class Chunk {
                 FileMetaWithChunkInfo meta = iterator.next();
                 // 修改offset，向前移
                 meta.setOffset(meta.getOffset() - totalRemoved);
-                if(meta.isRemoved()){
+                if(meta.isMarkRemoved()){
                     iterator.remove();
+                    meta.setRemoved(true);
                     int startOffset = meta.getOffset();
                     int removeSize = (int)meta.getSize();
                     totalRemoved += removeSize;
@@ -338,9 +352,12 @@ public class Chunk {
                     // 将删除部分之后的数据写到被删除部分的位置
                     buffer.readBytes(fileChannel, startOffset, buffer.readableBytes());
                     size.set(size.get() - removeSize);
+                    changedMetas.add(meta);
                 }
             }
             if(totalRemoved > 0){
+                // 将下标改变的object加入集合
+                changedMetas.addAll(this.objectList);
                 // Truncate文件后面的被删除数据
                 fileChannel.truncate(size.get());
             }
@@ -349,7 +366,7 @@ public class Chunk {
         }finally {
             readWriteLock.writeLock().unlock();
         }
-        return this.objectList;
+        return changedMetas;
     }
 
     public int getAndAddSize(int delta){
