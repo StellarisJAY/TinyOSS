@@ -58,6 +58,7 @@ public class FastOssProtocol implements Protocol {
 
     public static final CommandCode DELETE_OBJECT = new CommandCode((short)107);
     public static final CommandCode LOCATE_OBJECT = new CommandCode((short)108);
+    public static final CommandCode GET_OBJECT_META = new CommandCode((short)109);
     /**
      * 对象不存在返回
      */

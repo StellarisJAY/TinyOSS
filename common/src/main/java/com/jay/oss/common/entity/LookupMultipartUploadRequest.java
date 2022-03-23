@@ -1,5 +1,6 @@
 package com.jay.oss.common.entity;
 
+import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,9 +20,26 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Getter
 @ToString
-public class LookupMultipartUploadRequest implements Serializable {
+public class LookupMultipartUploadRequest implements BucketAccessRequest {
     private String uploadId;
     private String objectKey;
     private String bucket;
     private String token;
+
+    private BucketAccessMode accessMode;
+
+    @Override
+    public String bucket() {
+        return bucket;
+    }
+
+    @Override
+    public String token() {
+        return token;
+    }
+
+    @Override
+    public BucketAccessMode accessMode() {
+        return accessMode;
+    }
 }

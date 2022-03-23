@@ -5,6 +5,7 @@ import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.AsyncBackupRequest;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
@@ -184,6 +185,7 @@ public class UploadService {
                 .size(size).token(token)
                 .createTime(createTime)
                 .md5(md5 == null ? "" : md5)
+                .accessMode(BucketAccessMode.WRITE)
                 .build();
         // 发送
         RemotingCommand command = storageClient.getCommandFactory()

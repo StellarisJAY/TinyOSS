@@ -4,6 +4,7 @@ import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DownloadRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
@@ -75,7 +76,7 @@ public class DownloadService {
 
     public FastOssCommand locateObject(String key, String bucket, String token) throws Exception {
         Url url = OssConfigs.trackerServerUrl();
-        LocateObjectRequest request = new LocateObjectRequest(key, bucket, token);
+        LocateObjectRequest request = new LocateObjectRequest(key, bucket, token, BucketAccessMode.READ);
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
         // 同步发送

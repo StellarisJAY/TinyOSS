@@ -6,6 +6,7 @@ import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.Acl;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.ListBucketRequest;
@@ -89,7 +90,7 @@ public class BucketService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse listBucket(String bucket, String token, int count, int offset){
-        ListBucketRequest request = new ListBucketRequest(bucket, token, count, offset);
+        ListBucketRequest request = new ListBucketRequest(bucket, token, count, offset, BucketAccessMode.READ);
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.LIST_BUCKET, ListBucketRequest.class);
         // 查询目标storage
