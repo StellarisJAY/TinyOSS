@@ -1,18 +1,27 @@
 package com.jay.oss.proxy.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.LocateObjectRequest;
+import com.jay.oss.common.entity.object.ObjectMeta;
+import com.jay.oss.common.entity.object.ObjectVO;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
+import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
+
+import java.time.Duration;
 
 /**
  * <p>
@@ -25,6 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ObjectService {
     private final DoveClient client;
+
+    private final Cache<String, ObjectMeta> metaCache = Caffeine.newBuilder()
+            .maximumSize(4096)
+            .expireAfterWrite(Duration.ofMinutes(1))
+            .recordStats()
+            .build();
 
     public ObjectService(DoveClient client) {
         this.client = client;
@@ -63,6 +78,7 @@ public class ObjectService {
         Url url = OssConfigs.trackerServerUrl();
         DeleteObjectInBucketRequest request = DeleteObjectInBucketRequest.builder()
                 .bucket(bucket).objectKey(key)
+                .accessMode(BucketAccessMode.WRITE)
                 .token(token)
                 .build();
         RemotingCommand command = client.getCommandFactory()
@@ -72,15 +88,18 @@ public class ObjectService {
 
     public FullHttpResponse getObjectMeta(String key, String bucket, String version, String token){
         String objectKey = KeyUtil.getObjectKey(key, bucket, version);
-        LocateObjectRequest request = new LocateObjectRequest(objectKey, bucket, token);
+        LocateObjectRequest request = new LocateObjectRequest(objectKey, bucket, token, BucketAccessMode.READ);
         Url trackerUrl = OssConfigs.trackerServerUrl();
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
+                .createRequest(request, FastOssProtocol.GET_OBJECT_META, LocateObjectRequest.class);
         try{
             RemotingCommand response = client.sendSync(trackerUrl, command, null);
             CommandCode code = response.getCommandCode();
             if(FastOssProtocol.SUCCESS.equals(code)){
-                return HttpUtil.okResponse();
+                ObjectVO vo = SerializeUtil.deserialize(response.getContent(), ObjectVO.class);
+                Result result = new Result().message("Success")
+                        .putData("meta", vo);
+                return HttpUtil.okResponse(result);
             }else{
                 return HttpUtil.errorResponse(code);
             }

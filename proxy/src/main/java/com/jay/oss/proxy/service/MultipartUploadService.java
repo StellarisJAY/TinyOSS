@@ -4,6 +4,7 @@ import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.AsyncBackupRequest;
 import com.jay.oss.common.entity.BucketPutObjectRequest;
@@ -138,7 +139,7 @@ public class MultipartUploadService {
      */
     private FastOssCommand lookupMultipartRequest(String objectKey, String uploadId, String bucket, String token) throws InterruptedException {
         Url url = OssConfigs.trackerServerUrl();
-        LookupMultipartUploadRequest request = new LookupMultipartUploadRequest(uploadId, objectKey, bucket, token);
+        LookupMultipartUploadRequest request = new LookupMultipartUploadRequest(uploadId, objectKey, bucket, token, BucketAccessMode.WRITE);
         RemotingCommand command = client.getCommandFactory()
                 .createRequest(request, FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
         return (FastOssCommand) client.sendSync(url, command, null);
@@ -256,6 +257,7 @@ public class MultipartUploadService {
                 .parts(parts).md5(md5 == null ? "" : md5)
                 .size(size)
                 .versionId(version)
+                .accessMode(BucketAccessMode.WRITE)
                 .build();
         Url url = OssConfigs.trackerServerUrl();
         RemotingCommand command = client.getCommandFactory()
