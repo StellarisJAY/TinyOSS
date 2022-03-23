@@ -2,6 +2,8 @@ package com.jay.oss.common.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.util.CompressUtil;
+import com.jay.oss.common.util.Scheduler;
+import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -9,7 +11,9 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * <p>
@@ -38,7 +42,12 @@ public class BitCaskStorage {
     /**
      * writeLock
      */
-    private final Object writeLock = new Object();
+    private final Object activeChunkLock = new Object();
+
+    /**
+     * 压缩old chunk的读写锁
+     */
+    private final ReentrantReadWriteLock compressionLock = new ReentrantReadWriteLock();
 
     /**
      * 存储名称
@@ -88,15 +97,21 @@ public class BitCaskStorage {
      * @throws IOException chunk读取异常
      */
     public byte[] get(String key) throws IOException {
-        Index index = indexCache.get(key);
-        Chunk chunk;
-        if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
-            byte[] content = chunk.read(index.getOffset());
-            return content != null && content.length > 0 ? CompressUtil.decompress(content) : null;
-        }else if(index != null){
-            log.info("unknown chunk id: {}", index.getChunkId());
+        try{
+            compressionLock.readLock().lock();
+            Index index = indexCache.get(key);
+            Chunk chunk;
+            if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
+                byte[] content = chunk.read(index.getOffset());
+                return content != null && content.length > 0 ? CompressUtil.decompress(content) : null;
+            }else if(index != null){
+                log.info("unknown chunk id: {}", index.getChunkId());
+            }
+            return null;
+        } finally {
+            compressionLock.readLock().unlock();
         }
-        return null;
+
     }
 
     /**
@@ -106,12 +121,14 @@ public class BitCaskStorage {
      * @throws IOException chunk写入异常
      */
     public boolean put(String key, byte[] value) throws IOException {
-        synchronized (writeLock){
+        synchronized (activeChunkLock){
             if(!indexCache.containsKey(key)){
                 byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
                 if(this.activeChunk == null || !activeChunk.isWritable()){
-                    this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
+                    // 把旧的activeChunk添加到old chunk列表
                     chunks.add(activeChunk);
+                    // 创建新的active chunk
+                    this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
                 }
                 byte[] compressedValue = CompressUtil.compress(value);
                 int offset = activeChunk.write(keyBytes, compressedValue);
@@ -135,11 +152,43 @@ public class BitCaskStorage {
     }
 
     /**
+     * 压缩old chunk
+     */
+    public void compress(){
+        try{
+            compressionLock.writeLock().lock();
+            Chunk mergedChunk = new Chunk(name,true, 0);
+            for (Map.Entry<String, Index> entry : indexCache.entrySet()) {
+                String key = entry.getKey();
+                Index index = entry.getValue();
+                // 判断记录是否处于 activeChunk
+                if(!index.isRemoved() && index.getChunkId() != activeChunk.getChunkId()){
+                    // 获取原来的chunk
+                    Chunk chunk = chunks.get(index.getChunkId());
+                    if(chunk != null){
+                        // 从原来的chunk读取数据
+                        byte[] content = chunk.read(index.getOffset());
+                        // 写入新chunk
+                        int offset = mergedChunk.write(StringUtil.getBytes(key), content);
+                        // 重置index的offset和chunkId
+                        index.setOffset(offset);
+                        index.setChunkId(0);
+                    }
+                }
+            }
+        }catch (IOException e){
+            log.error("Merge Old chunks failed ", e);
+        }finally {
+            compressionLock.writeLock().unlock();
+        }
+    }
+
+    /**
      * merge old chunk
      * @throws IOException merge异常
      */
     public void merge() throws IOException {
-        synchronized (writeLock){
+        synchronized (activeChunkLock){
             Chunk mergedChunk = new Chunk(name,true, 0);
             for (Map.Entry<String, Index> entry : indexCache.entrySet()) {
                 String key = entry.getKey();
@@ -189,6 +238,8 @@ public class BitCaskStorage {
         }
         // 重置activeChunk
         resetActiveChunk();
+        // 开启定时压缩
+        scheduleCompression();
     }
 
     /**
@@ -214,5 +265,9 @@ public class BitCaskStorage {
 
     public List<String> keys(){
         return new ArrayList<>(indexCache.keySet());
+    }
+
+    public void scheduleCompression(){
+        Scheduler.scheduleAtFixedRate(this::compress, 30, 30, TimeUnit.MINUTES);
     }
 }
