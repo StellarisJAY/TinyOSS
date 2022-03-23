@@ -28,7 +28,11 @@ public enum EditOperation {
     /**
      * 分片上传任务
      */
-    MULTIPART_UPLOAD((byte)5)
+    MULTIPART_UPLOAD((byte)5),
+    /**
+     * 标记删除
+     */
+    MARK_DELETE((byte)6)
     ;
     private final byte code;
 
