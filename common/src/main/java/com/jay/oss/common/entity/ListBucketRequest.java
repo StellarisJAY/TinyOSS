@@ -1,5 +1,6 @@
 package com.jay.oss.common.entity;
 
+import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,7 +18,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 @Getter
 @Setter
-public class ListBucketRequest implements Serializable {
+public class ListBucketRequest implements BucketAccessRequest {
     /**
      * 桶名称
      */
@@ -37,4 +38,21 @@ public class ListBucketRequest implements Serializable {
      * 偏移量
      */
     private int offset;
+
+    private BucketAccessMode accessMode;
+
+    @Override
+    public String bucket() {
+        return bucket;
+    }
+
+    @Override
+    public String token() {
+        return token;
+    }
+
+    @Override
+    public BucketAccessMode accessMode() {
+        return accessMode;
+    }
 }

@@ -1,5 +1,6 @@
 package com.jay.oss.common.entity;
 
+import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,8 +20,25 @@ import java.io.Serializable;
 @Getter
 @Setter
 @ToString
-public class LocateObjectRequest implements Serializable {
+public class LocateObjectRequest implements BucketAccessRequest {
     private String objectKey;
     private String bucket;
     private String token;
+
+    private BucketAccessMode accessMode;
+
+    @Override
+    public String bucket() {
+        return bucket;
+    }
+
+    @Override
+    public String token() {
+        return token;
+    }
+
+    @Override
+    public BucketAccessMode accessMode() {
+        return accessMode;
+    }
 }
