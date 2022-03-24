@@ -43,20 +43,26 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
     public final FullHttpResponse handle(ChannelHandlerContext context, OssHttpRequest request) {
         HttpMethod method = request.getMethod();
         try{
+            FullHttpResponse response;
             if (HttpMethod.GET.equals(method)) {
-                return handleGet(context, request);
+                response = handleGet(context, request);
             } else if (HttpMethod.POST.equals(method)) {
-                return handlePost(context, request);
+                response = handlePost(context, request);
             } else if (HttpMethod.PUT.equals(method)) {
-                return handlePut(context, request);
+                response = handlePut(context, request);
             } else if (HttpMethod.DELETE.equals(method)) {
-                return handleDelete(context, request);
+                response = handleDelete(context, request);
             } else if (HttpMethod.OPTIONS.equals(method)) {
-                return handleOptions(context, request);
+                response = handleOptions(context, request);
             }else if(HttpMethod.HEAD.equals(method)){
-                return handleHead(context, request);
+                response = handleHead(context, request);
+            }else{
+                return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
             }
-            return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.METHOD_NOT_ALLOWED);
+            response.headers().set("Access-Control-Allow-Origin", "*");
+            response.headers().set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
+            response.headers().set("Access-Control-Allow-Headers", "Content-Type,Access-Token,Authorization");
+            return response;
         }catch (Exception e){
             log.error("request handler error: ", e);
             return new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -74,7 +80,9 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
     public FullHttpResponse handleOptions(ChannelHandlerContext context, OssHttpRequest request){
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.OK);
         HttpHeaders headers = response.headers();
-        headers.set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, "POST, GET, OPTIONS, PUT, DELETE");
+        response.headers().set("Access-Control-Allow-Origin", "*");
+        response.headers().set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
+        response.headers().set("Access-Control-Allow-Headers", "Content-Type,Access-Token,Authorization");
         return response;
     }
 }
