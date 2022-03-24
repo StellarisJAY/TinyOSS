@@ -10,13 +10,14 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.request.BucketPutObjectRequest;
-import com.jay.oss.common.entity.request.ListBucketRequest;
 import com.jay.oss.common.entity.bucket.Bucket;
 import com.jay.oss.common.entity.bucket.BucketVO;
 import com.jay.oss.common.entity.bucket.GetServiceRequest;
 import com.jay.oss.common.entity.bucket.GetServiceResponse;
 import com.jay.oss.common.entity.object.ObjectMeta;
+import com.jay.oss.common.entity.request.BucketPutObjectRequest;
+import com.jay.oss.common.entity.request.ListBucketRequest;
+import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -86,6 +87,7 @@ public class BucketProcessor extends TrackerProcessor {
         // 记录添加存储桶日志
         appendAddBucketLog(bucket);
         String keyPair = bucket.getAppId() + ";" + bucket.getAccessKey() + ";" + bucket.getSecretKey();
+        GaugeManager.getGauge("bucket_count").inc();
         return commandFactory.createResponse(command.getId(), keyPair, FastOssProtocol.SUCCESS);
     }
 
@@ -138,6 +140,7 @@ public class BucketProcessor extends TrackerProcessor {
                 bucketManager.putObject(bucket, objectKey);
                 // 日志记录put object
                 appendBucketPutObjectLog(objectKey);
+                GaugeManager.getGauge("object_count").inc();
                 urls = urls + versionId;
                 response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }else{

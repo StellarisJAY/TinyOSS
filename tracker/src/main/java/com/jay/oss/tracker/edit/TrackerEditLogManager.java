@@ -5,6 +5,7 @@ import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.AbstractEditLogManager;
 import com.jay.oss.common.edit.EditOperation;
+import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
@@ -96,6 +97,8 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
             // 重写压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
+            GaugeManager.getGauge("bucket_count").set(bucketCount);
+            GaugeManager.getGauge("object_count").set(objectCount);
             log.info("edit log load and compressed, loaded bucket: {}, loaded object: {} time used: {}ms", bucketCount,objectCount, (System.currentTimeMillis() - start));
         }catch (Exception e){
             log.error("load Bucket Edit Log Error ", e);
