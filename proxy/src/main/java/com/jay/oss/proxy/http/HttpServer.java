@@ -5,10 +5,7 @@ import com.jay.dove.util.NamedThreadFactory;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.proxy.http.handler.HttpRequestDispatcher;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -50,6 +47,7 @@ public class HttpServer extends AbstractLifeCycle {
         bootstrap = new ServerBootstrap()
                 .group(boss, worker)
                 .channel(NioServerSocketChannel.class)
+                .option(ChannelOption.SO_BACKLOG, 64)
                 .childHandler(new ChannelInitializer<NioSocketChannel>() {
                     @Override
                     protected void initChannel(NioSocketChannel channel) throws Exception {
