@@ -97,7 +97,6 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
             // 重写压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());
-            GaugeManager.getGauge("bucket_count").set(bucketCount);
             GaugeManager.getGauge("object_count").set(objectCount);
             log.info("edit log load and compressed, loaded bucket: {}, loaded object: {} time used: {}ms", bucketCount,objectCount, (System.currentTimeMillis() - start));
         }catch (Exception e){

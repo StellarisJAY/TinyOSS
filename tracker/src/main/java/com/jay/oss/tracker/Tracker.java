@@ -145,15 +145,7 @@ public class Tracker extends AbstractLifeCycle {
      * 注册Prometheus监控gauge
      */
     private void registerGauges(){
-        GaugeManager.registerGauge("bucket_count", Gauge.build()
-                .name("bucket_count")
-                .help("Show total bucket count in OSS system")
-                .create());
-        GaugeManager.registerGauge("oss_free_space", Gauge.build()
-                .name("oss_free_space")
-                .labelNames("url")
-                .help("Show free spaces of each storage")
-                .create());
+        // 对象总数监控
         GaugeManager.registerGauge("object_count", Gauge.build()
                 .name("object_count")
                 .help("Show total object count in OSS System")
