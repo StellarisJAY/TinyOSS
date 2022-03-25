@@ -61,7 +61,6 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
             }
             response.headers().set("Access-Control-Allow-Origin", "*");
             response.headers().set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
-            response.headers().set("Access-Control-Allow-Headers", "Content-Type,Access-Token,Authorization");
             return response;
         }catch (Exception e){
             log.error("request handler error: ", e);
@@ -79,10 +78,9 @@ public abstract class AbstractHttpRequestHandler implements HttpRequestHandler{
 
     public FullHttpResponse handleOptions(ChannelHandlerContext context, OssHttpRequest request){
         DefaultFullHttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.OK);
-        HttpHeaders headers = response.headers();
         response.headers().set("Access-Control-Allow-Origin", "*");
         response.headers().set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PUT");
-        response.headers().set("Access-Control-Allow-Headers", "Content-Type,Access-Token,Authorization");
+        response.headers().set("Access-Control-Allow-Headers", "Content-Type,Access-Token,Authorization,Bucket");
         return response;
     }
 }
