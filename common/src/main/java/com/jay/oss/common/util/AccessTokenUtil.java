@@ -50,9 +50,7 @@ public class AccessTokenUtil {
      */
     public static String digest(String accessKey, String secretKey, String algorithm, long endTime) throws NoSuchAlgorithmException {
         MessageDigest instance = MessageDigest.getInstance(algorithm);
-        instance.update((secretKey + endTime).getBytes(StandardCharsets.UTF_8));
-        byte[] encrypt1 = instance.digest();
-        instance.update((new String(encrypt1, StandardCharsets.UTF_8) + accessKey).getBytes(StandardCharsets.UTF_8));
+        instance.update((secretKey + endTime).getBytes());
         byte[] encryption = instance.digest();
 
         StringBuilder builder = new StringBuilder();
