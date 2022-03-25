@@ -13,8 +13,10 @@ import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
+import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
+import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.FastOssCodec;
 import com.jay.oss.common.remoting.FastOssCommandFactory;
@@ -31,6 +33,7 @@ import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
 import com.jay.oss.storage.meta.MetaManager;
+import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
@@ -106,6 +109,8 @@ public class StorageNode extends AbstractLifeCycle {
          */
         registry.init();
         registry.register(NodeInfoCollector.getStorageNodeInfo(port));
+
+        registerPrometheusGauge();
         /*
             订阅消息主题
          */
@@ -114,7 +119,11 @@ public class StorageNode extends AbstractLifeCycle {
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
-                registry.update(NodeInfoCollector.getStorageNodeInfo(port));
+                StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
+                registry.update(storageNodeInfo);
+                // 更新存储容量监控数据
+                GaugeManager.getGauge("storage_used").set(storageNodeInfo.getUsedSpace());
+                GaugeManager.getGauge("storage_free").set(storageNodeInfo.getSpace());
             }catch (Exception e){
                 log.warn("update storage node info error ", e);
             }
@@ -160,5 +169,16 @@ public class StorageNode extends AbstractLifeCycle {
     public static void main(String[] args) {
         StorageNode storageNode = new StorageNode("fast-oss.conf");
         storageNode.startup();
+    }
+
+    private void registerPrometheusGauge(){
+        GaugeManager.registerGauge("storage_used", Gauge.build()
+                .name("storage_used")
+                .help("Show storage node used disk space, unit: bytes")
+                .create());
+        GaugeManager.registerGauge("storage_free", Gauge.build()
+                .name("storage_free")
+                .help("Show storage node used disk free space, unit: bytes")
+                .create());
     }
 }

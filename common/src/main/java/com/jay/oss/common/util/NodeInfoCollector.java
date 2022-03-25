@@ -2,10 +2,11 @@ package com.jay.oss.common.util;
 
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.registry.StorageNodeInfo;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
-import java.net.Inet4Address;
-import java.net.UnknownHostException;
+import java.net.*;
+import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -18,32 +19,47 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class NodeInfoCollector {
 
-    private static final AtomicLong IO_COUNTER = new AtomicLong(0);
-    private static long lastIoCount = 0;
+    private static String ip = null;
 
     public static StorageNodeInfo getStorageNodeInfo(int port) throws Exception {
         String path = OssConfigs.dataPath();
         File dir = new File(path);
-
-        long ioCount = IO_COUNTER.get();
-        long ioRate = ioCount - lastIoCount;
-        lastIoCount = ioCount;
+        long usedSpace = FileUtils.sizeOfDirectory(dir);
         return StorageNodeInfo.builder()
-                .url(Inet4Address.getLocalHost().getHostAddress() + ":" + port)
+                .url(getLocalAddress() + ":" + port)
                 .space(dir.getUsableSpace())
+                .usedSpace(usedSpace)
                 .memoryTotal(Runtime.getRuntime().totalMemory())
-                .ioRate(ioRate)
                 .available(true).build();
-    }
-
-    /**
-     * 记录IO次数
-     */
-    public static void incrementIoCount(){
-        IO_COUNTER.incrementAndGet();
     }
 
     public static String getAddress() throws UnknownHostException {
         return Inet4Address.getLocalHost().getHostAddress() + ":" + OssConfigs.port();
+    }
+
+    public static String getLocalAddress(){
+        if(ip == null){
+            try {
+                for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                    NetworkInterface intf = en.nextElement();
+                    String name = intf.getName();
+                    if (!name.contains("docker") && !name.contains("lo")) {
+                        for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                            InetAddress inetAddress = enumIpAddr.nextElement();
+                            if (!inetAddress.isLoopbackAddress()) {
+                                String ipaddress = inetAddress.getHostAddress().toString();
+                                if (!ipaddress.contains("::") && !ipaddress.contains("0:0:") && !ipaddress.contains("fe80")) {
+                                    ip = ipaddress;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (SocketException ex) {
+                ip = "127.0.0.1";
+                ex.printStackTrace();
+            }
+        }
+        return ip;
     }
 }

@@ -1,33 +1,41 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import com.jay.oss.common.acl.BucketAccessMode;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * <p>
- *  完成分片上传请求
+ *  List Bucket请求
  * </p>
  *
  * @author Jay
- * @date 2022/03/09 15:52
+ * @date 2022/02/16 14:21
  */
-@Builder
 @AllArgsConstructor
-@NoArgsConstructor
 @Getter
 @Setter
-@ToString
-public class CompleteMultipartUploadRequest implements BucketAccessRequest {
-    private String uploadId;
-    private String objectKey;
+public class ListBucketRequest implements BucketAccessRequest {
+    /**
+     * 桶名称
+     */
     private String bucket;
+
+    /**
+     * 访问token
+     */
     private String token;
 
-    private int size;
-    private String filename;
-    private int parts;
-    private String md5;
-    private String versionId;
+    /**
+     * list数量
+     */
+    private int count;
+
+    /**
+     * 偏移量
+     */
+    private int offset;
 
     private BucketAccessMode accessMode;
 

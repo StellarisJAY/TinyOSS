@@ -7,7 +7,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.DownloadRequest;
+import com.jay.oss.common.entity.request.DownloadRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.common.remoting.FastOssCommand;

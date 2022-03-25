@@ -24,10 +24,6 @@ import java.util.concurrent.ExecutorService;
 @Slf4j
 public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
 
-    private static final Gauge totalInProgress = Gauge.build()
-            .name("total_requests")
-            .help("total in-progress request count").register();
-
     /**
      * request 处理线程池
      */
@@ -38,7 +34,6 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if(msg instanceof FullHttpRequest){
-            totalInProgress.inc();
             FullHttpRequest request = (FullHttpRequest) msg;
             // 获取handler
             HttpRequestHandler handler = selectHandler(request);
@@ -52,7 +47,6 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
                 response = handler.handle(ctx, httpRequest);
             }
             ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
-            totalInProgress.dec();
         }
     }
 
@@ -67,7 +61,11 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
         }
         HttpHeaders headers = request.headers();
         if(!StringUtil.isNullOrEmpty(path)){
-            return HandlerMapping.getHandler("object");
+            if(path.startsWith("admin")){
+                return HandlerMapping.getHandler("admin");
+            }else{
+                return HandlerMapping.getHandler("object");
+            }
         }
         return HandlerMapping.getHandler("bucket");
     }

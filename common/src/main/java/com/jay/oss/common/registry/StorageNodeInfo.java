@@ -28,6 +28,11 @@ public class StorageNodeInfo {
      */
     private long space;
 
+    /**
+     * 节点已经使用了的空间
+     */
+    private long usedSpace;
+
     private boolean available = true;
 
     /**

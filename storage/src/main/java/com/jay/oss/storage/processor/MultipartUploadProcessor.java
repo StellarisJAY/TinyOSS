@@ -7,7 +7,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.CompleteMultipartUploadRequest;
+import com.jay.oss.common.entity.request.CompleteMultipartUploadRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.storage.fs.Chunk;
 import com.jay.oss.storage.fs.ChunkManager;

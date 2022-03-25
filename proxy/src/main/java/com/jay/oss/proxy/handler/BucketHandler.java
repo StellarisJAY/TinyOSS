@@ -30,8 +30,7 @@ public class BucketHandler extends AbstractHttpRequestHandler {
 
     @Override
     public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
-        String host = request.host();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
         String acl = request.acl();
 
         if(StringUtil.isNullOrEmpty(acl)){
@@ -42,9 +41,8 @@ public class BucketHandler extends AbstractHttpRequestHandler {
 
     @Override
     public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request) {
-        String host = request.host();
         String token = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
 
         if(StringUtil.isNullOrEmpty(bucket)){
             return HttpUtil.badRequestResponse("Missing Bucket Name");

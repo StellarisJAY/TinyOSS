@@ -11,7 +11,7 @@ import java.security.NoSuchAlgorithmException;
  *  通过AccessKey和SecretKey生成token
  *  双重摘要算法加密：MD5(MD5(sk + endTimestamp) + ak)
  *
- *  token 组成： start:end;alg=algorithm;sig=..........
+ *  token 组成： ak;end;alg=algorithm;sig=..........
  * </p>
  *
  * @author Jay
@@ -32,8 +32,8 @@ public class AccessTokenUtil {
         long endTime = startTime + period;
 
         String signature = digest(accessKey, secretKey, algorithm, endTime);
-        return startTime +
-                ":" +
+        return accessKey +
+                ";" +
                 endTime + ";" +
                 "alg=" + algorithm + ";" +
                 "sig=" + signature;
@@ -50,9 +50,7 @@ public class AccessTokenUtil {
      */
     public static String digest(String accessKey, String secretKey, String algorithm, long endTime) throws NoSuchAlgorithmException {
         MessageDigest instance = MessageDigest.getInstance(algorithm);
-        instance.update((secretKey + endTime).getBytes(StandardCharsets.UTF_8));
-        byte[] encrypt1 = instance.digest();
-        instance.update((new String(encrypt1, StandardCharsets.UTF_8) + accessKey).getBytes(StandardCharsets.UTF_8));
+        instance.update((secretKey + endTime).getBytes());
         byte[] encryption = instance.digest();
 
         StringBuilder builder = new StringBuilder();
@@ -80,19 +78,20 @@ public class AccessTokenUtil {
         }
         // 切分token，得到三部分：时效、摘要算法、签名
         String[] parts = token.split(";");
-        if(parts.length != 3){
+        if(parts.length != 4){
             return false;
         }
-        String timeParts = parts[0];
-        String algPart = parts[1];
-        String sigPart = parts[2];
-        int i = timeParts.indexOf(":");
-        if(i == -1){
-            return false;
-        }
+        String ak = parts[0];
+        String timePart = parts[1];
+        String algPart = parts[2];
+        String sigPart = parts[3];
         try{
-            long startTime = Long.parseLong(timeParts.substring(0, i));
-            long endTime = Long.parseLong(timeParts.substring(i + 1));
+            // 检查AccessKey
+            if(!accessKey.equals(ak)){
+                return false;
+            }
+            // 检查有效时间
+            long endTime = Long.parseLong(timePart);
             if(System.currentTimeMillis() >= endTime){
                 return false;
             }
@@ -100,6 +99,7 @@ public class AccessTokenUtil {
             int sigI = sigPart.indexOf("sig=");
             String algorithm = algPart.substring(algI + 4);
             String signature = sigPart.substring(sigI + 4);
+            // 检查数字签名
             String digest = digest(accessKey, secretKey, algorithm, endTime);
             return digest.equals(signature);
         }catch (Exception e){

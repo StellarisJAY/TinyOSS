@@ -1,43 +1,31 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import com.jay.oss.common.acl.BucketAccessMode;
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.io.Serializable;
+import lombok.ToString;
 
 /**
  * <p>
- *  List Bucket请求
+ *
  * </p>
  *
  * @author Jay
- * @date 2022/02/16 14:21
+ * @date 2022/02/17 14:28
  */
-@AllArgsConstructor
+@Builder
 @Getter
 @Setter
-public class ListBucketRequest implements BucketAccessRequest {
-    /**
-     * 桶名称
-     */
+@ToString
+public class BucketPutObjectRequest implements BucketAccessRequest {
+    private String key;
+    private String filename;
     private String bucket;
-
-    /**
-     * 访问token
-     */
+    private long size;
+    private long createTime;
+    private String md5;
     private String token;
-
-    /**
-     * list数量
-     */
-    private int count;
-
-    /**
-     * 偏移量
-     */
-    private int offset;
 
     private BucketAccessMode accessMode;
 

@@ -1,4 +1,4 @@
-package com.jay.oss.common.entity;
+package com.jay.oss.common.entity.request;
 
 import com.jay.oss.common.acl.BucketAccessMode;
 import lombok.Builder;
@@ -6,27 +6,21 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-import java.io.Serializable;
-
 /**
  * <p>
- *
+ *  删除存储桶object记录请求
  * </p>
  *
  * @author Jay
- * @date 2022/02/17 14:28
+ * @date 2022/02/18 11:57
  */
 @Builder
 @Getter
 @Setter
 @ToString
-public class BucketPutObjectRequest implements BucketAccessRequest {
-    private String key;
-    private String filename;
+public class DeleteObjectInBucketRequest implements BucketAccessRequest {
+    private String objectKey;
     private String bucket;
-    private long size;
-    private long createTime;
-    private String md5;
     private String token;
 
     private BucketAccessMode accessMode;

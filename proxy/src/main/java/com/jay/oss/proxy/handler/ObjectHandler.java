@@ -42,10 +42,8 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
 
     @Override
     public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
-
-        String host = request.host();
         String auth = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
         String key = request.getPath();
         String md5 = request.contentMd5() == null ? "" : request.contentMd5();
         ByteBuf content = request.content();
@@ -65,12 +63,14 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     @Override
     public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request)  {
         String key = request.getPath();
-        String host = request.host();
         String token = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
         String range = request.range();
         int startByte = 0;
         int endByte = -1;
+        if(request.containsParameter(HttpConstants.GET_META)){
+            return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
+        }
         if(!StringUtil.isNullOrEmpty(range)){
             range = range.trim().replace(' ', '\0');
             int index;
@@ -82,27 +82,24 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
                 }
             }
         }
-        return downloadService.getObject(key, bucket, token, request.getParameter("versionId"),  startByte, endByte);
+        return downloadService.getObject(key, bucket, token, request.getParameter(HttpConstants.VERSION_ID),  startByte, endByte);
     }
 
     @Override
     public FullHttpResponse handleDelete(ChannelHandlerContext context, OssHttpRequest request)  {
         String key = request.getPath();
-        String host = request.host();
         String token = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
         return objectService.deleteObject(key, bucket,request.getParameter(HttpConstants.VERSION_ID), token);
     }
 
     @Override
     public FullHttpResponse handlePost(ChannelHandlerContext context, OssHttpRequest request) {
         String key = request.getPath();
-        String host = request.host();
         String token = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
+        String bucket = request.getBucket();
         int length = request.contentLength();
         if(request.containsParameter(HttpConstants.INIT_UPLOAD_PARAMETER)){
-
             return multipartUploadService.initializeMultipartUpload(key, bucket, token, length);
         }
         else if(request.containsParameter(HttpConstants.UPLOAD_ID)){
@@ -113,14 +110,5 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
             return multipartUploadService.completeMultipartUpload(key, bucket, versionId == null ? "" : versionId, token, uploadId, parts, md5, length);
         }
         return HttpUtil.badRequestResponse();
-    }
-
-    @Override
-    public FullHttpResponse handleHead(ChannelHandlerContext context, OssHttpRequest request) throws Exception {
-        String key = request.getPath();
-        String host = request.host();
-        String token = request.authorization();
-        String bucket = host.trim().substring(0, host.indexOf("."));
-        return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
     }
 }

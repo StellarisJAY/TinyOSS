@@ -1,5 +1,6 @@
 package com.jay.oss.tracker.registry;
 
+import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.tracker.replica.ReplicaSelector;
@@ -25,13 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class StorageRegistry {
-    /**
-     * storage剩余空间收集器
-     */
-    private static final Gauge FREE_SPACE_GAUGE = Gauge.build()
-            .name("oss_free_space").help("show free disk space of oss system")
-            .labelNames("url").register();
-
     private final ConcurrentHashMap<String, StorageNodeInfo> storages = new ConcurrentHashMap<>();
     private Registry registry;
     private final ConsistentHashRing ring;
@@ -125,8 +119,6 @@ public class StorageRegistry {
         private void onNodeDataChanged(String path) throws Exception{
             StorageNodeInfo node = registry.lookup(path);
             storages.put(node.getUrl(), node);
-            // 更新free_space收集器
-            FREE_SPACE_GAUGE.labels(node.getUrl()).set(node.getSpace());
         }
 
         private void onNodeChildrenChanged(String path) throws Exception{

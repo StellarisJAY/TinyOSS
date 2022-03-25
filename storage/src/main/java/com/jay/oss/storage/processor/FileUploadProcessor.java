@@ -11,7 +11,7 @@ import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.common.entity.FilePart;
-import com.jay.oss.common.entity.UploadRequest;
+import com.jay.oss.common.entity.request.UploadRequest;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.Chunk;

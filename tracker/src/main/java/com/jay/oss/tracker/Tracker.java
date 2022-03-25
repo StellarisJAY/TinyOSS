@@ -10,6 +10,7 @@ import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
+import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
@@ -27,6 +28,7 @@ import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
+import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -89,6 +91,8 @@ public class Tracker extends AbstractLifeCycle {
         // 注册默认序列化器
         ProtostuffSerializer serializer = new ProtostuffSerializer();
         SerializerManager.registerSerializer(OssConfigs.DEFAULT_SERIALIZER, serializer);
+        // 注册Gauge
+        registerGauges();
         // 初始化 并 加载编辑日志
         editLogManager.init();
         // 初始化objectTracker，加载bitCask chunks
@@ -135,5 +139,16 @@ public class Tracker extends AbstractLifeCycle {
     public static void main(String[] args) {
         Tracker tracker = new Tracker();
         tracker.startup();
+    }
+
+    /**
+     * 注册Prometheus监控gauge
+     */
+    private void registerGauges(){
+        // 对象总数监控
+        GaugeManager.registerGauge("object_count", Gauge.build()
+                .name("object_count")
+                .help("Show total object count in OSS System")
+                .create());
     }
 }
