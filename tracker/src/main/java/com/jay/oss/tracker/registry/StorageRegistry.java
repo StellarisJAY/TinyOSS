@@ -119,8 +119,6 @@ public class StorageRegistry {
         private void onNodeDataChanged(String path) throws Exception{
             StorageNodeInfo node = registry.lookup(path);
             storages.put(node.getUrl(), node);
-            // 更新free_space收集器
-            GaugeManager.getGauge("oss_free_space").labels(node.getUrl()).set(node.getSpace());
         }
 
         private void onNodeChildrenChanged(String path) throws Exception{
