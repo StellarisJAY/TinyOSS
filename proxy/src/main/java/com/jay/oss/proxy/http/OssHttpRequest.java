@@ -82,12 +82,6 @@ public class OssHttpRequest {
     }
 
     public String getBucket(){
-        String host = host();
-        int idx = host.indexOf(".fastoss.com");
-        if(idx == -1 || idx == 0){
-            return null;
-        }else{
-            return host.substring(0, idx);
-        }
+        return headers.get("Bucket");
     }
 }
