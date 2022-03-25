@@ -68,6 +68,9 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         String range = request.range();
         int startByte = 0;
         int endByte = -1;
+        if(request.containsParameter(HttpConstants.GET_META)){
+            return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
+        }
         if(!StringUtil.isNullOrEmpty(range)){
             range = range.trim().replace(' ', '\0');
             int index;
@@ -79,7 +82,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
                 }
             }
         }
-        return downloadService.getObject(key, bucket, token, request.getParameter("versionId"),  startByte, endByte);
+        return downloadService.getObject(key, bucket, token, request.getParameter(HttpConstants.VERSION_ID),  startByte, endByte);
     }
 
     @Override
@@ -107,13 +110,5 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
             return multipartUploadService.completeMultipartUpload(key, bucket, versionId == null ? "" : versionId, token, uploadId, parts, md5, length);
         }
         return HttpUtil.badRequestResponse();
-    }
-
-    @Override
-    public FullHttpResponse handleHead(ChannelHandlerContext context, OssHttpRequest request) throws Exception {
-        String key = request.getPath();
-        String token = request.authorization();
-        String bucket = request.getBucket();
-        return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
     }
 }
