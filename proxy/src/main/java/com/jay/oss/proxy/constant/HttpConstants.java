@@ -28,4 +28,6 @@ public class HttpConstants {
 
     public static final String PAGE = "pageNum";
     public static final String PAGE_SIZE = "pageSize";
+
+    public static final String ADMIN_PATH = "/admin";
 }

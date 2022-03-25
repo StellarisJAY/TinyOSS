@@ -67,7 +67,11 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
         }
         HttpHeaders headers = request.headers();
         if(!StringUtil.isNullOrEmpty(path)){
-            return HandlerMapping.getHandler("object");
+            if(path.startsWith("admin")){
+                return HandlerMapping.getHandler("admin");
+            }else{
+                return HandlerMapping.getHandler("object");
+            }
         }
         return HandlerMapping.getHandler("bucket");
     }
