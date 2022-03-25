@@ -87,7 +87,6 @@ public class BucketProcessor extends TrackerProcessor {
         // 记录添加存储桶日志
         appendAddBucketLog(bucket);
         String keyPair = bucket.getAppId() + ";" + bucket.getAccessKey() + ";" + bucket.getSecretKey();
-        GaugeManager.getGauge("bucket_count").inc();
         return commandFactory.createResponse(command.getId(), keyPair, FastOssProtocol.SUCCESS);
     }
 
