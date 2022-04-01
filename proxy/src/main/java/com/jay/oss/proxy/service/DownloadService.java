@@ -47,6 +47,9 @@ public class DownloadService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse getObject(String key, String bucket, String token, String versionId, int rangeStart, int rangeEnd){
+        if(StringUtil.isNullOrEmpty(key) || StringUtil.isNullOrEmpty(bucket)){
+            return HttpUtil.badRequestResponse("Missing important parameters for Get Object");
+        }
         String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         // 根据范围判断下载类型，full或者ranged
         CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;

@@ -16,6 +16,7 @@ import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -53,6 +54,9 @@ public class ObjectService {
      * @return {@link FullHttpResponse}
      */
     public FullHttpResponse deleteObject(String key, String bucket, String versionId, String token){
+        if(StringUtil.isNullOrEmpty(key) || StringUtil.isNullOrEmpty(bucket)){
+            return HttpUtil.badRequestResponse("Missing important parameters for Delete Object");
+        }
         String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         FullHttpResponse httpResponse;
         try{

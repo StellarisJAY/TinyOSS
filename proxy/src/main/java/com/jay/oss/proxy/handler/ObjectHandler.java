@@ -71,8 +71,13 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
         if(request.containsParameter(HttpConstants.GET_META)){
             return objectService.getObjectMeta(key, bucket, request.getParameter(HttpConstants.VERSION_ID), token);
         }
+
         if(!StringUtil.isNullOrEmpty(range)){
-            range = range.trim().replace(' ', '\0');
+            String pattern = "bytes=[0-9][0-9]*-[1-9][0-9]+";
+            if(!range.matches(pattern)){
+                return HttpUtil.badRequestResponse("Wrong pattern for Range");
+            }
+            range = range.trim();
             int index;
             if((index = range.indexOf("bytes=")) != -1){
                 String[] parts = range.substring(index + "bytes=".length()).split("-");
