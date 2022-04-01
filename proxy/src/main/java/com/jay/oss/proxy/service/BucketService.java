@@ -9,6 +9,7 @@ import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.bucket.Bucket;
+import com.jay.oss.common.entity.bucket.UpdateAclRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
 import com.jay.oss.common.entity.bucket.GetServiceRequest;
 import com.jay.oss.common.entity.bucket.GetServiceResponse;
@@ -131,6 +132,39 @@ public class BucketService {
                     .putData("buckets", getServiceResponse.getBuckets())
                     .putData("total", getServiceResponse.getTotal());
             return HttpUtil.okResponse(result);
+        }catch (Exception e){
+            return HttpUtil.internalErrorResponse("Internal Server Error " + e);
+        }
+    }
+
+    /**
+     * 更新存储桶访问权限
+     * @param bucket 存储桶名称
+     * @param acl 修改后的权限
+     * @param token token
+     * @return {@link FullHttpResponse}
+     */
+    public FullHttpResponse updateBucketAcl(String bucket, String acl, String token){
+        Acl targetAcl;
+        // 参数校验
+        if(StringUtil.isNullOrEmpty(bucket) || StringUtil.isNullOrEmpty(acl) || StringUtil.isNullOrEmpty(token)){
+            return HttpUtil.badRequestResponse("Missing parameters for Update Acl Request");
+        }
+        if((targetAcl = Acl.getAcl(acl)) == null){
+            return HttpUtil.badRequestResponse("Invalid Bucket ACL");
+        }
+        // 创建请求
+        UpdateAclRequest request = new UpdateAclRequest(bucket, targetAcl, token, BucketAccessMode.WRITE_ACL);
+        Url url = OssConfigs.trackerServerUrl();
+        try{
+            RemotingCommand command = client.getCommandFactory()
+                    .createRequest(request, FastOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
+            RemotingCommand response = client.sendSync(url, command, null);
+            if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                return HttpUtil.okResponse("Success");
+            }else{
+                return HttpUtil.errorResponse(response.getCommandCode());
+            }
         }catch (Exception e){
             return HttpUtil.internalErrorResponse("Internal Server Error " + e);
         }

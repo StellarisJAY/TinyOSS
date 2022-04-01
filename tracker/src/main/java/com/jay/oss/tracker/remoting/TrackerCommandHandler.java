@@ -15,7 +15,7 @@ import com.jay.oss.tracker.track.ObjectTracker;
 
 /**
  * <p>
- *
+ *  Tracker端命令分发器
  * </p>
  *
  * @author Jay
@@ -37,6 +37,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         this.registerProcessor(FastOssProtocol.BUCKET_PUT_OBJECT, bucketProcessor);
         this.registerProcessor(FastOssProtocol.BUCKET_DELETE_OBJECT, bucketProcessor);
         this.registerProcessor(FastOssProtocol.GET_SERVICE, bucketProcessor);
+        this.registerProcessor(FastOssProtocol.UPDATE_BUCKET_ACL, bucketProcessor);
 
         // object相关处理器
         this.registerProcessor(FastOssProtocol.LOCATE_OBJECT, objectProcessor);

@@ -60,6 +60,9 @@ public class UploadService {
      * @throws Exception e
      */
     public FullHttpResponse putObject(String key, String bucket, String token, String md5, ByteBuf content) throws Exception {
+        if(StringUtil.isNullOrEmpty(key) || StringUtil.isNullOrEmpty(bucket) || content.readableBytes() == 0){
+            return HttpUtil.badRequestResponse("Missing important parameters for Put Object");
+        }
         FullHttpResponse httpResponse;
         long size = content.readableBytes();
         String objectKey = KeyUtil.getObjectKey(key, bucket, null);
