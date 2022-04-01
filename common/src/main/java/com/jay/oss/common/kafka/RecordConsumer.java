@@ -56,7 +56,7 @@ public class RecordConsumer extends AbstractLifeCycle {
         this.consumer.subscribe(handlers.keySet());
         // 开启消费循环
         handlerExecutor.submit(this::consume);
-        log.info("Kafka Consumer started, subscribed topics: {}", handlers.keySet());
+        log.info("Kafka Consumer started, kafka host: {}, subscribed topics: {}", OssConfigs.kafkaServers(), handlers.keySet());
     }
 
     /**

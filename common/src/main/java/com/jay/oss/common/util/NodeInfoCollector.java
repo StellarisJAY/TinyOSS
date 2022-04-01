@@ -20,8 +20,11 @@ import java.util.concurrent.atomic.AtomicLong;
 public class NodeInfoCollector {
 
     private static String ip = null;
+    private static String localAddress = null;
+    private static int port;
 
     public static StorageNodeInfo getStorageNodeInfo(int port) throws Exception {
+        NodeInfoCollector.port = port;
         String path = OssConfigs.dataPath();
         File dir = new File(path);
         long usedSpace = FileUtils.sizeOfDirectory(dir);
@@ -33,8 +36,11 @@ public class NodeInfoCollector {
                 .available(true).build();
     }
 
-    public static String getAddress() throws UnknownHostException {
-        return Inet4Address.getLocalHost().getHostAddress() + ":" + OssConfigs.port();
+    public static String getAddress() {
+        if(localAddress == null){
+            localAddress = getLocalAddress();
+        }
+        return localAddress + ":" + OssConfigs.port();
     }
 
     public static String getLocalAddress(){
