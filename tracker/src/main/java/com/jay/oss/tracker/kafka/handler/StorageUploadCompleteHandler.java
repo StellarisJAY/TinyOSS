@@ -35,7 +35,7 @@ public class StorageUploadCompleteHandler implements RecordHandler {
     public void handle(Iterable<ConsumerRecord<String, String>> records, ConsumerGroupMetadata groupMetadata) {
         for (ConsumerRecord<String, String> record : records) {
             String objectKey = record.key();
-            String storageUrl = record.value();
+            String storageUrl = record.value().trim();
             String urls = objectTracker.locateObject(objectKey);
             if(!StringUtil.isNullOrEmpty(urls)){
                 String[] storages = urls.split(";");
@@ -43,9 +43,9 @@ public class StorageUploadCompleteHandler implements RecordHandler {
                 List<String> backupUrls = Arrays.stream(storages)
                         .filter(url -> !storageUrl.equalsIgnoreCase(url))
                         .collect(Collectors.toList());
-                for (String url : backupUrls) {
+                for (String backupUrl : backupUrls) {
                     // 发送备份消息到指定的备份机器
-                    producer.send(OssConstants.REPLICA_TOPIC, objectKey, storageUrl + ";" + url);
+                    producer.send(OssConstants.REPLICA_TOPIC, objectKey, storageUrl + ";" + backupUrl);
                 }
             }
         }
