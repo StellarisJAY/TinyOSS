@@ -121,21 +121,47 @@ public class BitCaskStorage {
      * @throws IOException chunk写入异常
      */
     public boolean put(String key, byte[] value) throws IOException {
-        synchronized (activeChunkLock){
-            if(!indexCache.containsKey(key)){
-                byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
-                if(this.activeChunk == null || !activeChunk.isWritable()){
-                    // 创建新的active chunk
-                    this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
-                    chunks.add(activeChunk);
+        if(!indexCache.containsKey(key)){
+            synchronized (activeChunkLock){
+                if(!indexCache.containsKey(key)){
+                    byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
+                    if(this.activeChunk == null || !activeChunk.isWritable()){
+                        // 创建新的active chunk
+                        this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
+                        chunks.add(activeChunk);
+                    }
+                    byte[] compressedValue = CompressUtil.compress(value);
+                    int offset = activeChunk.write(keyBytes, compressedValue);
+                    Index index = new Index(activeChunk.getChunkId(), offset, false);
+                    indexCache.put(key, index);
+                    return true;
                 }
-                byte[] compressedValue = CompressUtil.compress(value);
-                int offset = activeChunk.write(keyBytes, compressedValue);
-                Index index = new Index(activeChunk.getChunkId(), offset, false);
-                indexCache.put(key, index);
-                return true;
+                return false;
             }
-            return false;
+        }
+        return false;
+    }
+
+    /**
+     * 更新值
+     * @param key key
+     * @param value value
+     * @return boolean
+     * @throws IOException IOException
+     */
+    public boolean update(String key, byte[] value) throws IOException {
+        synchronized (activeChunkLock){
+            byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
+            if(this.activeChunk == null || !activeChunk.isWritable()){
+                // 创建新的active chunk
+                this.activeChunk = new Chunk(name, false, chunkIdProvider.getAndIncrement());
+                chunks.add(activeChunk);
+            }
+            byte[] compressedValue = CompressUtil.compress(value);
+            int offset = activeChunk.write(keyBytes, compressedValue);
+            Index index = new Index(activeChunk.getChunkId(), offset, false);
+            indexCache.put(key, index);
+            return true;
         }
     }
 
