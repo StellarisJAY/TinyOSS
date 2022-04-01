@@ -75,6 +75,22 @@ public class BucketManager {
         }
     }
 
+    /**
+     * 更新存储桶元数据
+     * @param bucketKey bucket KEY
+     * @param bucket {@link Bucket}
+     * @return boolean
+     */
+    public boolean updateBucket(String bucketKey, Bucket bucket){
+        try{
+            cache.invalidate(bucketKey);
+            byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
+            return bucketStorage.update(bucketKey, serialized);
+        }catch (IOException e){
+            log.warn("Update Bucket Failed, bucket: {} ", bucketKey, e);
+            return false;
+        }
+    }
 
     /**
      * 获取存储桶

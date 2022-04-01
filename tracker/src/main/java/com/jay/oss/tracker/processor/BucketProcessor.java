@@ -4,16 +4,14 @@ import com.alibaba.fastjson.JSON;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.bitcask.HintIndex;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.edit.EditLog;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.bucket.Bucket;
-import com.jay.oss.common.entity.bucket.BucketVO;
-import com.jay.oss.common.entity.bucket.GetServiceRequest;
-import com.jay.oss.common.entity.bucket.GetServiceResponse;
+import com.jay.oss.common.entity.bucket.*;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
@@ -70,6 +68,9 @@ public class BucketProcessor extends TrackerProcessor {
         }
         else if(FastOssProtocol.GET_SERVICE.equals(code)){
             return processGetService(command);
+        }
+        else if(FastOssProtocol.UPDATE_BUCKET_ACL.equals(code)){
+            return processUpdateAcl(command);
         }
         return null;
     }
@@ -222,5 +223,25 @@ public class BucketProcessor extends TrackerProcessor {
                 .acl(bucket.getAcl()).bucketName(bucket.getBucketName())
                 .appId(bucket.getAppId()).versioning(bucket.isVersioning())
                 .build();
+    }
+
+    /**
+     * 处理修改存储桶acl的请求
+     * @param command {@link FastOssCommand}
+     * @return {@link RemotingCommand}
+     */
+    private RemotingCommand processUpdateAcl(FastOssCommand command){
+        UpdateAclRequest request = SerializeUtil.deserialize(command.getContent(), UpdateAclRequest.class);
+        String bucketKey = request.getBucket();
+        Bucket bucket = bucketManager.getBucket(bucketKey);
+        if(bucket == null){
+            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.NOT_FOUND);
+        }
+        bucket.setAcl(request.getAcl());
+        if(bucketManager.updateBucket(bucketKey, bucket)){
+            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
+        }else{
+            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+        }
     }
 }

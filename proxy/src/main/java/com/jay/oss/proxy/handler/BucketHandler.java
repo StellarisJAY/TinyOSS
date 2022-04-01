@@ -36,6 +36,9 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         if(StringUtil.isNullOrEmpty(acl)){
             acl = "private";
         }
+        if(request.containsParameter(HttpConstants.UPDATE_ACL)){
+            return bucketService.updateBucketAcl(bucket, request.acl(), request.authorization());
+        }
         return bucketService.putBucket(bucket, acl, request.containsParameter("versioning"));
     }
 
@@ -57,6 +60,5 @@ public class BucketHandler extends AbstractHttpRequestHandler {
         }else{
             return bucketService.listBucket(bucket, token, 10, 0);
         }
-
     }
 }
