@@ -8,6 +8,7 @@ import com.jay.oss.common.entity.request.*;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.util.BucketAclUtil;
 import io.netty.channel.ChannelHandlerContext;
@@ -89,6 +90,9 @@ public abstract class TrackerProcessor extends AbstractProcessor {
     private CommandCode checkAuthorization(FastOssCommand command, Class<? extends BucketAccessRequest> requestClazz){
         // 反序列化
         BucketAccessRequest request = SerializeUtil.deserialize(command.getContent(), requestClazz);
+        if(StringUtil.isNullOrEmpty(request.bucket())){
+            return FastOssProtocol.ACCESS_DENIED;
+        }
         // 验证访问权限
         return BucketAclUtil.checkAuthorization(bucketManager, request.bucket(), request.token(), request.accessMode());
     }
