@@ -4,6 +4,7 @@ import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.entity.bucket.UpdateAclRequest;
 import com.jay.oss.common.entity.request.*;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -50,6 +51,7 @@ public abstract class TrackerProcessor extends AbstractProcessor {
         REQUEST_CLASS_MAPPING.put(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
         REQUEST_CLASS_MAPPING.put(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
         REQUEST_CLASS_MAPPING.put(FastOssProtocol.GET_OBJECT_META, LocateObjectRequest.class);
+        REQUEST_CLASS_MAPPING.put(FastOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
     }
 
     protected TrackerProcessor(CommandFactory commandFactory, BucketManager bucketManager) {
