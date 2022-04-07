@@ -1,6 +1,9 @@
 package com.jay.oss.common.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.util.StringUtil;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.Getter;
 
 import java.io.File;
@@ -8,6 +11,8 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -24,7 +29,7 @@ public class Chunk {
     private int count;
     private int size;
     public static final int MAX_DATA_SIZE = 4 * 1024 * 1024;
-    private FileChannel activeChannel;
+    private final FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
 
@@ -110,15 +115,31 @@ public class Chunk {
         return value;
     }
 
-    public boolean isWritable(){
-        return size < MAX_DATA_SIZE;
+    /**
+     * 判断chunk是否处于不可写状态
+     * @return boolean
+     */
+    public boolean isNotWritable(){
+        return size >= MAX_DATA_SIZE;
     }
 
-    public void closeChannel() throws IOException {
-        activeChannel.close();
-    }
-
-    public void resetChannel(FileChannel channel){
-        this.activeChannel = channel;
+    /**
+     * 扫描整个chunk文件，加载出索引信息
+     * @return {@link Map} 索引信息
+     */
+    protected Map<String, Index> fullScanChunk() throws IOException {
+        ByteBuf buffer = Unpooled.buffer();
+        Map<String, Index> indexMap = new HashMap<>(256);
+        buffer.writeBytes(activeChannel, 0, (int)activeChannel.size());
+        while(buffer.isReadable()){
+            int offset = buffer.readerIndex();
+            int keyLen = buffer.readInt();
+            int valLen = buffer.readInt();
+            byte[] keyBytes = new byte[keyLen];
+            buffer.readBytes(keyBytes);
+            buffer.skipBytes(valLen);
+            indexMap.put(StringUtil.toString(keyBytes), new Index(chunkId, offset, valLen == 1));
+        }
+        return indexMap;
     }
 }
