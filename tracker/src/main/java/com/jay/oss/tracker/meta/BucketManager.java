@@ -35,7 +35,7 @@ public class BucketManager {
     /**
      * 桶磁盘存储
      */
-    private final BitCaskStorage bucketStorage = new BitCaskStorage("bucket");
+    private final BitCaskStorage bucketStorage;
     /**
      * 存储桶LRU缓存
      */
@@ -45,8 +45,8 @@ public class BucketManager {
             .recordStats()
             .build();
 
-    public void init() throws Exception {
-        bucketStorage.init();
+    public BucketManager(BitCaskStorage bucketStorage) {
+        this.bucketStorage = bucketStorage;
     }
 
     /**
@@ -173,11 +173,6 @@ public class BucketManager {
 
     public void saveIndex(String key, Index index){
         bucketStorage.saveIndex(key, index);
-    }
-
-    public void merge() throws IOException {
-        bucketStorage.merge();
-        bucketStorage.completeMerge();
     }
 
 

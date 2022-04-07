@@ -34,15 +34,10 @@ public class ObjectTracker {
     /**
      * 元数据磁盘存储
      */
-    private final BitCaskStorage metaStorage = new BitCaskStorage("meta");
+    private final BitCaskStorage metaStorage;
 
-    /**
-     * 初始化object tracker
-     * 扫描chunk路径，获取已经存在的chunk文件
-     * @throws Exception e
-     */
-    public void init() throws Exception {
-        metaStorage.init();
+    public ObjectTracker(BitCaskStorage metaStorage) {
+        this.metaStorage = metaStorage;
     }
 
     /**
@@ -86,13 +81,8 @@ public class ObjectTracker {
      * @return boolean 保存是否成功，如果是重复的key会导致返回false
      */
     public boolean putObjectMeta(String objectKey, ObjectMeta meta)  {
-        try{
-            byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
-            return metaStorage.put(objectKey, serialized);
-        }catch (IOException e){
-            log.error("Write Object Meta Failed, meta: {}", meta.getObjectKey());
-            return false;
-        }
+        byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
+        return metaStorage.put(objectKey, serialized);
     }
 
     /**
@@ -131,14 +121,6 @@ public class ObjectTracker {
     public void deleteObject(String key){
         cache.invalidate(key);
         metaStorage.delete(key);
-    }
-
-    /**
-     * BitCask存储模型merge
-     */
-    public void merge() throws Exception {
-        metaStorage.merge();
-        metaStorage.completeMerge();
     }
 
     public List<String> listObject(){

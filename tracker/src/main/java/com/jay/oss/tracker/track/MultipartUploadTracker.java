@@ -33,7 +33,11 @@ public class MultipartUploadTracker {
     /**
      * 持久化存储
      */
-    private final BitCaskStorage multipartTaskStorage = new BitCaskStorage("multipart");
+    private final BitCaskStorage multipartTaskStorage;
+
+    public MultipartUploadTracker(BitCaskStorage multipartTaskStorage) {
+        this.multipartTaskStorage = multipartTaskStorage;
+    }
 
 
     public MultipartUploadTask getTask(String uploadId){
@@ -70,11 +74,6 @@ public class MultipartUploadTracker {
 
     public void saveIndex(String uploadId, Index index){
         multipartTaskStorage.saveIndex(uploadId, index);
-    }
-
-    public void merge() throws IOException {
-        multipartTaskStorage.merge();
-        multipartTaskStorage.completeMerge();
     }
 
     public Index getIndex(String uploadId){
