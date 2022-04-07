@@ -87,13 +87,6 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
                     }
                 }
             }
-
-            /*
-                BitCask存储压缩
-             */
-            objectTracker.merge();
-            bucketManager.merge();
-            multipartUploadTracker.merge();
             // 重写压缩editLog
             compress();
             setLastSwapTime(System.currentTimeMillis());

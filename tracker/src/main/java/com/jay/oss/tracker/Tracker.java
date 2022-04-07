@@ -4,6 +4,7 @@ import com.jay.dove.DoveServer;
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
+import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
@@ -47,6 +48,7 @@ public class Tracker extends AbstractLifeCycle {
     private final StorageRegistry storageRegistry;
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
+    private final BitCaskStorage bitCaskStorage;
     private final MultipartUploadTracker multipartUploadTracker;
     private final TrackerCommandHandler commandHandler;
     private final DoveServer server;
@@ -64,9 +66,11 @@ public class Tracker extends AbstractLifeCycle {
             FastOssCommandFactory commandFactory = new FastOssCommandFactory();
             this.ring = new ConsistentHashRing();
             this.storageRegistry = new StorageRegistry(ring);
-            this.bucketManager = new BucketManager();
-            this.objectTracker = new ObjectTracker();
-            this.multipartUploadTracker = new MultipartUploadTracker();
+            this.bitCaskStorage = new BitCaskStorage();
+            this.bucketManager = new BucketManager(bitCaskStorage);
+            this.objectTracker = new ObjectTracker(bitCaskStorage);
+            this.multipartUploadTracker = new MultipartUploadTracker(bitCaskStorage);
+
             this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
             this.trackerProducer = new RecordProducer();
             this.trackerConsumer = new RecordConsumer();
@@ -95,10 +99,6 @@ public class Tracker extends AbstractLifeCycle {
         registerGauges();
         // 初始化 并 加载编辑日志
         editLogManager.init();
-        // 初始化objectTracker，加载bitCask chunks
-        objectTracker.init();
-        // 初始化bucketManager，加载bitCask chunks
-        bucketManager.init();
         // 加载editLog并压缩日志，该过程会压缩bitCask chunk
         editLogManager.loadAndCompress();
         // 初始化远程注册中心客户端
