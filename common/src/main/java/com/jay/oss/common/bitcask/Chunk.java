@@ -23,16 +23,16 @@ public class Chunk {
     private final int chunkId;
     private int count;
     private int size;
-    public static final int MAX_DATA_COUNT = 1024;
+    public static final int MAX_DATA_SIZE = 4 * 1024 * 1024;
     private FileChannel activeChannel;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
 
 
-    public Chunk(String name, boolean merge, int chunkId) throws IOException {
+    public Chunk(boolean merge, int chunkId) throws IOException {
         this.count = 0;
         this.chunkId = chunkId;
         this.size = 0;
-        String path = OssConfigs.dataPath() + BitCaskStorage.CHUNK_DIRECTORY + File.separator + name + (merge ? "_merged_chunks" : "_chunk_" + chunkId);
+        String path = OssConfigs.dataPath() + BitCaskStorage.CHUNK_DIRECTORY + File.separator + (merge ? "merged_chunks" : "chunk_" + chunkId);
         File file = new File(path);
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
             throw new RuntimeException("can't make parent directory");
@@ -111,7 +111,7 @@ public class Chunk {
     }
 
     public boolean isWritable(){
-        return count < MAX_DATA_COUNT;
+        return size < MAX_DATA_SIZE;
     }
 
     public void closeChannel() throws IOException {
