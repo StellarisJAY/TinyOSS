@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Getter
 public class Chunk {
     private final int chunkId;
-    private int count;
     private int size;
     public static final int MAX_DATA_SIZE = 4 * 1024 * 1024;
     private final FileChannel activeChannel;
@@ -34,9 +33,7 @@ public class Chunk {
 
 
     public Chunk(boolean merge, int chunkId) throws IOException {
-        this.count = 0;
         this.chunkId = chunkId;
-        this.size = 0;
         String path = OssConfigs.dataPath() + BitCaskStorage.CHUNK_DIRECTORY + File.separator + (merge ? "merged_chunks" : "chunk_" + chunkId);
         File file = new File(path);
         if(!file.getParentFile().exists() && !file.getParentFile().mkdirs()){
@@ -47,13 +44,13 @@ public class Chunk {
         }
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         this.activeChannel = randomAccessFile.getChannel();
+        this.size = (int)activeChannel.size();
     }
 
-    private Chunk(int chunkId, int size, int count, FileChannel channel){
+    private Chunk(int chunkId, int size, FileChannel channel){
         this.chunkId = chunkId;
         this.size = size;
         this.activeChannel = channel;
-        this.count = count;
     }
 
     public static Chunk getChunkInstance(File file) throws Exception {
@@ -64,7 +61,7 @@ public class Chunk {
             int size = (int)file.length();
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             FileChannel channel = randomAccessFile.getChannel();
-            return new Chunk(chunkId, size, 0, channel);
+            return new Chunk(chunkId, size, channel);
         }
         return null;
     }
@@ -90,7 +87,6 @@ public class Chunk {
         buffer.put(value);
         buffer.rewind();
         int written = activeChannel.write(buffer);
-        count++;
         size += written;
         return offset;
     }
@@ -141,5 +137,18 @@ public class Chunk {
             indexMap.put(StringUtil.toString(keyBytes), new Index(chunkId, offset, valLen == 1));
         }
         return indexMap;
+    }
+
+    /**
+     * 关闭文件channel
+     * @throws IOException e
+     */
+    protected void closeChannel() throws IOException {
+        activeChannel.close();
+    }
+
+    @Override
+    public String toString(){
+        return "Chunk_" + chunkId;
     }
 }
