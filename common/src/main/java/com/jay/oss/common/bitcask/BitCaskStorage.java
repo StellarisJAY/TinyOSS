@@ -7,12 +7,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -39,7 +46,10 @@ public class BitCaskStorage {
      */
     private Chunk activeChunk = null;
 
-
+    /**
+     * 删除标记，把一个key的value设置为该标记来表示key被删除了
+     * 该标记的值是ASCII字符Del，编号127
+     */
     private static final byte[] DELETE_TAG = new byte[]{(byte)127};
 
     /**
@@ -52,7 +62,9 @@ public class BitCaskStorage {
      */
     private final ReentrantReadWriteLock compactLock = new ReentrantReadWriteLock();
 
-
+    /**
+     * chunk文件自增ID
+     */
     private final AtomicInteger chunkIdProvider = new AtomicInteger(0);
 
     public static final String CHUNK_DIRECTORY = File.separator + "chunks";
@@ -76,7 +88,14 @@ public class BitCaskStorage {
             }
             chunks.sort(Comparator.comparingInt(Chunk::getChunkId));
         }
+        log.info("Loaded chunk files: {}", chunks);
+        // 加载索引
         loadIndex();
+        // 压缩chunks
+        compact();
+        if(!chunks.isEmpty()){
+            chunkIdProvider.set(1);
+        }
         log.info("BitCask Storage loaded {} chunks", chunks.size());
     }
 
@@ -96,7 +115,11 @@ public class BitCaskStorage {
         if(this.activeChunk == null || activeChunk.isNotWritable()){
             // 创建新的active chunk
             this.activeChunk = new Chunk(false, chunkIdProvider.getAndIncrement());
-            chunks.add(activeChunk);
+            if(chunks.size() >= activeChunk.getChunkId()){
+                chunks.add(activeChunk);
+            }else{
+                chunks.set(activeChunk.getChunkId(), activeChunk);
+            }
         }
     }
 
@@ -207,26 +230,37 @@ public class BitCaskStorage {
         try{
             // 加锁，避免有其他线程读取
             compactLock.writeLock().lock();
+            if(indexCache.isEmpty()){
+                return;
+            }
             // 只有在有其他非活跃Chunk的时候才进行compact，不对activeChunk压缩
-            if(activeChunk.getChunkId() > 0){
+            if(activeChunk == null || activeChunk.getChunkId() > 0){
                 // 在compact前删除旧的Hint文件，避免compact后没有成功写入Hint文件而导致Hint和实际位置不一致的情况
                 removeOldHintFile();
                 Chunk mergedChunk = new Chunk(true, 0);
-                for (Map.Entry<String, Index> entry : indexCache.entrySet()) {
+                // 对index进行排序，可以使合并后的chunk文件中的键值对有序
+                List<Map.Entry<String, Index>> entries = indexCache.entrySet().stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
+                for (Map.Entry<String, Index> entry : entries) {
                     String key = entry.getKey();
                     Index index = entry.getValue();
-                    if(!index.isRemoved() && index.getChunkId() != activeChunk.getChunkId()){
-                        byte[] keyBytes = StringUtil.getBytes(key);
-                        // 从旧的chunk读取value
-                        byte[] value = this.get(key);
-                        // 写入新chunk并更新index
-                        int offset = mergedChunk.write(keyBytes, value);
-                        index.setChunkId(0);
-                        index.setOffset(offset);
+                    // key没有被删除，且不是在activeChunk中
+                    if(!index.isRemoved()){
+                        if((activeChunk == null || index.getChunkId() != activeChunk.getChunkId())){
+                            byte[] keyBytes = StringUtil.getBytes(key);
+                            // 从旧的chunk读取value
+                            byte[] value = this.get(key);
+                            // 写入新chunk并更新index
+                            int offset = mergedChunk.write(keyBytes, value);
+                            index.setChunkId(0);
+                            index.setOffset(offset);
+                        }
                     }
                 }
+                mergedChunk.closeChannel();
                 // 生成HintFile
                 generateHintFile();
+                // 删除合并后的旧chunks，并重命名合并块为chunk0
+                deleteOldChunks();
             }
         }catch (IOException e){
             log.warn("Compact BitCask chunk failed ", e);
@@ -251,13 +285,17 @@ public class BitCaskStorage {
     private void generateHintFile() throws IOException {
         ByteBuf buffer = Unpooled.buffer();
         for (Map.Entry<String, Index> entry : indexCache.entrySet()) {
-            if(!entry.getValue().isRemoved() && entry.getValue().getChunkId() != activeChunk.getChunkId()){
-                byte[] keyBytes = StringUtil.getBytes(entry.getKey());
-                Index index = entry.getValue();
-                buffer.writeInt(keyBytes.length);
-                buffer.writeBytes(keyBytes);
-                buffer.writeInt(index.getChunkId());
-                buffer.writeInt(index.getOffset());
+            // key没有被删除
+            if(!entry.getValue().isRemoved()){
+                // key不是在activeChunk中
+                if(activeChunk == null || entry.getValue().getChunkId() != activeChunk.getChunkId()){
+                    byte[] keyBytes = StringUtil.getBytes(entry.getKey());
+                    Index index = entry.getValue();
+                    buffer.writeInt(keyBytes.length);
+                    buffer.writeBytes(keyBytes);
+                    buffer.writeInt(index.getChunkId());
+                    buffer.writeInt(index.getOffset());
+                }
             }
         }
         String path = OssConfigs.dataPath() + File.separator + "hint.log";
@@ -265,11 +303,48 @@ public class BitCaskStorage {
         if(!file.exists() && !file.createNewFile()){
             throw new RuntimeException("Generate Hint File failed");
         }
-        try(FileOutputStream outputStream = new FileOutputStream(file);
-             FileChannel channel = outputStream.getChannel()){
+        FileOutputStream outputStream = new FileOutputStream(file);
+        FileChannel channel = outputStream.getChannel();
+        try{
             buffer.readBytes(channel, channel.size(), buffer.readableBytes());
         }catch (IOException e){
             log.warn("Generate Hint File Failed ", e);
+        }
+    }
+
+    /**
+     * 删除除了activeChunk以外的已经完成合并的chunks
+     */
+    private void deleteOldChunks() throws IOException {
+        /*
+            删除所有合并后的chunk
+         */
+        for (Chunk chunk : chunks) {
+            if(chunk != activeChunk){
+                chunk.closeChannel();
+                String path = OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + "chunk_" + chunk.getChunkId();
+                File chunkFile = new File(path);
+                if(chunkFile.exists() && chunkFile.delete()){
+                    log.debug("Delete Old Chunk success, chunk: {}", path);
+                }else if(!chunkFile.exists()){
+                    log.warn("Chunk: {} not exists", path);
+                }
+            }
+        }
+        /*
+            重命名merged_chunks为chunk0
+         */
+        File merged = new File(OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + "merged_chunks");
+        File chunk0 = new File(OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + "chunk_0");
+        if(merged.exists() && !chunk0.exists() && merged.renameTo(chunk0)){
+            Chunk chunk = new Chunk(false, 0);
+            chunks.set(0, chunk);
+        }else if(!merged.exists()){
+            throw new RuntimeException("Merged chunks file doesn't exist");
+        }else if(chunk0.exists()){
+            throw new RuntimeException("Chunk_0 file already exists");
+        }else{
+            throw new RuntimeException("Rename merged chunks failed");
         }
     }
 
@@ -282,9 +357,9 @@ public class BitCaskStorage {
         // Hint文件存在，扫描Hint中的索引
         if(hintFile.exists()){
             parseHintFile(hintFile);
-            parseAllChunks(false);
+            indexCache.putAll(chunks.get(chunks.size() - 1).fullScanChunk());
         }else{
-            parseAllChunks(true);
+            parseAllChunks();
         }
     }
 
@@ -315,13 +390,9 @@ public class BitCaskStorage {
     /**
      * 解析所有的chunk文件
      */
-    private void parseAllChunks(boolean parseChunk0) throws IOException {
+    private void parseAllChunks() throws IOException {
         for (Chunk chunk : chunks) {
-            if(chunk.getChunkId() != 0){
-                indexCache.putAll(chunk.fullScanChunk());
-            }else if(parseChunk0){
-                indexCache.putAll(chunk.fullScanChunk());
-            }
+            indexCache.putAll(chunk.fullScanChunk());
         }
     }
 
