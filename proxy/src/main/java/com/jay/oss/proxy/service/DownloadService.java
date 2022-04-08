@@ -20,6 +20,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -95,6 +96,8 @@ public class DownloadService {
      * @return {@link FullHttpResponse}
      */
     private FullHttpResponse tryDownload(List<Url> urls, RemotingCommand command, boolean full){
+        // 打乱storage节点顺序，让请求随机落到一个storage上，使多副本负载均衡
+        Collections.shuffle(urls);
         for (Url url : urls) {
             try{
                 // 发送下载请求

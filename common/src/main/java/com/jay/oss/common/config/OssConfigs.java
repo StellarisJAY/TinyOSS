@@ -52,7 +52,7 @@ public class OssConfigs {
      * 副本数量
      */
     private static final String REPLICA = "oss.replica.count";
-    private static final int DEFAULT_REPLICA_COUNT = 1;
+    private static final int DEFAULT_REPLICA_COUNT = 3;
 
     /**
      * 一致性hash环，虚节点数量

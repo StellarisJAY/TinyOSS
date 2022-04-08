@@ -91,8 +91,6 @@ public class ObjectProcessor extends TrackerProcessor {
         }
         else{
             bucketManager.deleteObject(bucket, objectKey);
-            // editLog记录删除操作
-            appendDeleteObjectLog(objectKey);
             // 发送删除object消息，由Storage收到消息后异步删除object数据
             trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, objectKey, objectKey);
             return commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);

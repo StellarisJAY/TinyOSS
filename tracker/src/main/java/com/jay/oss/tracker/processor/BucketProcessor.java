@@ -85,8 +85,6 @@ public class BucketProcessor extends TrackerProcessor {
         Bucket bucket = SerializeUtil.deserialize(content, Bucket.class);
         // 保存存储桶，并生成appId、AK、SK
         bucket = bucketManager.addBucket(bucket);
-        // 记录添加存储桶日志
-        appendAddBucketLog(bucket);
         String keyPair = bucket.getAppId() + ";" + bucket.getAccessKey() + ";" + bucket.getSecretKey();
         return commandFactory.createResponse(command.getId(), keyPair, FastOssProtocol.SUCCESS);
     }
@@ -138,9 +136,6 @@ public class BucketProcessor extends TrackerProcessor {
             // 保存object位置，判断object是否已经存在
             if(objectTracker.putObjectMeta(objectKey, meta)){
                 bucketManager.putObject(bucket, objectKey);
-                // 日志记录put object
-                appendBucketPutObjectLog(objectKey);
-                GaugeManager.getGauge("object_count").inc();
                 urls = urls + versionId;
                 response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }else{

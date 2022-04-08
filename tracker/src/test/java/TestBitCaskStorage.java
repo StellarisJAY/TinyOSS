@@ -88,4 +88,14 @@ public class TestBitCaskStorage {
         Assert.assertEquals(148, index1.getOffset());
         Assert.assertEquals(296, index2.getOffset());
     }
+
+    @Test
+    public void testCompactAndHintFile() throws Exception {
+        BitCaskStorage bitCaskStorage = new BitCaskStorage();
+        bitCaskStorage.init();
+        long seed = 6;
+        for(int i = 0; i < 10; i++){
+            bitCaskStorage.put("Key-" + seed + "-" + i, StringUtil.getBytes("value"));
+        }
+    }
 }

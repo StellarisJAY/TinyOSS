@@ -92,8 +92,6 @@ public class MultipartUploadProcessor extends TrackerProcessor {
             // 记录分片上传任务
             MultipartUploadTask task = new MultipartUploadTask(uploadId, objectKey, location, versionId, request.getCreateTime());
             if(uploadTracker.saveUploadTask(uploadId, task)){
-                // 记录EditLog
-                appendInitMultipartUploadLog(uploadId);
                 // 返回uploadID
                 response = commandFactory.createResponse(command.getId(), uploadId+";"+versionId, FastOssProtocol.SUCCESS);
             }
@@ -163,7 +161,6 @@ public class MultipartUploadProcessor extends TrackerProcessor {
             uploadTracker.remove(uploadId);
             // 保存object,检查key是否重复
             if(objectTracker.putObjectMeta(task.getObjectKey(), objectMeta)){
-                appendBucketPutObjectLog(task.getObjectKey());
                 bucketManager.putObject(bucket, objectMeta.getObjectKey());
                 response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
             }else{
