@@ -97,6 +97,7 @@ public class Tracker extends AbstractLifeCycle {
         SerializerManager.registerSerializer(OssConfigs.DEFAULT_SERIALIZER, serializer);
         // 注册Gauge
         registerGauges();
+        bitCaskStorage.init();
         // 初始化 并 加载编辑日志
         editLogManager.init();
         // 加载editLog并压缩日志，该过程会压缩bitCask chunk
