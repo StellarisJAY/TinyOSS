@@ -150,17 +150,16 @@ public class Chunk {
      * @return {@link Map} 索引信息
      */
     protected Map<String, Index> fullScanChunk() {
-        MappedByteBuffer buffer = this.mappedByteBuffer;
+        ByteBuffer buffer = this.mappedByteBuffer.slice();
         Map<String, Index> indexMap = new HashMap<>(256);
-        log.info("Buffer position: {}, buffer remaining: {}", buffer.position(), buffer.remaining());
         while(buffer.hasRemaining()){
             if(buffer.remaining() > 8){
                 int offset = buffer.position();
                 int keyLen = buffer.getInt();
                 int valLen = buffer.getInt();
-                if(buffer.remaining() >= keyLen + valLen){
+                if(keyLen > 0 && valLen > 0 && buffer.remaining() >= keyLen + valLen){
                     byte[] keyBytes = new byte[keyLen];
-                    buffer.get(keyBytes);
+                    buffer.get(keyBytes, 0, keyLen);
                     buffer.position(buffer.position() + valLen);
                     indexMap.put(StringUtil.toString(keyBytes), new Index(chunkId, offset, valLen == 1));
                 }else{
@@ -192,23 +191,32 @@ public class Chunk {
     public int writeMmap(byte[] key, byte[] value){
         int keyLen = key.length;
         int valLen = value.length;
+        mappedByteBuffer.position(size);
         mappedByteBuffer.putInt(keyLen);
         mappedByteBuffer.putInt(valLen);
         mappedByteBuffer.put(key);
         mappedByteBuffer.put(value);
         int offset = size;
         size += (8 + keyLen + valLen);
+        mappedByteBuffer.rewind();
         return offset;
     }
 
     public byte[] readMmap(int offset){
-        mappedByteBuffer.position(offset);
-        int keyLen = mappedByteBuffer.getInt();
-        int valLen = mappedByteBuffer.getInt();
-        byte[] value = new byte[valLen];
-        mappedByteBuffer.position(mappedByteBuffer.position() + keyLen);
-        mappedByteBuffer.get(value, 0, valLen);
-        return value;
+        ByteBuffer slice = mappedByteBuffer.slice();
+        slice.position(offset);
+        if(slice.remaining() > 8){
+            int keyLen = slice.getInt();
+            int valLen = slice.getInt();
+            if(keyLen > 0 && valLen > 0 && slice.remaining() >= keyLen + valLen){
+                byte[] key = new byte[keyLen];
+                byte[] value = new byte[valLen];
+                slice.get(key, 0, keyLen);
+                slice.get(value, 0, valLen);
+                return value;
+            }
+        }
+        return null;
     }
 
     /**
