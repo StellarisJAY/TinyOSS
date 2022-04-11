@@ -24,6 +24,21 @@ import java.util.stream.Collectors;
 /**
  * <p>
  *  BitCask存储引擎
+ *
+ *  存储模型：
+ *  | keyLen | valLen | key | compressed val |
+ *  空间使用计算(假设Key=128 B, 压缩后的value=384 B)：
+ *  记录：8 bytes + (key+val) = 8 + 128 + 384 = 520 bytes
+ *  索引：key + 8 bytes = 128 + 8 = 136 bytes
+ *  单个KV对占用磁盘空间：记录+索引 = 520 + 136 = 656 bytes
+ *
+ *  假设一共100W个KV对
+ *  内存占用 = 索引 * 100W = 136 * 100W = 132812.5 KB = 129.69 MB
+ *  磁盘占用 = 记录 * 100W = 520 * 100w = 507812.5 KB = 495.91 MB
+ *
+ *  假设80%占用量，得出100W数量级下单机内存和磁盘使用情况：
+ *  内存 = 130 / 0.8 = 162 MB
+ *  磁盘 = 496 / 0.8 = 620 MB
  * </p>
  *
  * @author Jay
@@ -111,10 +126,10 @@ public class BitCaskStorage {
      * 保证activeChunk可写入
      * @throws IOException e
      */
-    private void ensureActiveChunk() throws IOException {
-        if(this.activeChunk == null || activeChunk.isNotWritable()){
+    private void ensureActiveChunk(String key, byte[] value) throws IOException {
+        if(this.activeChunk == null || activeChunk.isNotWritable(8 + key.length() + value.length)){
             // 创建新的active chunk
-            this.activeChunk = new Chunk(false, chunkIdProvider.getAndIncrement());
+            this.activeChunk = Chunk.getNewChunk(chunkIdProvider.getAndIncrement());
             if(chunks.size() >= activeChunk.getChunkId()){
                 chunks.add(activeChunk);
             }else{
@@ -135,7 +150,7 @@ public class BitCaskStorage {
             Index index = indexCache.get(key);
             Chunk chunk;
             if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
-                return chunk.read(index.getOffset());
+                return chunk.readMmap(index.getOffset());
             }else if(index != null){
                 log.info("unknown chunk id: {}", index.getChunkId());
             }
@@ -156,9 +171,9 @@ public class BitCaskStorage {
             synchronized (activeChunkLock){
                 try{
                     if(!indexCache.containsKey(key)){
-                        ensureActiveChunk();
+                        ensureActiveChunk(key, value);
                         byte[] keyBytes = StringUtil.getBytes(key);
-                        int offset = activeChunk.write(keyBytes, value);
+                        int offset = activeChunk.writeMmap(keyBytes, value);
                         Index index = new Index(activeChunk.getChunkId(), offset, false);
                         indexCache.put(key, index);
                         return true;
@@ -182,13 +197,9 @@ public class BitCaskStorage {
     public boolean update(String key, byte[] value) throws IOException {
         synchronized (activeChunkLock){
             byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
-            if(this.activeChunk == null || activeChunk.isNotWritable()){
-                // 创建新的active chunk
-                this.activeChunk = new Chunk(false, chunkIdProvider.getAndIncrement());
-                chunks.add(activeChunk);
-            }
+            ensureActiveChunk(key, value);
             byte[] compressedValue = CompressUtil.compress(value);
-            int offset = activeChunk.write(keyBytes, compressedValue);
+            int offset = activeChunk.writeMmap(keyBytes, compressedValue);
             Index index = new Index(activeChunk.getChunkId(), offset, false);
             indexCache.put(key, index);
             return true;
@@ -207,8 +218,8 @@ public class BitCaskStorage {
                     Index index = indexCache.get(key);
                     if(index != null){
                         index.setRemoved(true);
-                        ensureActiveChunk();
-                        activeChunk.write(StringUtil.getBytes(key), DELETE_TAG);
+                        ensureActiveChunk(key, DELETE_TAG);
+                        activeChunk.writeMmap(StringUtil.getBytes(key), DELETE_TAG);
                         return true;
                     }
                 }catch (IOException e){
@@ -237,7 +248,7 @@ public class BitCaskStorage {
             if(activeChunk == null || activeChunk.getChunkId() > 0){
                 // 在compact前删除旧的Hint文件，避免compact后没有成功写入Hint文件而导致Hint和实际位置不一致的情况
                 removeOldHintFile();
-                Chunk mergedChunk = new Chunk(true, 0);
+                Chunk mergedChunk = Chunk.getMergeChunkInstance();
                 // 对index进行排序，可以使合并后的chunk文件中的键值对有序
                 List<Map.Entry<String, Index>> entries = indexCache.entrySet().stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
                 for (Map.Entry<String, Index> entry : entries) {
@@ -247,12 +258,14 @@ public class BitCaskStorage {
                     if(!index.isRemoved()){
                         if((activeChunk == null || index.getChunkId() != activeChunk.getChunkId())){
                             byte[] keyBytes = StringUtil.getBytes(key);
-                            // 从旧的chunk读取value
-                            byte[] value = this.get(key);
-                            // 写入新chunk并更新index
-                            int offset = mergedChunk.write(keyBytes, value);
-                            index.setChunkId(0);
-                            index.setOffset(offset);
+                            Chunk chunk = chunks.get(index.getChunkId());
+                            if(chunk != null){
+                                byte[] value = chunk.readMmap(index.getOffset());
+                                // 写入新chunk并更新index
+                                int offset = mergedChunk.write(keyBytes, value);
+                                index.setChunkId(0);
+                                index.setOffset(offset);
+                            }
                         }
                     }
                 }
@@ -337,7 +350,7 @@ public class BitCaskStorage {
         File merged = new File(OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + "merged_chunks");
         File chunk0 = new File(OssConfigs.dataPath() + CHUNK_DIRECTORY + File.separator + "chunk_0");
         if(merged.exists() && !chunk0.exists() && merged.renameTo(chunk0)){
-            Chunk chunk = new Chunk(false, 0);
+            Chunk chunk = Chunk.getNewChunk(0);
             chunks.set(0, chunk);
         }else if(!merged.exists()){
             throw new RuntimeException("Merged chunks file doesn't exist");
@@ -351,7 +364,7 @@ public class BitCaskStorage {
     /**
      * 启动时读取Hint文件和chunk文件来加载key的索引信息
      */
-    public void loadIndex() throws IOException {
+    public void loadIndex() {
         String path = OssConfigs.dataPath() + File.separator + "hint.log";
         File hintFile = new File(path);
         // Hint文件存在，扫描Hint中的索引
@@ -390,7 +403,7 @@ public class BitCaskStorage {
     /**
      * 解析所有的chunk文件
      */
-    private void parseAllChunks() throws IOException {
+    private void parseAllChunks() {
         for (Chunk chunk : chunks) {
             indexCache.putAll(chunk.fullScanChunk());
         }
