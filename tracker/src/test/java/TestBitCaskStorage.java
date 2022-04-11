@@ -9,6 +9,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Random;
 
 /**
  * <p>
@@ -20,6 +21,12 @@ import java.io.IOException;
  */
 @Slf4j
 public class TestBitCaskStorage {
+    ObjectMeta objectMeta = ObjectMeta.builder()
+            .objectKey("bucket-124214331123/object1.png")
+            .fileName("object.png").createTime(System.currentTimeMillis())
+            .size(1024L).versionId("").md5("1a2dafdeeeei2u1233838883333")
+            .locations("10.0.0.1:9999;10.0.0.1:9999;10.0.0.1:9999")
+            .build();
     /**
      * 测试get和put功能
      * @throws IOException e
@@ -39,63 +46,38 @@ public class TestBitCaskStorage {
     }
 
     /**
-     * 测试compact功能和写入性能
+     * 测试写入性能
      * @throws Exception e
      */
     @Test
-    public void testCompact() throws Exception {
+    public void testPutSpeed() throws Exception {
         BitCaskStorage bitCaskStorage = new BitCaskStorage();
         bitCaskStorage.init();
         Serializer serializer = new ProtostuffSerializer();
-        ObjectMeta objectMeta = ObjectMeta.builder().objectKey("bucket-124214331123/object1.png").fileName("object.png").createTime(System.currentTimeMillis())
-                .size(1024L).versionId("").md5("1a2dafdeeeei2u1233838883333").locations("10.0.0.1:9999;10.0.0.1:9999;10.0.0.1:9999")
-                .build();
         byte[] value = serializer.serialize(objectMeta, ObjectMeta.class);
-        log.info("Data Size: {}", value.length);
+        String keyPrefix = "object";
 
-        /*
-            Start Test Here
-         */
-        int total = 1000;
+        int total = 100000;
         long putStart = System.currentTimeMillis();
         for(int i = 0; i < total; i++){
-            bitCaskStorage.put("object" + i + ".png", value);
+            bitCaskStorage.put(keyPrefix + i + ".png", value);
         }
         long wTime = System.currentTimeMillis() - putStart;
-        log.info("Write time used: {}ms, speed: {} /s", wTime, (total * 1000) / wTime);
-        long compactStart = System.currentTimeMillis();
-        bitCaskStorage.compact();
-        log.info("Compact time used: {}ms", (System.currentTimeMillis() - compactStart));
+        log.info("Write time used: {}ms, written: {} kv, speed: {} /s", wTime,total, (total * 1000) / wTime);
+
+        Random random = new Random();
+        int i = random.nextInt(total);
+        Assert.assertArrayEquals(value, bitCaskStorage.get(keyPrefix + i + ".png"));
     }
 
     /**
-     * 测试初始化时加载kv索引
-     * @throws Exception e
+     * 测试初始化时的加载index和compact
      */
     @Test
-    public void testParseChunks() throws Exception {
+    public void testInit() throws Exception {
         BitCaskStorage bitCaskStorage = new BitCaskStorage();
+        long compactStart = System.currentTimeMillis();
         bitCaskStorage.init();
-
-        Index index0 = bitCaskStorage.getIndex("object0.png");
-        Index index1 = bitCaskStorage.getIndex("object1.png");
-        Index index2 = bitCaskStorage.getIndex("object2.png");
-
-        Assert.assertNotNull(index0);
-        Assert.assertNotNull(index1);
-        Assert.assertNotNull(index2);
-        Assert.assertEquals(0, index0.getOffset());
-        Assert.assertEquals(148, index1.getOffset());
-        Assert.assertEquals(296, index2.getOffset());
-    }
-
-    @Test
-    public void testCompactAndHintFile() throws Exception {
-        BitCaskStorage bitCaskStorage = new BitCaskStorage();
-        bitCaskStorage.init();
-        long seed = 6;
-        for(int i = 0; i < 10; i++){
-            bitCaskStorage.put("Key-" + seed + "-" + i, StringUtil.getBytes("value"));
-        }
+        log.info("Init time used: {}ms", (System.currentTimeMillis() - compactStart));
     }
 }
