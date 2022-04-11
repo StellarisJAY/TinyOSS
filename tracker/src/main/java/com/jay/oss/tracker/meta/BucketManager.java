@@ -1,7 +1,7 @@
 package com.jay.oss.tracker.meta;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.bucket.Bucket;
@@ -39,8 +39,8 @@ public class BucketManager {
     /**
      * 存储桶LRU缓存
      */
-    private final Cache<String, Bucket> cache = CacheBuilder.newBuilder()
-            .maximumSize(2048).concurrencyLevel(10)
+    private final Cache<String, Bucket> cache = Caffeine.newBuilder()
+            .maximumSize(2048)
             .expireAfterAccess(60, TimeUnit.MINUTES)
             .recordStats()
             .build();

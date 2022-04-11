@@ -1,7 +1,7 @@
 package com.jay.oss.tracker.track;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.object.ObjectMeta;
@@ -26,9 +26,8 @@ public class ObjectTracker {
     /**
      * 热点元数据缓存
      */
-    private final Cache<String, ObjectMeta> cache = CacheBuilder.newBuilder()
+    private final Cache<String, ObjectMeta> cache = Caffeine.newBuilder()
             .expireAfterAccess(60, TimeUnit.MINUTES)
-            .concurrencyLevel(10)
             .maximumSize(100000)
             .recordStats().build();
     /**
