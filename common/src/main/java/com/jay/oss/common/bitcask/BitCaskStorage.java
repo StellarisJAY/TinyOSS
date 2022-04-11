@@ -261,6 +261,9 @@ public class BitCaskStorage {
                             Chunk chunk = chunks.get(index.getChunkId());
                             if(chunk != null){
                                 byte[] value = chunk.readMmap(index.getOffset());
+                                if(value == null){
+                                    break;
+                                }
                                 // 写入新chunk并更新index
                                 int offset = mergedChunk.write(keyBytes, value);
                                 index.setChunkId(0);
