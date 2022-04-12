@@ -1,56 +1,20 @@
-import com.jay.dove.serialize.Serializer;
-import com.jay.oss.common.bitcask.BitCaskStorage;
-import com.jay.oss.common.entity.object.ObjectMeta;
-import com.jay.oss.common.serialize.ProtostuffSerializer;
-import com.jay.oss.common.util.StringUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.C;
-import org.junit.Assert;
-import org.junit.Test;
+# BitCask读写性能测试
 
-import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
+## 测试环境
 
-/**
- * <p>
- *  BitCask存储模型单元测试
- * </p>
- *
- * @author Jay
- * @date 2022/04/07 15:43
- */
-@Slf4j
-public class TestBitCaskStorage {
-    ObjectMeta objectMeta = ObjectMeta.builder()
-            .objectKey("bucket-124214331123/object1.png")
-            .fileName("object.png").createTime(System.currentTimeMillis())
-            .size(1024L).versionId("").md5("1a2dafdeeeei2u1233838883333")
-            .locations("10.0.0.1:9999;10.0.0.1:9999;10.0.0.1:9999")
-            .build();
-    /**
-     * 测试get和put功能
-     * @throws IOException e
-     */
-    @Test
-    public void testGetAndPut() throws IOException {
-        BitCaskStorage bitCaskStorage = new BitCaskStorage();
+- CPU：Intel Core i7-8750H 2.2GHz
+- 内存：16GB
+- JVM：OpenJDK 17
 
-        String val1 = "hello";
-        String val2 = "world";
+## 测试1（单线程读写）
 
-        bitCaskStorage.put("k1", StringUtil.getBytes(val1));
-        bitCaskStorage.put("k2", StringUtil.getBytes(val2));
+单线程读写100万个键值对
 
-        Assert.assertEquals(val1, StringUtil.toString(bitCaskStorage.get("k1")));
-        Assert.assertEquals(val2, StringUtil.toString(bitCaskStorage.get("k2")));
-    }
+### 测试代码
 
-    /**
-     * 测试写入性能
-     * @throws Exception e
-     */
-    @Test
-    public void testPutSpeed() throws Exception {
+```java
+@Test
+    public void testIOSpeed() throws Exception {
         // 初始化
         BitCaskStorage bitCaskStorage = new BitCaskStorage();
         bitCaskStorage.init();
@@ -77,35 +41,39 @@ public class TestBitCaskStorage {
         long rTime = System.currentTimeMillis() - getStart;
         log.info("Read time used: {}ms, read: {} kv, speed: {} /s", rTime,total, (total * 1000) / rTime);
     }
+```
 
-    @Test
-    public void testWrite(){
-        BitCaskStorage bitCaskStorage = new BitCaskStorage();
-        for(int i = 0; i < 10; i ++){
-            bitCaskStorage.put("k" + i, StringUtil.getBytes("v1"));
-        }
-    }
+### 三次测试结果
 
-    /**
-     * 测试初始化时的加载index和compact
-     */
-    @Test
-    public void testInit() throws Exception {
-        BitCaskStorage bitCaskStorage = new BitCaskStorage();
-        long compactStart = System.currentTimeMillis();
-        bitCaskStorage.init();
-        log.info("Init time used: {}ms", (System.currentTimeMillis() - compactStart));
-    }
+```
+ - Write time used: 652ms, written: 1000000 kv, speed: 1533742 /s
+ - Read time used: 380ms, read: 1000000 kv, speed: 2631578 /s
+```
 
-    @Test
+```
+ - Write time used: 817ms, written: 1000000 kv, speed: 1223990 /s
+ - Read time used: 389ms, read: 1000000 kv, speed: 2570694 /s
+```
+
+```
+ - Write time used: 756ms, written: 1000000 kv, speed: 1322751 /s
+ - Read time used: 387ms, read: 1000000 kv, speed: 2583979 /s
+```
+
+写入平均速度：1360161 kv / s
+
+读取平均速度：2595417 kv / s
+
+## 测试2（并发读写）
+
+多线程并发读写
+
+### 测试代码
+
+```java
+@Test
     public void testConcurrentIO() throws Exception {
-        // 初始化
-        BitCaskStorage bitCaskStorage = new BitCaskStorage();
-        bitCaskStorage.init();
-        // 序列化value
-        Serializer serializer = new ProtostuffSerializer();
-        byte[] value = serializer.serialize(objectMeta, ObjectMeta.class);
-        String keyPrefix = "object";
+        // 初始化，与单线程测试代码相同，省略
 
         // 线程数
         int threadCount = 1000;
@@ -147,4 +115,31 @@ public class TestBitCaskStorage {
         long rTime = System.currentTimeMillis() - readStart;
         log.info("Read time used: {}ms, read: {} kv, speed: {} /s", rTime,total, (total * 1000L) / rTime);
     }
-}
+```
+
+### 三次测试结果
+
+```
+ - Write time used: 1022ms, written: 1000000 kv, speed: 978473 /s
+ - Read time used: 204ms, read: 1000000 kv, speed: 4901960 /s
+```
+
+```
+ - Write time used: 1013ms, written: 1000000 kv, speed: 987166 /s
+ - Read time used: 209ms, read: 1000000 kv, speed: 4784688 /s
+```
+
+```
+ - Write time used: 1002ms, written: 1000000 kv, speed: 998003 /s
+ - Read time used: 226ms, read: 1000000 kv, speed: 4424778 /s
+```
+
+写入平均速度：987,880.7 kv / s
+
+读取平均速度：4,703,808.7 kv / s
+
+## 结果分析
+
+- BitCask存储模型的所有写操作都是追加写，因此写操作必须串行化。这就是为什么在并发的情况下的写入的速度要远低于读取的速度，因为所有写入操作需要竞争同一个互斥锁，而读取获取的是分段的共享锁。
+- FastOSS最新的BitCask实现中使用了mmap替换原来的FileChannel，原因是BitCask的键值对读写的数据是很小的，所以在该场景下性能瓶颈并不是IO，而是CPU内核态和用户态的切换。使用FileChannel的read和write方法都会导致系统调用，而mmap不会出现内核态和用户态切换，可以避免CPU因为切换状态不堪重负。
+
