@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Chunk {
     private final int chunkId;
     private int size;
-    public static final int MAX_DATA_SIZE = 1024 * 1024 * 4;
+    public static final int MAX_DATA_SIZE = 1024 * 1024 * 64;
     private final FileChannel activeChannel;
     private final MappedByteBuffer mappedByteBuffer;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
