@@ -22,6 +22,7 @@ import java.util.List;
 @ToString
 public class ObjectMeta implements Serializable {
     private String objectKey;
+    private long objectId;
     private String versionId;
     private Long size;
     private Long createTime;
