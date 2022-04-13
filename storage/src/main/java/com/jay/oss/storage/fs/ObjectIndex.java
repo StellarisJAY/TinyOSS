@@ -18,6 +18,7 @@ import lombok.ToString;
 @AllArgsConstructor
 @ToString
 public class ObjectIndex {
+    private int blockId;
     private int indexOffset;
     private int offset;
     private int size;

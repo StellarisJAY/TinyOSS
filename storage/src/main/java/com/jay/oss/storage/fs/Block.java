@@ -4,6 +4,7 @@ import com.jay.oss.common.config.OssConfigs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.DefaultFileRegion;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * @author Jay
  * @date 2022/04/12 15:37
  */
+@Slf4j
 public class Block {
     /**
      * chunk file path
@@ -129,7 +131,7 @@ public class Block {
             slice.putInt(length);
             // 更新blockSize
             updateSizeAndIndexOffset();
-            return new ObjectIndex(indexPosition, offset, length);
+            return new ObjectIndex(this.id, indexPosition, offset, length);
         }finally {
             readWriteLock.writeLock().unlock();
         }
@@ -138,8 +140,12 @@ public class Block {
     public DefaultFileRegion readFileRegion(int offset, int length){
         try{
             readWriteLock.readLock().lock();
-            return new DefaultFileRegion(fileChannel, offset, length);
-        }finally {
+            RandomAccessFile rf = new RandomAccessFile(file, "r");
+            return new DefaultFileRegion(rf.getChannel(), offset, length);
+        }catch (IOException e){
+            log.warn("Can't read file region from block file");
+            return null;
+        } finally{
             readWriteLock.readLock().unlock();
         }
     }
@@ -179,7 +185,7 @@ public class Block {
             long objectId = slice.getLong();
             int offset = slice.getInt();
             int size = slice.getInt();
-            indexes.put(objectId, new ObjectIndex(indexOffset, offset, size));
+            indexes.put(objectId, new ObjectIndex(this.id, indexOffset, offset, size));
         }
         return indexes;
     }
