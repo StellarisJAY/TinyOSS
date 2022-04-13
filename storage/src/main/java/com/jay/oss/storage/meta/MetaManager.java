@@ -37,6 +37,10 @@ public class MetaManager {
         indexCache.computeIfAbsent(objectId, function);
     }
 
+    public ObjectIndex getObjectIndex(long objectId){
+        return indexCache.get(objectId);
+    }
+
     public FileMetaWithChunkInfo delete(String key){
         return fileMetaCache.remove(key);
     }
