@@ -1,6 +1,7 @@
 package com.jay.oss.storage.meta;
 
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.storage.fs.ObjectIndex;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,7 @@ public class MetaManager {
      * 元数据缓存
      */
     private final ConcurrentHashMap<String, FileMetaWithChunkInfo> fileMetaCache = new ConcurrentHashMap<>(256);
+    private final ConcurrentHashMap<Long, ObjectIndex> indexCache = new ConcurrentHashMap<>(256);
 
     public boolean saveMeta(FileMetaWithChunkInfo meta){
         return fileMetaCache.putIfAbsent(meta.getKey(), meta) == null;
@@ -29,6 +31,14 @@ public class MetaManager {
 
     public void computeIfAbsent(String key, Function<String, ?extends FileMetaWithChunkInfo> function){
         fileMetaCache.computeIfAbsent(key, function);
+    }
+
+    public void computeIfAbsent(long objectId, Function<Long, ?extends ObjectIndex> function){
+        indexCache.computeIfAbsent(objectId, function);
+    }
+
+    public ObjectIndex getObjectIndex(long objectId){
+        return indexCache.get(objectId);
     }
 
     public FileMetaWithChunkInfo delete(String key){

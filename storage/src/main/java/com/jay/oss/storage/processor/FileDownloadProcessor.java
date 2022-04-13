@@ -7,11 +7,13 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.entity.request.DownloadRequest;
 import com.jay.oss.common.entity.FileMetaWithChunkInfo;
+import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.storage.fs.Chunk;
-import com.jay.oss.storage.fs.ChunkManager;
+import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.storage.fs.*;
 import com.jay.oss.storage.meta.MetaManager;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultFileRegion;
 import lombok.extern.slf4j.Slf4j;
@@ -29,11 +31,13 @@ public class FileDownloadProcessor extends AbstractProcessor {
 
     private final MetaManager metaManager;
     private final ChunkManager chunkManager;
+    private final BlockManager blockManager;
     private final CommandFactory commandFactory;
 
-    public FileDownloadProcessor(MetaManager metaManager, ChunkManager chunkManager, CommandFactory commandFactory) {
+    public FileDownloadProcessor(MetaManager metaManager, ChunkManager chunkManager, BlockManager blockManager, CommandFactory commandFactory) {
         this.metaManager = metaManager;
         this.chunkManager = chunkManager;
+        this.blockManager = blockManager;
         this.commandFactory = commandFactory;
     }
 
@@ -41,12 +45,26 @@ public class FileDownloadProcessor extends AbstractProcessor {
     public void process(ChannelHandlerContext channelHandlerContext, Object o) {
         if(o instanceof FastOssCommand){
             FastOssCommand command = (FastOssCommand) o;
-            byte[] content = command.getContent();
-            // 反序列化request
-            Serializer serializer = SerializerManager.getSerializer(command.getSerializer());
-            DownloadRequest request = serializer.deserialize(content, DownloadRequest.class);
+            processDownload(channelHandlerContext, command);
+        }
+    }
 
-            processDownloadFull(channelHandlerContext, command.getId(), request);
+    private void processDownload(ChannelHandlerContext context, FastOssCommand command){
+        GetObjectRequest request = SerializeUtil.deserialize(command.getContent(), GetObjectRequest.class);
+        ObjectIndex objectIndex = metaManager.getObjectIndex(request.getObjectId());
+        if(objectIndex == null){
+            log.warn("Object not found, id: {}", request.getObjectId());
+            sendResponse(context, commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND));
+            return;
+        }
+        Block block = blockManager.getBlockById(objectIndex.getBlockId());
+        if(block != null){
+            int readStart = request.getEnd() == -1 ? 0 : request.getStart();
+            int readLength = request.getEnd() == -1 ? objectIndex.getSize() : request.getEnd() - request.getStart();
+            ByteBuf buffer = block.readBytes(readStart, readLength);
+            sendResponse(context, commandFactory.createResponse(command.getId(), buffer, FastOssProtocol.DOWNLOAD_RESPONSE));
+        }else{
+            sendResponse(context, commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR));
         }
     }
 
@@ -64,8 +82,8 @@ public class FileDownloadProcessor extends AbstractProcessor {
                 Chunk chunk = chunkManager.getChunkById(meta.getChunkId());
                 // 根据下载类型计算读取长度
                 int readLength = (int)(request.isFull() ? meta.getSize() : request.getLength());
-                DefaultFileRegion fileRegion = chunk.readFile(key, start + meta.getOffset(), readLength);
-                response = commandFactory.createResponse(requestId, fileRegion, FastOssProtocol.DOWNLOAD_RESPONSE);
+                ByteBuf buffer = chunk.readFileBytes(key, start + meta.getOffset(), readLength);
+                response = commandFactory.createResponse(requestId, buffer, FastOssProtocol.DOWNLOAD_RESPONSE);
             }
             sendResponse(context, response);
         }catch (Exception e){

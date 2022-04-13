@@ -1,5 +1,6 @@
 package com.jay.oss.common.entity.request;
 
+import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -20,9 +21,14 @@ import java.io.Serializable;
 public class UploadRequest implements Serializable {
     private String key;
     private String filename;
+    private long objectId;
     private long size;
     /**
      * 文件的分片个数
      */
     private int parts;
+
+    private transient ByteBuf data;
+
+    public static final int HEADER_LENGTH = 16;
 }

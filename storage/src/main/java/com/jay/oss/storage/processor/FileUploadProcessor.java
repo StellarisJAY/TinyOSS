@@ -14,9 +14,7 @@ import com.jay.oss.common.entity.FilePart;
 import com.jay.oss.common.entity.request.UploadRequest;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.util.NodeInfoCollector;
-import com.jay.oss.storage.fs.Chunk;
-import com.jay.oss.storage.fs.ChunkManager;
-import com.jay.oss.storage.fs.FileReceiver;
+import com.jay.oss.storage.fs.*;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
@@ -48,18 +46,20 @@ public class FileUploadProcessor extends AbstractProcessor {
      * key：文件key；value：Receiver
      */
     private final ConcurrentHashMap<String, FileReceiver> fileReceivers = new ConcurrentHashMap<>(256);
+    private final BlockManager blockManager;
     private final ChunkManager chunkManager;
     private final MetaManager metaManager;
     private final CommandFactory commandFactory;
     private final EditLogManager editLogManager;
     private final RecordProducer storageNodeProducer;
 
-    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
+    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
         this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
         this.storageNodeProducer = storageNodeProducer;
+        this.blockManager = blockManager;
     }
 
     @Override
@@ -74,6 +74,45 @@ public class FileUploadProcessor extends AbstractProcessor {
             else if(FastOssProtocol.UPLOAD_FILE_PARTS.equals(commandCode)){
                 processUploadParts(channelHandlerContext, command);
             }
+            else if(FastOssProtocol.UPLOAD_REQUEST.equals(commandCode)){
+                processUploadRequest0(channelHandlerContext, command);
+            }
+        }
+    }
+
+
+    /**
+     * 处理上传请求
+     * @param context context
+     * @param command {@link FastOssCommand}
+     */
+    private void processUploadRequest0(ChannelHandlerContext context, FastOssCommand command){
+        ByteBuf data = command.getData();
+        if(data.readableBytes() <= UploadRequest.HEADER_LENGTH){
+            return;
+        }
+        long objectId = data.readLong();
+        long size = data.readLong();
+        AtomicBoolean duplicateObject = new AtomicBoolean(true);
+        /*
+            computeIfAbsent 保证同一个key的meta只保存一次
+         */
+        metaManager.computeIfAbsent(objectId, (id)->{
+            // 获取chunk文件
+            Block block = blockManager.getBlockBySize((int)size);
+            ObjectIndex index = block.write(id, data, (int) size);
+            duplicateObject.set(false);
+            blockManager.offerBlock(block);
+            return index;
+        });
+        // 没能够成功进行computeIfAbsent的重复的key
+        if(duplicateObject.get()){
+            // 发送重复回复报文
+            RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+            sendResponse(context, response);
+        } else{
+            RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
+            sendResponse(context, response);
         }
     }
 

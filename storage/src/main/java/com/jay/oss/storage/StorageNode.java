@@ -29,6 +29,7 @@ import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.StorageEditLogManager;
+import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
@@ -54,6 +55,7 @@ public class StorageNode extends AbstractLifeCycle {
     private final DoveClient client;
     private final MetaManager metaManager;
     private final ChunkManager chunkManager;
+    private final BlockManager blockManager;
     private final StorageNodeCommandHandler commandHandler;
     private final EditLogManager editLogManager;
     private final Registry registry;
@@ -72,6 +74,7 @@ public class StorageNode extends AbstractLifeCycle {
             this.client = new DoveClient(connectionManager, commandFactory);
             this.metaManager = new MetaManager();
             this.chunkManager = new ChunkManager();
+            this.blockManager = new BlockManager();
             this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
             this.registry = new ZookeeperRegistry();
             this.storageNodeConsumer = new RecordConsumer();
@@ -80,7 +83,7 @@ public class StorageNode extends AbstractLifeCycle {
             ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
             // 命令处理器
             this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
-                    chunkManager, metaManager, editLogManager, client, storageNodeProducer);
+                    chunkManager, metaManager, editLogManager, client, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
             this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
