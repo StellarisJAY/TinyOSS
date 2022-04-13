@@ -22,11 +22,17 @@ import java.util.concurrent.ExecutorService;
 public class UploadCallback implements InvokeCallback {
     private final CompletableFuture<FastOssCommand> responseFuture;
     private final int partNum;
-    private final String key;
+    private String key;
     public UploadCallback(CompletableFuture<FastOssCommand> responseFuture, int partNum, String key) {
         this.responseFuture = responseFuture;
         this.partNum = partNum;
         this.key = key;
+    }
+
+    public UploadCallback(CompletableFuture<FastOssCommand> responseFuture, int partNum) {
+        this.responseFuture = responseFuture;
+        this.partNum = partNum;
+        this.key = null;
     }
 
     @Override

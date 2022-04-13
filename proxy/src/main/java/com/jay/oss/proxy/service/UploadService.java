@@ -22,6 +22,7 @@ import com.jay.oss.proxy.callback.UploadCallback;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
@@ -71,15 +72,22 @@ public class UploadService {
         CommandCode code = bucketResponse.getCommandCode();
         // 向桶内添加对象记录
         if(code.equals(FastOssProtocol.SUCCESS)){
-            // 计算分片个数
-            int parts = (int)(size / FilePart.DEFAULT_PART_SIZE + (size % FilePart.DEFAULT_PART_SIZE == 0 ? 0 : 1));
             String str = StringUtil.toString(bucketResponse.getContent());
-            int idx = str.lastIndexOf(";");
-            String versionId = str.substring(idx + 1);
-            // 获取上传点
-            List<Url> urls = UrlUtil.parseUrls(str.substring(0, idx));
-            objectKey = KeyUtil.appendVersion(objectKey, versionId);
-            httpResponse = doUpload(urls, content, (int)size, parts, objectKey, key, versionId);
+            String[] parts = str.split(";");
+            int replicaCount = OssConfigs.replicaCount();
+            if(parts.length >= replicaCount + 1){
+                long objectId = Long.parseLong(parts[replicaCount]);
+                List<Url> storages = UrlUtil.parseUrls(parts, replicaCount);
+                if(doUpload(storages, content, (int)size, objectId)){
+                    Result result = new Result().message("Success")
+                            .putData("versionId", parts.length > replicaCount + 1 ? parts[replicaCount + 1] : null);
+                    httpResponse = HttpUtil.okResponse(result);
+                }else{
+                    httpResponse = HttpUtil.internalErrorResponse("Failed to Upload Object");
+                }
+            }else{
+                httpResponse = HttpUtil.internalErrorResponse("Failed to Upload Object");
+            }
         }else if(code.equals(FastOssProtocol.NO_ENOUGH_STORAGES)){
             httpResponse = HttpUtil.internalErrorResponse("No enough Storages for replica");
         }else{
@@ -88,6 +96,34 @@ public class UploadService {
         return httpResponse;
     }
 
+    private boolean doUpload(List<Url> urls, ByteBuf content, int size, long objectId){
+        int successReplica = 0;
+        // 需要写入成功的数量
+        int writeCount = 1;
+        ByteBuf buffer = Unpooled.buffer();
+        buffer.writeLong(objectId);
+        buffer.writeLong(size);
+        buffer.writeBytes(content);
+        int i;
+        for(i = 0; i < urls.size() && successReplica < writeCount; i++){
+            Url url = urls.get(i);
+            try{
+                buffer.markReaderIndex();
+                buffer.retain();
+                RemotingCommand command = storageClient.getCommandFactory()
+                        .createRequest(buffer, FastOssProtocol.UPLOAD_REQUEST);
+                RemotingCommand response = storageClient.sendSync(url, command, null);
+                buffer.resetReaderIndex();
+                buffer.release();
+                if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                    successReplica ++;
+                }
+            }catch (Exception e){
+                log.warn("upload to storage failed, ", e);
+            }
+        }
+        return successReplica != 0;
+    }
 
     /**
      * 完成上传数据
@@ -128,41 +164,6 @@ public class UploadService {
             httpResponse = HttpUtil.okResponse(result);
         }
         return httpResponse;
-    }
-
-
-    /**
-     * 提交异步备份
-     * 由备份成功的节点向剩余节点异步地传输副本来完成备份
-     * @param objectKey key
-     * @param asyncWriteUrls 异步备份节点
-     * @param successUrls 上传成功节点
-     */
-    private void submitAsyncBackup(String objectKey, List<Url> asyncWriteUrls, List<Url> successUrls){
-        int successCount = successUrls.size();
-        int j = 0;
-        int asyncBackupCount = asyncWriteUrls.size();
-        for(int i = 0; i < successCount; i ++){
-            List<String> urls;
-            if(i != successCount - 1 && j < asyncBackupCount){
-                // 前 n - 1 个 成功节点，每个负责一个副本的同步
-                urls = Collections.singletonList(asyncWriteUrls.get(j++).getOriginalUrl());
-            }else if(j < asyncBackupCount){
-                // 最后一个成功节点，负责剩下所有副本的同步
-                urls = asyncWriteUrls.subList(j, asyncBackupCount)
-                        .stream()
-                        .map(Url::getOriginalUrl)
-                        .collect(Collectors.toList());
-            }else{
-                break;
-            }
-            // 发送异步备份请求
-            AsyncBackupRequest request = new AsyncBackupRequest(objectKey, urls, -1);
-            byte[] content = SerializeUtil.serialize(request, AsyncBackupRequest.class);
-            RemotingCommand command = storageClient.getCommandFactory()
-                    .createRequest(content, FastOssProtocol.ASYNC_BACKUP);
-            storageClient.sendOneway(successUrls.get(i), command);
-        }
     }
 
     /**
