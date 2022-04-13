@@ -20,6 +20,7 @@ import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.SnowflakeIdGenerator;
 import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
@@ -45,6 +46,7 @@ public class BucketProcessor extends TrackerProcessor {
     private final StorageRegistry storageRegistry;
     private final EditLogManager editLogManager;
     private final ObjectTracker objectTracker;
+    private final SnowflakeIdGenerator objectIdGenerator;
 
     public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager,
                            ObjectTracker objectTracker, CommandFactory commandFactory) {
@@ -52,6 +54,7 @@ public class BucketProcessor extends TrackerProcessor {
         this.storageRegistry = storageRegistry;
         this.editLogManager = editLogManager;
         this.objectTracker = objectTracker;
+        this.objectIdGenerator = new SnowflakeIdGenerator(0L, 0L);
     }
 
     @Override
@@ -128,6 +131,7 @@ public class BucketProcessor extends TrackerProcessor {
             List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
             String urls = UrlUtil.stringifyFromNodes(nodes);
             ObjectMeta meta = ObjectMeta.builder()
+                    .objectId(objectIdGenerator.nextId())
                     .locations(urls).fileName(request.getFilename())
                     .md5(request.getMd5()).objectKey(request.getKey())
                     .size(size).createTime(request.getCreateTime())
@@ -136,7 +140,7 @@ public class BucketProcessor extends TrackerProcessor {
             // 保存object位置，判断object是否已经存在
             if(objectTracker.putObjectMeta(objectKey, meta)){
                 bucketManager.putObject(bucket, objectKey);
-                urls = urls + versionId;
+                urls = urls + meta.getObjectId() + ";" +  versionId;
                 response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
             }else{
                 // object key 重复
