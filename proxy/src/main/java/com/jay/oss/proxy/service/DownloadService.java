@@ -7,6 +7,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.request.DownloadRequest;
+import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -65,9 +66,17 @@ public class DownloadService {
             CommandCode code = locateResponse.getCommandCode();
             if(code.equals(FastOssProtocol.SUCCESS)){
                 String respContent = StringUtil.toString(locateResponse.getContent());
-                List<Url> urls = UrlUtil.parseUrls(respContent);
+
+                String[] split = respContent.split(";");
+                int replicaCount = OssConfigs.replicaCount();
+                if(split.length <= replicaCount){
+                    return HttpUtil.internalErrorResponse("Internal Server Error");
+                }
+                log.info("url: {}", respContent);
+                long objectId = Long.parseLong(split[replicaCount]);
+                List<Url> urls = UrlUtil.parseUrls(split, replicaCount);
                 // 尝试从url列表中下载object
-                return tryDownload(urls, command, rangeEnd==-1);
+                return tryDownload(urls, objectId, rangeStart, rangeEnd, commandCode);
             } else{
                 // 存储桶拒绝访问，或者object不存在
                 return HttpUtil.bucketAclResponse(code);
@@ -85,6 +94,32 @@ public class DownloadService {
                 .createRequest(request, FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
         // 同步发送
         return (FastOssCommand)client.sendSync(url, command, null);
+    }
+
+
+    private FullHttpResponse tryDownload(List<Url> urls, long objectId, int start, int end, CommandCode code){
+        GetObjectRequest request = new GetObjectRequest(objectId, start, end);
+        RemotingCommand command = client.getCommandFactory().createRequest(request, code, GetObjectRequest.class);
+        Collections.shuffle(urls);
+        for (Url url : urls) {
+            try{
+                // 发送下载请求
+                FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
+                CommandCode respCode = response.getCommandCode();
+                if(respCode.equals(FastOssProtocol.DOWNLOAD_RESPONSE)){
+                    // 全量下载返回 200OK
+                    if(end == -1){
+                        return HttpUtil.okResponse(response.getData());
+                    }else{
+                        // 部分下载返回206 Partial Content
+                        return HttpUtil.partialContentResponse(response.getData());
+                    }
+                }
+            }catch (Exception e){
+                log.warn("Failed to Get Object From: {}", url, e);
+            }
+        }
+        return HttpUtil.notFoundResponse("Object Not Found");
     }
 
     /**
