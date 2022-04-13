@@ -55,7 +55,7 @@ public class FileReceiver {
     public boolean receivePart(FilePart part){
         try{
             // 向chunk写入文件分片
-            chunk.writeHead(part, offset);
+            chunk.write(part, offset);
             // 检查是否是最后一个分片
             if(remainingParts.decrementAndGet() == 0){
                 // 归还chunk

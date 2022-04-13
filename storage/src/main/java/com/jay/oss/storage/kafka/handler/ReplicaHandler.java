@@ -106,7 +106,7 @@ public class ReplicaHandler implements RecordHandler {
             // 计算offset
             int offset = chunk.getAndAddSize(size);
             // 写入数据
-            chunk.writeHead(data, offset);
+            chunk.write(data, offset);
             FileMetaWithChunkInfo meta = FileMetaWithChunkInfo.builder()
                     .chunkId(chunk.getId()).removed(false)
                     .offset(offset).size(size)

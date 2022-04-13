@@ -145,7 +145,7 @@ public class Chunk {
      * @param part {@link FilePart}
      * @throws IOException IOException
      */
-    public void writeHead(FilePart part, int offset0) throws IOException {
+    public void write(FilePart part, int offset0) throws IOException {
         try{
             readWriteLock.writeLock().lock();
             checkAvailability();
@@ -182,7 +182,7 @@ public class Chunk {
      * @param offset 写入位置
      * @throws IOException IOException
      */
-    public void writeHead(ByteBuf data, int offset) throws IOException {
+    public void write(ByteBuf data, int offset) throws IOException {
         try{
             readWriteLock.writeLock().lock();
             checkAvailability();
