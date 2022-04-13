@@ -38,6 +38,7 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
          */
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
         this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
+        this.registerProcessor(FastOssProtocol.UPLOAD_REQUEST, fileUploadProcessor);
         /*
             Get Object 处理器
          */
