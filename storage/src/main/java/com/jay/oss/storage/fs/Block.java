@@ -187,11 +187,19 @@ public class Block {
     public int getSize(){
         return size.get();
     }
-
+    public int getId(){
+        return id;
+    }
+    public int size(){
+        return size.get();
+    }
     public int getIndexOffset(){
         return indexOffset.get();
     }
 
+    public int availableSpace(){
+        return indexOffset.get() - size.get() - INDEX_LENGTH;
+    }
 
     private void updateSizeAndIndexOffset(){
         ByteBuffer slice = buffer.slice();
