@@ -53,13 +53,13 @@ public class FileUploadProcessor extends AbstractProcessor {
     private final EditLogManager editLogManager;
     private final RecordProducer storageNodeProducer;
 
-    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
+    public FileUploadProcessor(ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
         this.chunkManager = chunkManager;
         this.metaManager = metaManager;
         this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
         this.storageNodeProducer = storageNodeProducer;
-        this.blockManager = new BlockManager();
+        this.blockManager = blockManager;
     }
 
     @Override
