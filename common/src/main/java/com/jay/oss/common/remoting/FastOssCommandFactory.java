@@ -5,9 +5,11 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.entity.request.UploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.DefaultFileRegion;
 
 import java.io.Serializable;

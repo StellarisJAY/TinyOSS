@@ -5,6 +5,7 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.CommandHandler;
 import com.jay.dove.transport.protocol.*;
+import org.checkerframework.checker.units.qual.C;
 
 /**
  * <p>
@@ -89,6 +90,8 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode NOT_FOUND = new CommandCode((short)404);
     public static final CommandCode NO_ENOUGH_STORAGES = new CommandCode((short)600);
     public static final CommandCode DUPLICATE_OBJECT_KEY = new CommandCode((short)700);
+
+    public static final CommandCode UPLOAD_REQUEST = new CommandCode((short)1111);
     /**
      * 默认命令处理器
      */

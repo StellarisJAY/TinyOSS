@@ -33,6 +33,9 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
                 ByteBuf filePart = createFilePartContent(command.getFilePartWrapper());
                 out.add(filePart);
             }
+            else if(FastOssProtocol.UPLOAD_REQUEST.equals(code)){
+                out.add(command.getData());
+            }
             else if(FastOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
                 ByteBuf multipartContent = createMultipartContent(command.getFilePartWrapper());
                 out.add(multipartContent);
