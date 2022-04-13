@@ -42,7 +42,7 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
             }
             // 处理下载的fileRegion
             else if(FastOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
-                out.add(command.getFileRegion());
+                out.add(command.getData());
             }
             // 处理序列化的content
             else if(command.getContent() != null){
