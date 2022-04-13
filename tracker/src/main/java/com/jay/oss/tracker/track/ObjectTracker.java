@@ -46,7 +46,7 @@ public class ObjectTracker {
      */
     public String locateObject(String objectKey){
         ObjectMeta objectMeta = getObjectMeta(objectKey);
-        return objectMeta == null ? null : objectMeta.getObjectId() + ";" + objectMeta.getLocations();
+        return objectMeta == null ? null : objectMeta.getLocations() + objectMeta.getObjectId();
     }
 
     /**
