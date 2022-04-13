@@ -42,4 +42,12 @@ public class UrlUtil {
         }
         return builder.toString();
     }
+
+    public static List<Url> parseUrls(String[] urls, int n){
+        List<Url> result = new ArrayList<>(n);
+        for (int i = 0; i < n && i < urls.length; i++) {
+            result.add(Url.parseString(urls[i]));
+        }
+        return result;
+    }
 }
