@@ -3,7 +3,6 @@ package com.jay.oss.storage.fs;
 import com.jay.oss.common.config.OssConfigs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.DefaultFileRegion;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -14,7 +13,6 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -52,7 +50,7 @@ public class Block {
     /**
      * chunk current size
      */
-    private final AtomicInteger size;
+    private AtomicInteger size;
 
     /**
      * chunk id
@@ -63,11 +61,9 @@ public class Block {
      * 为了最大程度优化磁盘IO，Chunk文件的大小应该是磁盘块大小的整数倍。
      * Linux系统下，I/O Block大小是 4KB， 所以Chunk文件大小为4KB整数倍
      */
-    public static final int MAX_BLOCK_SIZE = 4 * 1024 * 1024 * 32;
+    public static final int MAX_BLOCK_SIZE = 128 * 1024 * 1024;
 
     private final ReentrantReadWriteLock readWriteLock;
-
-    private final AtomicBoolean available = new AtomicBoolean(true);
 
     /**
      * Block头的长度，header主要用来记录block的大小等信息
@@ -76,18 +72,19 @@ public class Block {
 
     private static final int BLOCK_HEADER_POSITION = MAX_BLOCK_SIZE - BLOCK_HEADER_LENGTH;
 
-    private static final int INDEX_LENGTH = 16;
+    public static final int INDEX_LENGTH = 12;
 
-    private final AtomicInteger indexOffset;
+    private static final int BUFFER_SIZE = 256 * 1024;
+
+    private static final int DELETE_MARK = -1;
 
 
     public Block(int blockId){
         this.readWriteLock = new ReentrantReadWriteLock();
         this.id =blockId;
-        this.path = OssConfigs.dataPath() + File.separator + "block_" + id;
+        this.path = OssConfigs.dataPath() + File.separator + "block_" + blockId;
         this.size = new AtomicInteger(0);
         this.file = new File(path);
-        this.indexOffset = new AtomicInteger(MAX_BLOCK_SIZE - BLOCK_HEADER_LENGTH);
         try{
             RandomAccessFile rf = new RandomAccessFile(file, "rw");
             this.fileChannel = rf.getChannel();
@@ -97,78 +94,122 @@ public class Block {
         }
     }
 
-    public Block(String path, File blockFile, int blockId){
+    public Block(File blockFile){
+        String fileName = blockFile.getName();
         this.readWriteLock = new ReentrantReadWriteLock();
-        this.id =blockId;
-        this.path = path;
+        this.id = Integer.parseInt(fileName.substring(fileName.indexOf("_") + 1));
+        this.path = blockFile.getPath();
         this.file = blockFile;
         try{
             RandomAccessFile rf = new RandomAccessFile(file, "rw");
             this.fileChannel = rf.getChannel();
             this.buffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_BLOCK_SIZE);
-            ByteBuffer slice = buffer.slice();
-            slice.position(BLOCK_HEADER_POSITION);
-            this.size = new AtomicInteger(slice.getInt());
-            this.indexOffset = new AtomicInteger(slice.getInt());
         }catch (IOException e){
             throw new RuntimeException("Can't create block, id: " + id, e);
         }
     }
 
-    public ObjectIndex write(long objectId, ByteBuf src, int length){
+    /**
+     * 小文件适用的mmap写入方法
+     * @param objectId objectId
+     * @param src {@link ByteBuf}
+     * @param length 写入内容长度
+     * @return {@link ObjectIndex}
+     */
+    public ObjectIndex mmapWrite(long objectId, ByteBuf src, int length){
         try{
             readWriteLock.writeLock().lock();
             // 写入数据
-            int offset = size.getAndAdd(length);
+            int offset = size.getAndAdd(length + INDEX_LENGTH);
             ByteBuffer slice = buffer.slice();
             slice.position(offset);
-            slice.put(src.nioBuffer());
-            // 写入索引并更新索引偏移位置
-            int indexPosition = indexOffset.addAndGet(-INDEX_LENGTH);
-            slice.position(indexPosition);
             slice.putLong(objectId);
-            slice.putInt(offset);
             slice.putInt(length);
-            // 更新blockSize
-            updateSizeAndIndexOffset();
-            return new ObjectIndex(this.id, indexPosition, offset, length);
+            slice.put(src.nioBuffer());
+            return new ObjectIndex(this.id, offset, length);
         }finally {
             readWriteLock.writeLock().unlock();
         }
     }
 
-    public DefaultFileRegion readFileRegion(int offset, int length){
-        try{
-            readWriteLock.readLock().lock();
-            RandomAccessFile rf = new RandomAccessFile(file, "r");
-            return new DefaultFileRegion(rf.getChannel(), offset, length);
-        }catch (IOException e){
-            log.warn("Can't read file region from block file");
-            return null;
-        } finally{
-            readWriteLock.readLock().unlock();
-        }
-    }
 
-    public ByteBuf readBytes(int offset, int length){
+    public ByteBuf mmapReadBytes(int offset, int start, int length){
         try{
             readWriteLock.readLock().lock();
-            ByteBuffer slice = buffer.slice();
-            slice.position(offset);
-            slice.limit(offset + length);
-            return Unpooled.wrappedBuffer(slice);
+            ByteBuf buffer = Unpooled.directBuffer(length);
+            ByteBuffer slice = this.buffer.slice();
+            int offset0 = offset + start + INDEX_LENGTH;
+            slice.position(offset0);
+            slice.limit(offset0 + length);
+            buffer.writeBytes(slice);
+            return buffer;
         }finally {
             readWriteLock.readLock().unlock();
         }
     }
 
     /**
-     * 判断剩余空间是否足够
-     * @param length 需要的长度
-     * @return boolean
+     * 大文件写入方法，使用FileChannel和16KB缓冲区优化
+     * @param objectId objectId
+     * @param src {@link ByteBuf}
+     * @param length 写入内容长度
+     * @return {@link ObjectIndex}
      */
-    public boolean isWritable(int length){
-        return indexOffset.get() - size.get() - INDEX_LENGTH >= length;
+    public ObjectIndex fileChannelWriteBuffered(long objectId, ByteBuf src, int length){
+        try{
+            readWriteLock.writeLock().lock();
+            int lengthWithIndex = length + INDEX_LENGTH;
+            int offset0 = size.getAndAdd(lengthWithIndex);
+            ByteBuf header = Unpooled.buffer(INDEX_LENGTH);
+            header.writeLong(objectId);
+            header.writeInt(length);
+            ByteBuf fullBuffer = Unpooled.wrappedBuffer(header, src);
+            int loop = (int)Math.ceil((double)lengthWithIndex / BUFFER_SIZE);
+            for (int i = 0; i < loop; i++) {
+                int offset = offset0 + i * BUFFER_SIZE;
+                fullBuffer.readBytes(fileChannel, offset, i == loop - 1 ? fullBuffer.readableBytes() : BUFFER_SIZE);
+            }
+            return new ObjectIndex(id, offset0, length);
+        } catch (IOException e) {
+            log.warn("Write file channel failed ", e);
+            return null;
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+
+    public ByteBuf fileChannelRead(int offset, int startPos, int length){
+        try{
+            readWriteLock.readLock().lock();
+            ByteBuf result = Unpooled.directBuffer(length);
+            int offset0 = offset + INDEX_LENGTH + startPos;
+            result.writeBytes(fileChannel, offset0, length);
+            return result;
+        } catch (IOException e) {
+           log.warn("Read file channel failed ", e);
+           return null;
+        } finally {
+            readWriteLock.readLock().unlock();
+        }
+    }
+
+
+    public boolean delete(long objectId, int offset){
+        try{
+            readWriteLock.writeLock().lock();
+            ByteBuffer slice = buffer.slice();
+            slice.position(offset);
+            if(slice.getLong() == objectId){
+                slice.putInt(DELETE_MARK);
+            }
+            return true;
+        }catch (Exception e){
+            log.warn("Delete object in block failed, objectId: {}, offset: {}",objectId, offset, e);
+            return false;
+        } finally{
+            readWriteLock.writeLock().unlock();
+        }
     }
 
     /**
@@ -176,17 +217,24 @@ public class Block {
      * @return Map
      */
     public Map<Long, ObjectIndex> loadIndex(){
-        ByteBuffer slice = buffer.slice();
-        slice.position(indexOffset.get());
-        slice.limit(BLOCK_HEADER_POSITION);
         Map<Long, ObjectIndex> indexes = new HashMap<>(16);
-        while(slice.remaining() >= INDEX_LENGTH){
-            int indexOffset = slice.position();
+        ByteBuffer slice = buffer.slice();
+        log.info("Slice limit: {}", slice.limit());
+        int size = 0;
+        while(slice.remaining() > INDEX_LENGTH){
+            int offset = slice.position();
             long objectId = slice.getLong();
-            int offset = slice.getInt();
-            int size = slice.getInt();
-            indexes.put(objectId, new ObjectIndex(this.id, indexOffset, offset, size));
+            int length = slice.getInt();
+            if(objectId < 0 || length <= 0 || slice.remaining() < length){
+                break;
+            }
+            // 跳过data部分
+            slice.position(offset + length + INDEX_LENGTH);
+            ObjectIndex index = new ObjectIndex(this.id, offset, length);
+            indexes.put(objectId, index);
+            size += length + INDEX_LENGTH;
         }
+        this.size = new AtomicInteger(size);
         return indexes;
     }
 
@@ -199,18 +247,10 @@ public class Block {
     public int size(){
         return size.get();
     }
-    public int getIndexOffset(){
-        return indexOffset.get();
-    }
 
     public int availableSpace(){
-        return indexOffset.get() - size.get() - INDEX_LENGTH;
+        return MAX_BLOCK_SIZE - this.size.get();
     }
 
-    private void updateSizeAndIndexOffset(){
-        ByteBuffer slice = buffer.slice();
-        slice.position(BLOCK_HEADER_POSITION);
-        slice.putInt(size.get());
-        slice.putInt(indexOffset.get());
-    }
+
 }
