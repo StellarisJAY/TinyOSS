@@ -19,7 +19,6 @@ import lombok.ToString;
 @ToString
 public class ObjectIndex {
     private int blockId;
-    private int indexOffset;
     private int offset;
     private int size;
 }
