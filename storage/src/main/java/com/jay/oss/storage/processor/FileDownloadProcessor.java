@@ -61,7 +61,7 @@ public class FileDownloadProcessor extends AbstractProcessor {
         if(block != null){
             int readStart = request.getEnd() == -1 ? 0 : request.getStart();
             int readLength = request.getEnd() == -1 ? objectIndex.getSize() : request.getEnd() - request.getStart();
-            ByteBuf buffer = block.readBytes(readStart, readLength);
+            ByteBuf buffer = block.mmapReadBytes(objectIndex.getOffset(), readStart, readLength);
             sendResponse(context, commandFactory.createResponse(command.getId(), buffer, FastOssProtocol.DOWNLOAD_RESPONSE));
         }else{
             sendResponse(context, commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR));
