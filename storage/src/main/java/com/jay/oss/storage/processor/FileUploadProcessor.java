@@ -101,18 +101,18 @@ public class FileUploadProcessor extends AbstractProcessor {
             metaManager.computeIfAbsent(objectId, (id)->{
                 // 获取chunk文件
                 Block block = blockManager.getBlockBySize((int)size);
-                ObjectIndex index = block.mmapWrite(id, data, (int) size);
+                ObjectIndex index = block.write(id, data, (int) size);
                 duplicateObject.set(false);
                 blockManager.offerBlock(block);
                 return index;
             });
             // 没能够成功进行computeIfAbsent的重复的key
             if(duplicateObject.get()){
-                sendUploadCompleteRecord(objectId);
                 // 发送重复回复报文
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
                 sendResponse(context, response);
             } else{
+                sendUploadCompleteRecord(objectId);
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
                 sendResponse(context, response);
             }

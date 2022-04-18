@@ -35,6 +35,7 @@ import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
 import com.jay.oss.storage.meta.MetaManager;
+import com.sun.org.apache.xalan.internal.lib.NodeInfo;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
@@ -115,7 +116,7 @@ public class StorageNode extends AbstractLifeCycle {
             订阅消息主题
          */
         storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(metaManager, blockManager));
-        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC, new ReplicaHandler(client, chunkManager, editLogManager, metaManager));
+        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, metaManager, blockManager));
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
@@ -133,11 +134,6 @@ public class StorageNode extends AbstractLifeCycle {
                 OssConfigs.editLogFlushInterval(),
                 OssConfigs.editLogFlushInterval(),
                 TimeUnit.MILLISECONDS);
-        // 系统关闭hook，关闭时flush日志
-        Runtime.getRuntime().addShutdownHook(new Thread(()->{
-            editLogManager.swapBuffer(true);
-            editLogManager.close();
-        }, "shutdown-log-flush"));
     }
 
 
