@@ -1,6 +1,7 @@
 package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -40,6 +41,12 @@ public class BlockManager {
     private final AtomicInteger blockIdProvider = new AtomicInteger(1);
 
     private final Object mutex = new Object();
+
+    private final MetaManager metaManager;
+
+    public BlockManager(MetaManager metaManager) {
+        this.metaManager = metaManager;
+    }
 
     /**
      * 获取一个大小足够容纳FileMeta的block
@@ -125,5 +132,13 @@ public class BlockManager {
             log.info("Object index loaded, object count: {}, time used: {}ms", indexes.keySet().size(), (System.currentTimeMillis() - loadStart));
         }
         return indexes;
+    }
+
+    public void compactBlocks(){
+        for (Map.Entry<Integer, Block> entry : blockMap.entrySet()) {
+            Block block = entry.getValue();
+            Map<Long, ObjectIndex> updatedIndex = block.compact();
+            metaManager.putIndexes(updatedIndex);
+        }
     }
 }
