@@ -88,31 +88,36 @@ public class FileUploadProcessor extends AbstractProcessor {
      */
     private void processUploadRequest0(ChannelHandlerContext context, FastOssCommand command){
         ByteBuf data = command.getData();
-        if(data.readableBytes() <= UploadRequest.HEADER_LENGTH){
-            return;
-        }
-        long objectId = data.readLong();
-        long size = data.readLong();
-        AtomicBoolean duplicateObject = new AtomicBoolean(true);
+        try{
+            if(data.readableBytes() <= UploadRequest.HEADER_LENGTH){
+                return;
+            }
+            long objectId = data.readLong();
+            long size = data.readLong();
+            AtomicBoolean duplicateObject = new AtomicBoolean(true);
         /*
             computeIfAbsent 保证同一个key的meta只保存一次
          */
-        metaManager.computeIfAbsent(objectId, (id)->{
-            // 获取chunk文件
-            Block block = blockManager.getBlockBySize((int)size);
-            ObjectIndex index = block.write(id, data, (int) size);
-            duplicateObject.set(false);
-            blockManager.offerBlock(block);
-            return index;
-        });
-        // 没能够成功进行computeIfAbsent的重复的key
-        if(duplicateObject.get()){
-            // 发送重复回复报文
-            RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
-            sendResponse(context, response);
-        } else{
-            RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
-            sendResponse(context, response);
+            metaManager.computeIfAbsent(objectId, (id)->{
+                // 获取chunk文件
+                Block block = blockManager.getBlockBySize((int)size);
+                ObjectIndex index = block.write(id, data, (int) size);
+                duplicateObject.set(false);
+                blockManager.offerBlock(block);
+                return index;
+            });
+            // 没能够成功进行computeIfAbsent的重复的key
+            if(duplicateObject.get()){
+                // 发送重复回复报文
+                RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+                sendResponse(context, response);
+            } else{
+                sendUploadCompleteRecord(objectId);
+                RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
+                sendResponse(context, response);
+            }
+        }finally {
+            data.release();
         }
     }
 
@@ -223,7 +228,12 @@ public class FileUploadProcessor extends AbstractProcessor {
         editLogManager.append(editLog);
     }
 
-    private void sendUploadCompleteRecord(String objectKey) throws UnknownHostException {
+    private void sendUploadCompleteRecord(long objectId){
+        storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
+    }
+
+
+    private void sendUploadCompleteRecord(String objectKey)  {
         storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, objectKey, NodeInfoCollector.getAddress());
     }
 }

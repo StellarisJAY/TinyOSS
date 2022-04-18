@@ -109,6 +109,9 @@ public class OssConfigs {
     private static final String KAFKA_ACKS = "kafka.acks";
     private static final String DEFAULT_KAFKA_ACKS = "all";
 
+    private static final String ENABLE_MMAP = "oss.fs.enable_mmap";
+    private static final boolean DEFAULT_ENABLE_MMAP = false;
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -180,5 +183,9 @@ public class OssConfigs {
 
     public static String kafkaAcks(){
         return ConfigsManager.get(KAFKA_ACKS, DEFAULT_KAFKA_ACKS);
+    }
+
+    public static boolean enableMmap(){
+        return ConfigsManager.getBoolean(ENABLE_MMAP, DEFAULT_ENABLE_MMAP);
     }
 }

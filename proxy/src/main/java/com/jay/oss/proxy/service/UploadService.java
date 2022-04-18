@@ -3,22 +3,15 @@ package com.jay.oss.proxy.service;
 import com.jay.dove.DoveClient;
 import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
-import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.entity.request.AsyncBackupRequest;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
-import com.jay.oss.common.entity.FilePart;
-import com.jay.oss.common.entity.request.UploadRequest;
-import com.jay.oss.common.fs.FilePartWrapper;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
-import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
-import com.jay.oss.proxy.callback.UploadCallback;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
@@ -26,10 +19,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpResponse;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.Queue;
 
 /**
  * <p>
@@ -64,14 +56,15 @@ public class UploadService {
         if(StringUtil.isNullOrEmpty(key) || StringUtil.isNullOrEmpty(bucket) || content.readableBytes() == 0){
             return HttpUtil.badRequestResponse("Missing important parameters for Put Object");
         }
-        FullHttpResponse httpResponse;
         long size = content.readableBytes();
         String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // 向存储桶put object
         FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token, md5);
         CommandCode code = bucketResponse.getCommandCode();
         // 向桶内添加对象记录
-        if(code.equals(FastOssProtocol.SUCCESS)){
+        if(!code.equals(FastOssProtocol.SUCCESS)){
+            return HttpUtil.errorResponse(code);
+        }else {
             String str = StringUtil.toString(bucketResponse.getContent());
             String[] parts = str.split(";");
             int replicaCount = OssConfigs.replicaCount();
@@ -81,19 +74,14 @@ public class UploadService {
                 if(doUpload(storages, content, (int)size, objectId)){
                     Result result = new Result().message("Success")
                             .putData("versionId", parts.length > replicaCount + 1 ? parts[replicaCount + 1] : null);
-                    httpResponse = HttpUtil.okResponse(result);
+                    return HttpUtil.okResponse(result);
                 }else{
-                    httpResponse = HttpUtil.internalErrorResponse("Failed to Upload Object");
+                    return HttpUtil.internalErrorResponse("Failed to Upload Object");
                 }
             }else{
-                httpResponse = HttpUtil.internalErrorResponse("Failed to Upload Object");
+                return HttpUtil.internalErrorResponse("Failed to Upload Object");
             }
-        }else if(code.equals(FastOssProtocol.NO_ENOUGH_STORAGES)){
-            httpResponse = HttpUtil.internalErrorResponse("No enough Storages for replica");
-        }else{
-            httpResponse = HttpUtil.bucketAclResponse(code);
         }
-        return httpResponse;
     }
 
     private boolean doUpload(List<Url> urls, ByteBuf content, int size, long objectId){
@@ -104,6 +92,25 @@ public class UploadService {
         buffer.writeLong(objectId);
         buffer.writeLong(size);
         buffer.writeBytes(content);
+        Queue<Url> urlQueue = new LinkedList<>(urls);
+        int urlCount = urlQueue.size();
+        for(int i = 0; i < urlCount && successReplica < writeCount; i++){
+            Url url = urlQueue.poll();
+            try{
+                buffer.markReaderIndex();
+                buffer.retain();
+                RemotingCommand command = storageClient.getCommandFactory()
+                        .createRequest(buffer, FastOssProtocol.UPLOAD_REQUEST);
+                RemotingCommand response = storageClient.sendSync(url, command, null);
+                buffer.resetReaderIndex();
+                buffer.release();
+                if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                    successReplica ++;
+                }
+            }catch (Exception e){
+                log.warn("upload to storage failed, ", e);
+            }
+        }
         int i;
         for(i = 0; i < urls.size() && successReplica < writeCount; i++){
             Url url = urls.get(i);
@@ -123,47 +130,6 @@ public class UploadService {
             }
         }
         return successReplica != 0;
-    }
-
-    /**
-     * 完成上传数据
-     * @param urls 目标Storage节点集合
-     * @param content 完整数据
-     * @param size 数据大小
-     * @param parts 分片个数
-     * @param objectKey 对象Key
-     */
-    private FullHttpResponse doUpload(List<Url> urls, ByteBuf content, int size, int parts, String objectKey, String fileName, String versionId){
-        FullHttpResponse httpResponse;
-        int successReplica = 0;
-        // 需要写入成功的数量
-        int writeCount = 1;
-        UploadRequest request = UploadRequest.builder().size(size).key(objectKey).filename(fileName).parts(parts).build();
-        int i;
-        for(i = 0; i < urls.size() && successReplica < writeCount; i++){
-            Url url = urls.get(i);
-            try{
-                // 上传元数据
-                FastOssCommand uploadMeta = uploadFileHeader(url, request);
-                if(uploadMeta.getCommandCode().equals(FastOssProtocol.SUCCESS)){
-                    // 上传分片
-                    FastOssCommand response = uploadFileParts(url, content, size, parts, objectKey);
-                    if(response.getCommandCode().equals(FastOssProtocol.RESPONSE_UPLOAD_DONE)){
-                        // 全部分片上传成功
-                        successReplica++;
-                    }
-                }
-            }catch (Exception e){
-                log.warn("upload to storage failed, ", e);
-            }
-        }
-        if(successReplica == 0){
-           httpResponse = HttpUtil.internalErrorResponse("Upload Object Data Failed");
-        }else{
-            Result result = new Result().message("Success").putData("versionId",versionId);
-            httpResponse = HttpUtil.okResponse(result);
-        }
-        return httpResponse;
     }
 
     /**
@@ -194,62 +160,6 @@ public class UploadService {
         RemotingCommand command = storageClient.getCommandFactory()
                 .createRequest(request, FastOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
         return (FastOssCommand) storageClient.sendSync(url, command, null);
-    }
-
-    /**
-     * 上传文件header
-     * 该请求会在storage开启一个FileReceiver准备接收数据
-     * @param url 目标url {@link Url}
-     * @param request {@link UploadRequest}
-     * @return {@link FastOssCommand}
-     * @throws InterruptedException e
-     */
-    private FastOssCommand uploadFileHeader(Url url, UploadRequest request) throws InterruptedException {
-        // 创建请求报文
-        RemotingCommand command = storageClient.getCommandFactory()
-                .createRequest(request, FastOssProtocol.UPLOAD_FILE_HEADER, UploadRequest.class);
-        return (FastOssCommand) storageClient.sendSync(url, command, null);
-    }
-
-    /**
-     * 分片上传文件到存储节点
-     * @param url {@link Url} 存储节点url
-     * @param content {@link ByteBuf} 数据
-     * @param size long 数据大小
-     * @param parts 分片个数
-     * @param key 文件key
-     * @return {@link FastOssCommand} upload parts response
-     */
-    private FastOssCommand uploadFileParts(Url url, ByteBuf content, long size, int parts, String key) throws Exception {
-        CommandFactory commandFactory = storageClient.getCommandFactory();
-        byte[] keyBytes = StringUtil.getBytes(key);
-        int keyLength = keyBytes.length;
-        try{
-            // future, 等待所有分片上传完成
-            CompletableFuture<FastOssCommand> responseFuture = new CompletableFuture<>();
-            for(int i = 0; i < parts; i++){
-                // 计算当前分片大小
-                int partSize = i == parts - 1 ? (int) size % FilePart.DEFAULT_PART_SIZE : FilePart.DEFAULT_PART_SIZE;
-                // 封装part
-                FilePartWrapper partWrapper = FilePartWrapper.builder()
-                        .key(keyBytes)
-                        .fullContent(content)
-                        .length(partSize)
-                        .keyLength(keyLength)
-                        .index(i * FilePart.DEFAULT_PART_SIZE)
-                        .partNum(i).build();
-                // 将content refCnt + 1
-                content.retain();
-                // 创建请求
-                RemotingCommand request = commandFactory.createRequest(partWrapper, FastOssProtocol.UPLOAD_FILE_PARTS);
-                // 发送文件分片，异步方式发送
-                storageClient.sendAsync(url, request, new UploadCallback(responseFuture, i, key));
-            }
-            return responseFuture.get();
-        }catch (Exception e){
-            log.warn("upload file parts failed, cause: ", e);
-            throw e;
-        }
     }
 
 }

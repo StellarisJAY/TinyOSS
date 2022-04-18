@@ -138,7 +138,7 @@ public class BucketProcessor extends TrackerProcessor {
                     .versionId(versionId)
                     .build();
             // 保存object位置，判断object是否已经存在
-            if(objectTracker.putObjectMeta(objectKey, meta)){
+            if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
                 bucketManager.putObject(bucket, objectKey);
                 urls = urls + meta.getObjectId() + ";" +  versionId;
                 response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);

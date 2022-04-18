@@ -1,9 +1,10 @@
 package com.jay.oss.storage.fs;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import com.jay.oss.common.config.OssConfigs;
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.File;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jay
  * @date 2022/04/13 14:07
  */
+@Slf4j
 public class BlockManager {
     /**
      * blockSizeMap
@@ -100,5 +102,28 @@ public class BlockManager {
     public Block createBlockAndGet(){
         int id = blockIdProvider.getAndIncrement();
         return new Block(id);
+    }
+
+    /**
+     * 初始化时加载block文件夹中的所有block
+     */
+    public Map<Long, ObjectIndex> loadBlocks(){
+        Map<Long, ObjectIndex> indexes = new HashMap<>(256);
+        String path = OssConfigs.dataPath();
+        File dir = new File(path);
+        if(dir.isDirectory()){
+            long loadStart = System.currentTimeMillis();
+            File[] blocks = dir.listFiles((dir1, name) -> name.startsWith("block_"));
+            if(blocks != null && blocks.length > 0){
+                for (File blockFile : blocks) {
+                    Block block = new Block(blockFile);
+                    indexes.putAll(block.loadIndex());
+                    offerBlock(block);
+                }
+                this.blockIdProvider.set(blocks.length);
+            }
+            log.info("Object index loaded, object count: {}, time used: {}ms", indexes.keySet().size(), (System.currentTimeMillis() - loadStart));
+        }
+        return indexes;
     }
 }

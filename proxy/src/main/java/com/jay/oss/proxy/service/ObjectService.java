@@ -36,12 +36,6 @@ import java.time.Duration;
 public class ObjectService {
     private final DoveClient client;
 
-    private final Cache<String, ObjectMeta> metaCache = Caffeine.newBuilder()
-            .maximumSize(4096)
-            .expireAfterWrite(Duration.ofMinutes(1))
-            .recordStats()
-            .build();
-
     public ObjectService(DoveClient client) {
         this.client = client;
     }

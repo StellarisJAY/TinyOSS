@@ -31,12 +31,15 @@ import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.edit.StorageEditLogManager;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ChunkManager;
+import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
 import com.jay.oss.storage.meta.MetaManager;
+import com.sun.org.apache.xalan.internal.lib.NodeInfo;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -83,7 +86,7 @@ public class StorageNode extends AbstractLifeCycle {
             ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
             // 命令处理器
             this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
-                    chunkManager, metaManager, editLogManager, client, storageNodeProducer, blockManager);
+                    chunkManager, metaManager, editLogManager, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
             this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
@@ -99,14 +102,9 @@ public class StorageNode extends AbstractLifeCycle {
          */
         ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
-        /*
-            加载chunks，压缩editLog文件
-            压缩chunk文件
-         */
-        editLogManager.init();
-        chunkManager.init();
-        editLogManager.loadAndCompress();
-        chunkManager.compactChunks();
+
+        Map<Long, ObjectIndex> indexes = blockManager.loadBlocks();
+        metaManager.putIndexes(indexes);
         /*
             初始化注册中心客户端
          */
@@ -117,8 +115,8 @@ public class StorageNode extends AbstractLifeCycle {
         /*
             订阅消息主题
          */
-        storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(metaManager, chunkManager, editLogManager));
-        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC, new ReplicaHandler(client, chunkManager, editLogManager, metaManager));
+        storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(metaManager, blockManager));
+        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, metaManager, blockManager));
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
@@ -136,11 +134,6 @@ public class StorageNode extends AbstractLifeCycle {
                 OssConfigs.editLogFlushInterval(),
                 OssConfigs.editLogFlushInterval(),
                 TimeUnit.MILLISECONDS);
-        // 系统关闭hook，关闭时flush日志
-        Runtime.getRuntime().addShutdownHook(new Thread(()->{
-            editLogManager.swapBuffer(true);
-            editLogManager.close();
-        }, "shutdown-log-flush"));
     }
 
 

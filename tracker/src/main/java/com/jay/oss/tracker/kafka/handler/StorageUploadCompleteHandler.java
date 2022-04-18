@@ -1,6 +1,7 @@
 package com.jay.oss.tracker.kafka.handler;
 
 import com.jay.oss.common.constant.OssConstants;
+import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.util.StringUtil;
@@ -34,9 +35,15 @@ public class StorageUploadCompleteHandler implements RecordHandler {
     @Override
     public void handle(Iterable<ConsumerRecord<String, String>> records, ConsumerGroupMetadata groupMetadata) {
         for (ConsumerRecord<String, String> record : records) {
-            String objectKey = record.key();
+            String objectId = record.key();
             String storageUrl = record.value().trim();
-            String urls = objectTracker.locateObject(objectKey);
+            ObjectMeta meta = objectTracker.getMetaById(objectId);
+            if(meta == null) {
+                log.warn("Object Meta not found in upload complete handler for id: {}", objectId);
+                continue;
+            }
+            String urls = meta.getLocations();
+            log.info("Received Upload complete message, objectId: {}, replica locations: {}", objectId, urls);
             if(!StringUtil.isNullOrEmpty(urls)){
                 String[] storages = urls.split(";");
                 // 排除已上传成功的storage
@@ -45,9 +52,13 @@ public class StorageUploadCompleteHandler implements RecordHandler {
                         .collect(Collectors.toList());
                 for (String backupUrl : backupUrls) {
                     // 发送备份消息到指定的备份机器
-                    producer.send(OssConstants.REPLICA_TOPIC, objectKey, storageUrl + ";" + backupUrl);
+                    producer.send(getTopic(backupUrl), record.key(), storageUrl + ";" + backupUrl);
                 }
             }
         }
+    }
+
+    private String getTopic(String backupUrl){
+        return OssConstants.REPLICA_TOPIC + "_" + backupUrl.replace(":", "_");
     }
 }

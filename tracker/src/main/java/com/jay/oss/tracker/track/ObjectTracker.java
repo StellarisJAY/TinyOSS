@@ -6,6 +6,7 @@ import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -82,6 +83,27 @@ public class ObjectTracker {
     public boolean putObjectMeta(String objectKey, ObjectMeta meta)  {
         byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
         return metaStorage.put(objectKey, serialized);
+    }
+
+    public boolean putObjectId(long objectId, String objectKey){
+        String id = Long.toString(objectId);
+        return metaStorage.put(id, StringUtil.getBytes(objectKey));
+    }
+
+    public ObjectMeta getMetaById(String objectId){
+        ObjectMeta meta = cache.getIfPresent(objectId);
+        if(meta != null){
+            return meta;
+        }
+        try{
+            byte[] objectKey = metaStorage.get(objectId);
+            if(objectKey != null){
+                return getObjectMeta(StringUtil.toString(objectKey));
+            }
+            return null;
+        }catch (Exception e){
+            return null;
+        }
     }
 
     /**

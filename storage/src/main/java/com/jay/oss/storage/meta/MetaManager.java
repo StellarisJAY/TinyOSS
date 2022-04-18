@@ -5,6 +5,7 @@ import com.jay.oss.storage.fs.ObjectIndex;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -41,13 +42,18 @@ public class MetaManager {
         return indexCache.get(objectId);
     }
 
+    public void deleteIndex(long objectId){
+        indexCache.remove(objectId);
+    }
+
+    public void putIndexes(Map<Long, ObjectIndex> indexMap){
+        this.indexCache.putAll(indexMap);
+    }
+
     public FileMetaWithChunkInfo delete(String key){
         return fileMetaCache.remove(key);
     }
 
-    public boolean fileExists(String key){
-        return fileMetaCache.containsKey(key);
-    }
 
     public FileMetaWithChunkInfo getMeta(String key){
         return fileMetaCache.get(key);

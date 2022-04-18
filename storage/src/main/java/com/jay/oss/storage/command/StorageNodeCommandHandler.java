@@ -26,13 +26,11 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
 
     public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor,
                                      ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager,
-                                     DoveClient client, RecordProducer storageNodeProducer, BlockManager blockManager) {
+                                     RecordProducer storageNodeProducer, BlockManager blockManager) {
         super(commandFactory, executor);
         // 文件上传处理器
         FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, blockManager, commandFactory, storageNodeProducer);
-        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, blockManager, commandFactory);
-        FileDeleteProcessor fileDeleteProcessor = new FileDeleteProcessor(chunkManager, metaManager, editLogManager, commandFactory);
-        AsyncBackupProcessor asyncBackupProcessor = new AsyncBackupProcessor(client, metaManager, chunkManager);
+        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, blockManager, commandFactory);
         MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         /*
             Put Object处理器
@@ -45,12 +43,6 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
          */
         this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
-        this.registerProcessor(FastOssProtocol.DELETE_OBJECT, fileDeleteProcessor);
-        /*
-            异步备份处理器
-         */
-        this.registerProcessor(FastOssProtocol.ASYNC_BACKUP, asyncBackupProcessor);
-        this.registerProcessor(FastOssProtocol.ASYNC_BACKUP_PART, asyncBackupProcessor);
         /*
             分片上传处理器
          */
