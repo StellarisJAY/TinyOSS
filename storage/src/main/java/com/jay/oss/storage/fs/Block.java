@@ -65,13 +65,6 @@ public class Block {
 
     private final ReentrantReadWriteLock readWriteLock;
 
-    /**
-     * Block头的长度，header主要用来记录block的大小等信息
-     */
-    private static final int BLOCK_HEADER_LENGTH = 8;
-
-    private static final int BLOCK_HEADER_POSITION = MAX_BLOCK_SIZE - BLOCK_HEADER_LENGTH;
-
     public static final int INDEX_LENGTH = 12;
 
     private static final int BUFFER_SIZE = 256 * 1024;
@@ -88,7 +81,7 @@ public class Block {
         try{
             RandomAccessFile rf = new RandomAccessFile(file, "rw");
             this.fileChannel = rf.getChannel();
-            this.buffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_BLOCK_SIZE);
+            this.buffer = OssConfigs.enableMmap() ? fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_BLOCK_SIZE) : null;
         }catch (IOException e){
             throw new RuntimeException("Can't create block, id: " + id, e);
         }
@@ -103,10 +96,24 @@ public class Block {
         try{
             RandomAccessFile rf = new RandomAccessFile(file, "rw");
             this.fileChannel = rf.getChannel();
-            this.buffer = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_BLOCK_SIZE);
+            this.buffer = OssConfigs.enableMmap() ? fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_BLOCK_SIZE) : null;
         }catch (IOException e){
             throw new RuntimeException("Can't create block, id: " + id, e);
         }
+    }
+
+    public ObjectIndex write(long objectId, ByteBuf src, int length){
+        if(buffer == null){
+            return fileChannelWrite(objectId, src, length);
+        }
+        return mmapWrite(objectId, src, length);
+    }
+
+    public ByteBuf read(int offset, int start, int length){
+        if(buffer == null){
+            return fileChannelRead(offset, start, length);
+        }
+        return mmapReadBytes(offset, start, length);
     }
 
     /**
@@ -116,7 +123,7 @@ public class Block {
      * @param length 写入内容长度
      * @return {@link ObjectIndex}
      */
-    public ObjectIndex mmapWrite(long objectId, ByteBuf src, int length){
+    private ObjectIndex mmapWrite(long objectId, ByteBuf src, int length){
         try{
             readWriteLock.writeLock().lock();
             // 写入数据
@@ -133,7 +140,7 @@ public class Block {
     }
 
 
-    public ByteBuf mmapReadBytes(int offset, int start, int length){
+    private ByteBuf mmapReadBytes(int offset, int start, int length){
         try{
             readWriteLock.readLock().lock();
             ByteBuf buffer = Unpooled.directBuffer(length);
@@ -155,7 +162,8 @@ public class Block {
      * @param length 写入内容长度
      * @return {@link ObjectIndex}
      */
-    public ObjectIndex fileChannelWriteBuffered(long objectId, ByteBuf src, int length){
+    @SuppressWarnings("all")
+    private ObjectIndex fileChannelWriteBuffered(long objectId, ByteBuf src, int length){
         try{
             readWriteLock.writeLock().lock();
             int lengthWithIndex = length + INDEX_LENGTH;
@@ -178,8 +186,27 @@ public class Block {
         }
     }
 
+    private ObjectIndex fileChannelWrite(long objectId, ByteBuf src, int length){
+        try{
+            readWriteLock.writeLock().lock();
+            int lengthWithIndex = length + INDEX_LENGTH;
+            int offset0 = size.getAndAdd(lengthWithIndex);
+            ByteBuf header = Unpooled.buffer(INDEX_LENGTH);
+            header.writeLong(objectId);
+            header.writeInt(length);
+            ByteBuf fullBuffer = Unpooled.wrappedBuffer(header, src);
+            fullBuffer.readBytes(fileChannel, offset0, lengthWithIndex);
+            return new ObjectIndex(id, offset0, length);
+        } catch (IOException e) {
+            log.warn("Write file channel failed ", e);
+            return null;
+        } finally {
+            readWriteLock.writeLock().unlock();
+        }
+    }
 
-    public ByteBuf fileChannelRead(int offset, int startPos, int length){
+
+    private ByteBuf fileChannelRead(int offset, int startPos, int length){
         try{
             readWriteLock.readLock().lock();
             ByteBuf result = Unpooled.directBuffer(length);
@@ -212,14 +239,9 @@ public class Block {
         }
     }
 
-    /**
-     * 启动时加载block文件的索引，获取到每个对象的位置
-     * @return Map
-     */
-    public Map<Long, ObjectIndex> loadIndex(){
+    private Map<Long, ObjectIndex> mmapLoadIndex(){
         Map<Long, ObjectIndex> indexes = new HashMap<>(16);
         ByteBuffer slice = buffer.slice();
-        log.info("Slice limit: {}", slice.limit());
         int size = 0;
         while(slice.remaining() > INDEX_LENGTH){
             int offset = slice.position();
@@ -236,6 +258,43 @@ public class Block {
         }
         this.size = new AtomicInteger(size);
         return indexes;
+    }
+
+    private Map<Long, ObjectIndex> fileChannelLoadIndex()  {
+        Map<Long, ObjectIndex> indexes = new HashMap<>(16);
+        try{
+            int position = 0;
+            int channelSize = (int)fileChannel.size();
+            this.size = new AtomicInteger(channelSize);
+            ByteBuffer buffer = ByteBuffer.allocate(INDEX_LENGTH);
+            while(position < channelSize){
+                if(channelSize - position > INDEX_LENGTH){
+                    fileChannel.read(buffer, position);
+                    buffer.rewind();
+                    long objectId = buffer.getLong();
+                    int size = buffer.getInt();
+                    indexes.put(objectId, new ObjectIndex(id, position, size));
+                    buffer.rewind();
+                    position += INDEX_LENGTH + size;
+                }else{
+                    break;
+                }
+            }
+        }catch (IOException e){
+            log.warn("Load index failed ", e);
+            this.size = new AtomicInteger(0);
+        }
+        return indexes;
+    }
+    /**
+     * 启动时加载block文件的索引，获取到每个对象的位置
+     * @return Map
+     */
+    public Map<Long, ObjectIndex> loadIndex(){
+        if(buffer != null){
+            return mmapLoadIndex();
+        }
+        return fileChannelLoadIndex();
     }
 
     public int getSize(){
