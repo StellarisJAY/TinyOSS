@@ -36,7 +36,7 @@ public class DeleteHandler implements RecordHandler {
             Block block;
             if(index != null && (block = blockManager.getBlockById(index.getBlockId())) != null){
                 if(block.delete(objectId, index.getOffset())){
-                    metaManager.deleteIndex(objectId);
+                    index.setRemoved(true);
                 }
             }
         }

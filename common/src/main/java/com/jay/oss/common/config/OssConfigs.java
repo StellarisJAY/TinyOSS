@@ -112,6 +112,9 @@ public class OssConfigs {
     private static final String ENABLE_MMAP = "oss.fs.enable_mmap";
     private static final boolean DEFAULT_ENABLE_MMAP = false;
 
+    private static final String BLOCK_COMPACT_INTERVAL = "oss.fs.block_compact_interval";
+    private static final int DEFAULT_COMPACT_INTERVAL = 30;
+
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
     }
@@ -187,5 +190,9 @@ public class OssConfigs {
 
     public static boolean enableMmap(){
         return ConfigsManager.getBoolean(ENABLE_MMAP, DEFAULT_ENABLE_MMAP);
+    }
+
+    public static int blockCompactInterval(){
+        return ConfigsManager.getInt(BLOCK_COMPACT_INTERVAL, DEFAULT_COMPACT_INTERVAL);
     }
 }

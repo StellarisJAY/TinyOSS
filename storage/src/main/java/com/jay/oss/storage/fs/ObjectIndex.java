@@ -21,4 +21,5 @@ public class ObjectIndex {
     private int blockId;
     private int offset;
     private int size;
+    private boolean removed;
 }

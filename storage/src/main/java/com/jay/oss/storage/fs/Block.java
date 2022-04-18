@@ -13,6 +13,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -65,12 +66,13 @@ public class Block {
 
     private final ReentrantReadWriteLock readWriteLock;
 
-    public static final int INDEX_LENGTH = 12;
+    public static final int INDEX_LENGTH = 16;
 
     private static final int BUFFER_SIZE = 256 * 1024;
 
     private static final int DELETE_MARK = -1;
 
+    private static final long COMPACT_WAIT_TIME = 1000;
 
     public Block(int blockId){
         this.readWriteLock = new ReentrantReadWriteLock();
@@ -132,8 +134,9 @@ public class Block {
             slice.position(offset);
             slice.putLong(objectId);
             slice.putInt(length);
+            slice.putInt(0);
             slice.put(src.nioBuffer());
-            return new ObjectIndex(this.id, offset, length);
+            return new ObjectIndex(this.id, offset, length, false);
         }finally {
             readWriteLock.writeLock().unlock();
         }
@@ -171,13 +174,14 @@ public class Block {
             ByteBuf header = Unpooled.buffer(INDEX_LENGTH);
             header.writeLong(objectId);
             header.writeInt(length);
+            header.writeInt(0);
             ByteBuf fullBuffer = Unpooled.wrappedBuffer(header, src);
             int loop = (int)Math.ceil((double)lengthWithIndex / BUFFER_SIZE);
             for (int i = 0; i < loop; i++) {
                 int offset = offset0 + i * BUFFER_SIZE;
                 fullBuffer.readBytes(fileChannel, offset, i == loop - 1 ? fullBuffer.readableBytes() : BUFFER_SIZE);
             }
-            return new ObjectIndex(id, offset0, length);
+            return new ObjectIndex(id, offset0, length, false);
         } catch (IOException e) {
             log.warn("Write file channel failed ", e);
             return null;
@@ -194,9 +198,10 @@ public class Block {
             ByteBuf header = Unpooled.buffer(INDEX_LENGTH);
             header.writeLong(objectId);
             header.writeInt(length);
+            header.writeInt(0);
             ByteBuf fullBuffer = Unpooled.wrappedBuffer(header, src);
             fullBuffer.readBytes(fileChannel, offset0, lengthWithIndex);
-            return new ObjectIndex(id, offset0, length);
+            return new ObjectIndex(id, offset0, length, false);
         } catch (IOException e) {
             log.warn("Write file channel failed ", e);
             return null;
@@ -221,13 +226,17 @@ public class Block {
         }
     }
 
-
     public boolean delete(long objectId, int offset){
+        return buffer != null ? mmapDelete(objectId, offset) : fileChannelDelete(objectId, offset);
+    }
+
+    private boolean mmapDelete(long objectId, int offset){
         try{
             readWriteLock.writeLock().lock();
             ByteBuffer slice = buffer.slice();
             slice.position(offset);
             if(slice.getLong() == objectId){
+                slice.position(slice.position() + 4);
                 slice.putInt(DELETE_MARK);
             }
             return true;
@@ -235,6 +244,29 @@ public class Block {
             log.warn("Delete object in block failed, objectId: {}, offset: {}",objectId, offset, e);
             return false;
         } finally{
+            readWriteLock.writeLock().unlock();
+        }
+    }
+
+    private boolean fileChannelDelete(long objectId, int offset){
+        try{
+            readWriteLock.writeLock().lock();
+            ByteBuffer buffer = ByteBuffer.allocate(INDEX_LENGTH);
+            fileChannel.read(buffer, offset);
+            buffer.rewind();
+            if(buffer.getLong() == objectId){
+                buffer.getInt();
+                buffer.putInt(DELETE_MARK);
+                buffer.rewind();
+                fileChannel.write(buffer, offset);
+            }else{
+                return false;
+            }
+            return true;
+        } catch (IOException e) {
+            log.warn("");
+            return false;
+        } finally {
             readWriteLock.writeLock().unlock();
         }
     }
@@ -247,12 +279,13 @@ public class Block {
             int offset = slice.position();
             long objectId = slice.getLong();
             int length = slice.getInt();
+            int mark = slice.getInt();
             if(objectId < 0 || length <= 0 || slice.remaining() < length){
                 break;
             }
             // 跳过data部分
             slice.position(offset + length + INDEX_LENGTH);
-            ObjectIndex index = new ObjectIndex(this.id, offset, length);
+            ObjectIndex index = new ObjectIndex(this.id, offset, length, mark == DELETE_MARK);
             indexes.put(objectId, index);
             size += length + INDEX_LENGTH;
         }
@@ -273,7 +306,8 @@ public class Block {
                     buffer.rewind();
                     long objectId = buffer.getLong();
                     int size = buffer.getInt();
-                    indexes.put(objectId, new ObjectIndex(id, position, size));
+                    int mark = buffer.getInt();
+                    indexes.put(objectId, new ObjectIndex(id, position, size, mark == DELETE_MARK));
                     buffer.rewind();
                     position += INDEX_LENGTH + size;
                 }else{
@@ -296,6 +330,74 @@ public class Block {
         }
         return fileChannelLoadIndex();
     }
+
+    /**
+     * 压缩整理block文件
+     * @return Map 更新后的索引列表
+     */
+    public Map<Long, ObjectIndex> compact(){
+        try{
+            // 尝试加排他锁，如果竞争超时，则视为当前block繁忙，目前不进行压缩
+            if(!readWriteLock.writeLock().tryLock(COMPACT_WAIT_TIME, TimeUnit.MILLISECONDS)){
+                return null;
+            }
+            Map<Long, ObjectIndex> indexMap = new HashMap<>(16);
+            long compactStartTime = System.currentTimeMillis();
+            ByteBuffer indexBuffer = ByteBuffer.allocate(INDEX_LENGTH);
+            ByteBuf contentBuffer = Unpooled.directBuffer();
+            int position = 0;
+            int channelSize = (int)fileChannel.size();
+            int writePosition = 0;
+            int truncateLength = 0;
+            // 遍历读取channel
+            while(position < channelSize){
+                if(channelSize - position > INDEX_LENGTH){
+                    // 读取一条索引
+                    fileChannel.read(indexBuffer, position);
+                    indexBuffer.rewind();
+                    long objectId = indexBuffer.getLong();
+                    int objectSize = indexBuffer.getInt();
+                    int mark = indexBuffer.getInt();
+                    indexBuffer.rewind();
+                    if(channelSize - position - INDEX_LENGTH >= objectSize){
+                        // 判断删除标志，如果没有被标记删除，则将数据向前移动
+                        if(mark == DELETE_MARK){
+                            truncateLength += objectSize;
+                        }
+                        else{
+                            if(position != writePosition){
+                                // 先读进直接内存的缓冲区，然后写回fileChannel
+                                fileChannel.write(indexBuffer, writePosition);
+                                contentBuffer.writeBytes(fileChannel, position + INDEX_LENGTH, objectSize);
+                                contentBuffer.readBytes(fileChannel, writePosition + INDEX_LENGTH, objectSize);
+                            }
+                            // 更新索引
+                            indexMap.put(objectId, new ObjectIndex(id, writePosition, objectSize, false));
+                            writePosition += INDEX_LENGTH + objectSize;
+                        }
+                        position += INDEX_LENGTH + objectSize;
+                    }else{
+                        break;
+                    }
+                }else{
+                    break;
+                }
+                indexBuffer.rewind();
+            }
+            // 截断文件
+            fileChannel.truncate(writePosition);
+            log.info("Block {} compact finished, released space: {} KB, time used: {}ms", id, truncateLength/1024, (System.currentTimeMillis() - compactStartTime));
+            return indexMap;
+        } catch (Exception e) {
+            log.warn("Compact failed ", e);
+            return null;
+        }finally {
+            if(readWriteLock.writeLock().isHeldByCurrentThread()){
+                readWriteLock.writeLock().unlock();
+            }
+        }
+    }
+
 
     public int getSize(){
         return size.get();

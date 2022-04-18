@@ -85,16 +85,13 @@ public class ObjectProcessor extends TrackerProcessor {
         String objectKey = request.getObjectKey();
         String bucket = request.getBucket();
         // 定位并删除object
-        String urls = objectTracker.locateAndDeleteObject(objectKey);
-        if(StringUtil.isNullOrEmpty(urls)){
+        ObjectMeta meta = objectTracker.deleteObjectMeta(objectKey);
+        if(meta == null){
             return commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND);
         }
-        else{
-            bucketManager.deleteObject(bucket, objectKey);
-            // 发送删除object消息，由Storage收到消息后异步删除object数据
-            trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, objectKey, objectKey);
-            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
-        }
+        // 发送删除object消息，由Storage收到消息后异步删除object数据
+        trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(meta.getObjectId()), Long.toString(meta.getObjectId()));
+        return commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
     }
 
 
