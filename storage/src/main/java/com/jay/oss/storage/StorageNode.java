@@ -35,7 +35,6 @@ import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
 import com.jay.oss.storage.meta.MetaManager;
-import com.sun.org.apache.xalan.internal.lib.NodeInfo;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
@@ -77,7 +76,7 @@ public class StorageNode extends AbstractLifeCycle {
             this.client = new DoveClient(connectionManager, commandFactory);
             this.metaManager = new MetaManager();
             this.chunkManager = new ChunkManager();
-            this.blockManager = new BlockManager();
+            this.blockManager = new BlockManager(metaManager);
             this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
             this.registry = new ZookeeperRegistry();
             this.storageNodeConsumer = new RecordConsumer();
@@ -129,11 +128,7 @@ public class StorageNode extends AbstractLifeCycle {
                 log.warn("update storage node info error ", e);
             }
         }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
-
-        Scheduler.scheduleAtFixedRate(()->editLogManager.swapBuffer(true),
-                OssConfigs.editLogFlushInterval(),
-                OssConfigs.editLogFlushInterval(),
-                TimeUnit.MILLISECONDS);
+        Scheduler.scheduleAtFixedMinutes(blockManager::compactBlocks, OssConfigs.blockCompactInterval(), OssConfigs.blockCompactInterval());
     }
 
 
