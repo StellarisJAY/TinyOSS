@@ -106,6 +106,14 @@ public class ObjectTracker {
         }
     }
 
+    public ObjectMeta deleteObjectMeta(String objectKey){
+        ObjectMeta meta = getObjectMeta(objectKey);
+        if(meta != null && metaStorage.delete(objectKey)){
+            return meta;
+        }
+        return null;
+    }
+
     /**
      * 定位并删除object
      * @param objectKey objectKey
