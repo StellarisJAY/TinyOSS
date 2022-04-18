@@ -30,7 +30,7 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         super(commandFactory, executor);
         // 文件上传处理器
         FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, blockManager, commandFactory, storageNodeProducer);
-        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, chunkManager, blockManager, commandFactory);
+        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, blockManager, commandFactory);
         MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         /*
             Put Object处理器

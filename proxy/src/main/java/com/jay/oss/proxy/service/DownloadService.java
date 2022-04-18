@@ -6,7 +6,6 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.entity.request.DownloadRequest;
 import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
 import com.jay.oss.common.remoting.FastOssCommand;
@@ -55,32 +54,24 @@ public class DownloadService {
         String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         // 根据范围判断下载类型，full或者ranged
         CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;
-        // 创建下载请求
-        DownloadRequest request = new DownloadRequest(objectKey, rangeEnd == -1, rangeStart, rangeEnd);
-        // 创建command
-        RemotingCommand command = client.getCommandFactory().
-                createRequest(request, commandCode, DownloadRequest.class);
+
         try{
             // 向Tracker服务器定位Object位置
             FastOssCommand locateResponse = locateObject(objectKey, bucket, token);
             CommandCode code = locateResponse.getCommandCode();
-            if(code.equals(FastOssProtocol.SUCCESS)){
-                String respContent = StringUtil.toString(locateResponse.getContent());
-
-                String[] split = respContent.split(";");
-                int replicaCount = OssConfigs.replicaCount();
-                if(split.length <= replicaCount){
-                    return HttpUtil.internalErrorResponse("Internal Server Error");
-                }
-                log.info("url: {}", respContent);
-                long objectId = Long.parseLong(split[replicaCount]);
-                List<Url> urls = UrlUtil.parseUrls(split, replicaCount);
-                // 尝试从url列表中下载object
-                return tryDownload(urls, objectId, rangeStart, rangeEnd, commandCode);
-            } else{
-                // 存储桶拒绝访问，或者object不存在
+            if(!code.equals(FastOssProtocol.SUCCESS)){
                 return HttpUtil.bucketAclResponse(code);
             }
+            String respContent = StringUtil.toString(locateResponse.getContent());
+            String[] split = respContent.split(";");
+            int replicaCount = OssConfigs.replicaCount();
+            if(split.length <= replicaCount){
+                return HttpUtil.internalErrorResponse("Internal Server Error");
+            }
+            long objectId = Long.parseLong(split[replicaCount]);
+            List<Url> urls = UrlUtil.parseUrls(split, replicaCount);
+            // 尝试从url列表中下载object
+            return tryDownload(urls, objectId, rangeStart, rangeEnd, commandCode);
         }catch (Exception e){
             log.error("download service error: ", e);
             return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -109,38 +100,6 @@ public class DownloadService {
                 if(respCode.equals(FastOssProtocol.DOWNLOAD_RESPONSE)){
                     // 全量下载返回 200OK
                     if(end == -1){
-                        return HttpUtil.okResponse(response.getData());
-                    }else{
-                        // 部分下载返回206 Partial Content
-                        return HttpUtil.partialContentResponse(response.getData());
-                    }
-                }
-            }catch (Exception e){
-                log.warn("Failed to Get Object From: {}", url, e);
-            }
-        }
-        return HttpUtil.notFoundResponse("Object Not Found");
-    }
-
-    /**
-     * 轮询url列表中的服务器
-     * 直到找到目标object
-     * @param urls urls
-     * @param command download request
-     * @param full download full content
-     * @return {@link FullHttpResponse}
-     */
-    private FullHttpResponse tryDownload(List<Url> urls, RemotingCommand command, boolean full){
-        // 打乱storage节点顺序，让请求随机落到一个storage上，使多副本负载均衡
-        Collections.shuffle(urls);
-        for (Url url : urls) {
-            try{
-                // 发送下载请求
-                FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
-                CommandCode code = response.getCommandCode();
-                if(!code.equals(FastOssProtocol.OBJECT_NOT_FOUND)){
-                    // 全量下载返回 200OK
-                    if(full){
                         return HttpUtil.okResponse(response.getData());
                     }else{
                         // 部分下载返回206 Partial Content
