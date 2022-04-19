@@ -66,41 +66,8 @@ public class OssConfigs {
     private static final String EDIT_LOG_FLUSH_INTERVAL = "oss.log.flush_interval";
     private static final int DEFAULT_EDIT_LOG_FLUSH_INTERVAL = 20 * 1000;
 
-    private static final String REPLICA_WRITE_RULE = "oss.replica.write-rule";
-    private static final String DEFAULT_REPLICA_WRITE_RULE = "all";
-
     private static final String HTTP_MAX_REQUEST_BODY_SIZE = "oss.http.max-request-body";
     private static final int DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE = 16 * 1024 * 1024;
-
-    /**
-     * 纠删码分片大小
-     */
-    private static final String RS_SHARD_SIZE = "oss.reed-solomon.shard-size";
-    /**
-     * 默认分片大小是,32MB，最小的RS存储对象是128MB，也就是说会产生4个数据分片
-     */
-    private static final int DEFAULT_RS_SHARD_SIZE = 32 * 1024 * 1024;
-
-    /**
-     * 使用纠删码替代副本的对象大小阈值
-     */
-    private static final String RS_THRESHOLD_SIZE = "oss.reed-solomon.threshold-size";
-    /**
-     * 默认阈值是128MB，只要对象大小大于等于128MB就会采用纠删码存储，而不是多副本存储
-     */
-    private static final int DEFAULT_RS_THRESHOLD_SIZE = 128 * 1024 * 1024;
-
-    private static final String ENABLE_MYSQL = "oss.mysql.enable";
-    private static final boolean DEFAULT_ENABLE_MYSQL = false;
-
-    private static final String MYSQL_URL = "oss.mysql.url";
-    private static final String DEFAULT_MYSQL_URL = "jdbc:mysql://127.0.0.1:3306/db_fastoss";
-
-    private static final String MYSQL_USERNAME = "oss.mysql.username";
-    private static final String DEFAULT_MYSQL_USERNAME = "root";
-
-    private static final String MYSQL_PASSWORD = "oss.mysql.password";
-    private static final String DEFAULT_MYSQL_PASSWORD = "";
 
 
     private static final String KAFKA_SERVERS = "kafka.bootstrap.servers";
@@ -154,30 +121,6 @@ public class OssConfigs {
 
     public static int maxRequestBodySize(){
         return ConfigsManager.getInt(HTTP_MAX_REQUEST_BODY_SIZE, DEFAULT_HTTP_MAX_REQUEST_BODY_SIZE);
-    }
-
-    public static int reedSolomonShardSize(){
-        return ConfigsManager.getInt(RS_SHARD_SIZE, DEFAULT_RS_SHARD_SIZE);
-    }
-
-    public static int reedSolomonThreshold(){
-        return ConfigsManager.getInt(RS_THRESHOLD_SIZE, DEFAULT_RS_THRESHOLD_SIZE);
-    }
-
-    public static String mysqlUrl(){
-        return ConfigsManager.get(MYSQL_URL, DEFAULT_MYSQL_URL);
-    }
-
-    public static String mysqlUsername(){
-        return ConfigsManager.get(MYSQL_USERNAME, DEFAULT_MYSQL_USERNAME);
-    }
-
-    public static String mysqlPassword(){
-        return ConfigsManager.get(MYSQL_PASSWORD, DEFAULT_MYSQL_PASSWORD);
-    }
-
-    public static boolean enableMysql(){
-        return ConfigsManager.getBoolean(ENABLE_MYSQL, DEFAULT_ENABLE_MYSQL);
     }
 
     public static String kafkaServers(){
