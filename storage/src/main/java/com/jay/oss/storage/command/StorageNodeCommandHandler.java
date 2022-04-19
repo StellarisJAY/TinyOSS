@@ -1,15 +1,13 @@
 package com.jay.oss.storage.command;
 
-import com.jay.dove.DoveClient;
 import com.jay.dove.transport.command.CommandFactory;
-import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.kafka.RecordProducer;
-import com.jay.oss.storage.fs.BlockManager;
-import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.common.remoting.FastOssCommandHandler;
 import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.meta.MetaManager;
-import com.jay.oss.storage.processor.*;
+import com.jay.oss.storage.processor.FileDownloadProcessor;
+import com.jay.oss.storage.processor.FileUploadProcessor;
 
 import java.util.concurrent.ExecutorService;
 
@@ -24,14 +22,12 @@ import java.util.concurrent.ExecutorService;
  */
 public class StorageNodeCommandHandler extends FastOssCommandHandler {
 
-    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor,
-                                     ChunkManager chunkManager, MetaManager metaManager, EditLogManager editLogManager,
+    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, MetaManager metaManager,
                                      RecordProducer storageNodeProducer, BlockManager blockManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(chunkManager, metaManager, editLogManager, blockManager, commandFactory, storageNodeProducer);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(metaManager, blockManager, commandFactory, storageNodeProducer);
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, blockManager, commandFactory);
-        MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(chunkManager, metaManager, editLogManager, commandFactory);
         /*
             Put Object处理器
          */
@@ -43,11 +39,5 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
          */
         this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
         this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
-        /*
-            分片上传处理器
-         */
-        this.registerProcessor(FastOssProtocol.MULTIPART_UPLOAD_PART, multipartUploadProcessor);
-        this.registerProcessor(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, multipartUploadProcessor);
-        this.registerProcessor(FastOssProtocol.CANCEL_MULTIPART_UPLOAD, multipartUploadProcessor);
     }
 }

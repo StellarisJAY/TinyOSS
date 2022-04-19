@@ -2,7 +2,6 @@ package com.jay.oss.common.util;
 
 import io.netty.util.internal.StringUtil;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 

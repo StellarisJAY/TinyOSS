@@ -6,7 +6,6 @@ import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.util.ZkUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
@@ -39,16 +38,13 @@ public class ZookeeperRegistry implements Registry {
         CountDownLatch countDownLatch = new CountDownLatch(1);
         long start = System.currentTimeMillis();
         // 建立Zookeeper连接
-        zooKeeper = new ZooKeeper(host, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, new Watcher() {
-            @Override
-            public void process(WatchedEvent watchedEvent) {
-                // 异步监听连接事件
-                if(watchedEvent.getState().equals(Event.KeeperState.SyncConnected)){
-                    // 连接建立事件
-                    if(watchedEvent.getPath() == null && watchedEvent.getType() == Event.EventType.None){
-                        // countDown
-                        countDownLatch.countDown();
-                    }
+        zooKeeper = new ZooKeeper(host, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, watchedEvent -> {
+            // 异步监听连接事件
+            if(watchedEvent.getState().equals(Watcher.Event.KeeperState.SyncConnected)){
+                // 连接建立事件
+                if(watchedEvent.getPath() == null && watchedEvent.getType() == Watcher.Event.EventType.None){
+                    // countDown
+                    countDownLatch.countDown();
                 }
             }
         });
@@ -95,7 +91,7 @@ public class ZookeeperRegistry implements Registry {
 
     @Override
     public Map<String, StorageNodeInfo> lookupAll() throws Exception {
-        HashMap<String, StorageNodeInfo> result = new HashMap<>();
+        HashMap<String, StorageNodeInfo> result = new HashMap<>(16);
         try{
             // 获取当前存在的所有storage
             List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);

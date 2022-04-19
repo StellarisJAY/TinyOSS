@@ -4,13 +4,14 @@ import com.alibaba.fastjson.JSON;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 

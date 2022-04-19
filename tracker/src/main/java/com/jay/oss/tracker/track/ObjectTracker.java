@@ -115,17 +115,6 @@ public class ObjectTracker {
     }
 
     /**
-     * 定位并删除object
-     * @param objectKey objectKey
-     * @return Url String
-     */
-    public String locateAndDeleteObject(String objectKey){
-        String result = locateObject(objectKey);
-        deleteObject(objectKey);
-        return result;
-    }
-
-    /**
      * 获取object的索引
      * @param key objectKey
      * @return {@link Index}

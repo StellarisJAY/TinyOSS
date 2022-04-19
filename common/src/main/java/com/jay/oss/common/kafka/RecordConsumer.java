@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,7 +36,7 @@ public class RecordConsumer extends AbstractLifeCycle {
      */
     private final ExecutorService handlerExecutor = ThreadPoolUtil.newThreadPool(2, 2, "message-handler-", new ThreadPoolExecutor.CallerRunsPolicy());
 
-    private Properties getProperties() throws UnknownHostException {
+    private Properties getProperties() {
         Properties properties = new Properties();
         properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, OssConfigs.kafkaServers());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, NodeInfoCollector.getAddress());
@@ -45,7 +44,7 @@ public class RecordConsumer extends AbstractLifeCycle {
         return properties;
     }
 
-    public RecordConsumer() throws Exception{
+    public RecordConsumer(){
         this.consumer = new KafkaConsumer<>(getProperties(), new StringDeserializer(), new StringDeserializer());
     }
 

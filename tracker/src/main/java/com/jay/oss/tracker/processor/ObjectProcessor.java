@@ -4,13 +4,10 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.constant.OssConstants;
-import com.jay.oss.common.edit.EditLog;
-import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.common.edit.EditOperation;
-import com.jay.oss.common.entity.request.DeleteObjectInBucketRequest;
-import com.jay.oss.common.entity.request.LocateObjectRequest;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.object.ObjectVO;
+import com.jay.oss.common.entity.request.DeleteObjectInBucketRequest;
+import com.jay.oss.common.entity.request.LocateObjectRequest;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -32,13 +29,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ObjectProcessor extends TrackerProcessor {
     private final ObjectTracker objectTracker;
-    private final EditLogManager editLogManager;
     private final RecordProducer trackerProducer;
 
-    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, EditLogManager editLogManager, RecordProducer trackerProducer, CommandFactory commandFactory) {
+    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, RecordProducer trackerProducer, CommandFactory commandFactory) {
         super(commandFactory, bucketManager);
         this.objectTracker = objectTracker;
-        this.editLogManager = editLogManager;
         this.trackerProducer = trackerProducer;
     }
 
@@ -83,7 +78,6 @@ public class ObjectProcessor extends TrackerProcessor {
     private RemotingCommand deleteObject(FastOssCommand command){
         DeleteObjectInBucketRequest request = SerializeUtil.deserialize(command.getContent(), DeleteObjectInBucketRequest.class);
         String objectKey = request.getObjectKey();
-        String bucket = request.getBucket();
         // 定位并删除object
         ObjectMeta meta = objectTracker.deleteObjectMeta(objectKey);
         if(meta == null){
@@ -110,16 +104,6 @@ public class ObjectProcessor extends TrackerProcessor {
             byte[] content = SerializeUtil.serialize(getObjectVO(objectMeta), ObjectVO.class);
             return commandFactory.createResponse(command.getId(), content, FastOssProtocol.SUCCESS);
         }
-    }
-
-
-    /**
-     * 追加删除object日志
-     * @param objectKey objectKey
-     */
-    private void appendDeleteObjectLog(String objectKey){
-        EditLog editLog = new EditLog(EditOperation.BUCKET_DELETE_OBJECT, StringUtil.getBytes(objectKey));
-        editLogManager.append(editLog);
     }
 
     /**

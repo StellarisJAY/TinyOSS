@@ -1,12 +1,10 @@
 package com.jay.oss.tracker.registry;
 
-import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.tracker.replica.ReplicaSelector;
 import com.jay.oss.tracker.replica.SpaceBalancedReplicaSelector;
 import com.jay.oss.tracker.track.ConsistentHashRing;
-import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -101,9 +99,8 @@ public class StorageRegistry {
         /**
          * Node删除事件，即storage节点下线事件
          * @param path path
-         * @throws Exception e
          */
-        private void onNodeDeleted(String path) throws Exception{
+        private void onNodeDeleted(String path){
             log.info("storage node offline: {}", path);
             int i = path.lastIndexOf("/");
             String url = path.substring(i + 1);
@@ -121,7 +118,7 @@ public class StorageRegistry {
             storages.put(node.getUrl(), node);
         }
 
-        private void onNodeChildrenChanged(String path) throws Exception{
+        private void onNodeChildrenChanged(String path){
             log.info("node children changed: {}", path);
         }
 

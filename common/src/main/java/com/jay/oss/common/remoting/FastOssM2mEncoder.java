@@ -28,12 +28,7 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
             out.add(header);
             CommandCode code = command.getCommandCode();
             // 处理文件分片
-            if(FastOssProtocol.UPLOAD_FILE_PARTS.equals(code)){
-                // 创建文件分片directBuffer
-                ByteBuf filePart = createFilePartContent(command.getFilePartWrapper());
-                out.add(filePart);
-            }
-            else if(FastOssProtocol.UPLOAD_REQUEST.equals(code)){
+            if(FastOssProtocol.UPLOAD_REQUEST.equals(code)){
                 out.add(command.getData());
             }
             else if(FastOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
@@ -66,20 +61,6 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
         header.writeByte(command.getSerializer());
         header.writeByte(command.getCompressor());
         return header;
-    }
-
-    private ByteBuf createFilePartContent(FilePartWrapper partWrapper){
-        ByteBuf out = Unpooled.directBuffer(partWrapper.getKeyLength() + 8 + partWrapper.getLength());
-        // 写入key长度
-        out.writeInt(partWrapper.getKeyLength());
-        // 写入key
-        out.writeBytes(partWrapper.getKey());
-        // 写入分片号
-        out.writeInt(partWrapper.getPartNum());
-        out.writeBytes(partWrapper.getFullContent(), partWrapper.getIndex(), partWrapper.getLength());
-        // 释放一个 content refCnt
-        partWrapper.getFullContent().release();
-        return out;
     }
 
     private ByteBuf createMultipartContent(FilePartWrapper partWrapper){
