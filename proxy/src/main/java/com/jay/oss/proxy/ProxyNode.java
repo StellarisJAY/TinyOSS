@@ -85,7 +85,7 @@ public class ProxyNode extends AbstractLifeCycle {
         prometheusServer = new PrometheusServer();
     }
 
-    private void init() throws Exception {
+    private void init() {
         Banner.printBanner();
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
