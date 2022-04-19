@@ -5,8 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.jay.oss.common.bitcask.BitCaskStorage;
 import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.bucket.Bucket;
-import com.jay.oss.common.util.AppIdUtil;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.util.SnowflakeIdGenerator;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -36,6 +36,8 @@ public class BucketManager {
      * 桶磁盘存储
      */
     private final BitCaskStorage bucketStorage;
+
+    private final SnowflakeIdGenerator idGenerator = new SnowflakeIdGenerator(0L, 0L);
     /**
      * 存储桶LRU缓存
      */
@@ -56,7 +58,7 @@ public class BucketManager {
      */
     public Bucket addBucket(Bucket bucket){
         // 生成AppId
-        long appId = AppIdUtil.getAppId();
+        long appId = idGenerator.nextId();
         bucket.setAppId(appId);
         String key = bucket.getBucketName() + "-" + appId;
         // 生成 ak和secret
@@ -67,8 +69,10 @@ public class BucketManager {
 
         try{
             byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
-            boolean status = bucketStorage.put(key, serialized);
-            return bucket;
+            if(bucketStorage.put(key, serialized)){
+                return bucket;
+            }
+            return null;
         }catch (Exception e){
             log.error("Put Bucket Failed, key: {}", key, e);
             return null;
@@ -151,22 +155,6 @@ public class BucketManager {
         }
     }
 
-    /**
-     * 删除存储桶中的object记录
-     * @param bucket 桶
-     * @param objectKey object key
-     * @return boolean 删除是否成功
-     */
-    public boolean deleteObject(String bucket, String objectKey){
-        // 获取list
-        List<String> objects = objectMetas.get(bucket);
-        if(objects != null && !objects.isEmpty()){
-            // 按条件删除，该list是copyOnWriteList，保证了线程安全
-            return objects.remove(objectKey);
-        }
-        return false;
-    }
-
     public Index getIndex(String key){
         return bucketStorage.getIndex(key);
     }
@@ -174,7 +162,6 @@ public class BucketManager {
     public void saveIndex(String key, Index index){
         bucketStorage.saveIndex(key, index);
     }
-
 
     public List<String> listBuckets(){
         return bucketStorage.keys();
