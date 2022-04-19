@@ -397,16 +397,8 @@ public class Block {
             }
         }
     }
-
-
-    public int getSize(){
-        return size.get();
-    }
     public int getId(){
         return id;
-    }
-    public int size(){
-        return size.get();
     }
 
     public int availableSpace(){

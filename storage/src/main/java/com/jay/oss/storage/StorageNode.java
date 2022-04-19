@@ -10,7 +10,6 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
-import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.prometheus.GaugeManager;
@@ -28,9 +27,7 @@ import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.common.util.Scheduler;
 import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
-import com.jay.oss.storage.edit.StorageEditLogManager;
 import com.jay.oss.storage.fs.BlockManager;
-import com.jay.oss.storage.fs.ChunkManager;
 import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
@@ -56,10 +53,8 @@ public class StorageNode extends AbstractLifeCycle {
     private final DoveServer server;
     private final DoveClient client;
     private final MetaManager metaManager;
-    private final ChunkManager chunkManager;
     private final BlockManager blockManager;
     private final StorageNodeCommandHandler commandHandler;
-    private final EditLogManager editLogManager;
     private final Registry registry;
     private final RecordConsumer storageNodeConsumer;
     private final RecordProducer storageNodeProducer;
@@ -75,17 +70,14 @@ public class StorageNode extends AbstractLifeCycle {
             ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
             this.client = new DoveClient(connectionManager, commandFactory);
             this.metaManager = new MetaManager();
-            this.chunkManager = new ChunkManager();
             this.blockManager = new BlockManager(metaManager);
-            this.editLogManager = new StorageEditLogManager(metaManager, chunkManager);
             this.registry = new ZookeeperRegistry();
             this.storageNodeConsumer = new RecordConsumer();
             this.storageNodeProducer = new RecordProducer();
             // commandHandler执行器线程池
             ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
             // 命令处理器
-            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor,
-                    chunkManager, metaManager, editLogManager, storageNodeProducer, blockManager);
+            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, metaManager, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
             this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();

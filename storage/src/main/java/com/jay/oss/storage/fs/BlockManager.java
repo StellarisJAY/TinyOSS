@@ -30,12 +30,6 @@ public class BlockManager {
     private final ConcurrentHashMap<Integer, Block> blockMap = new ConcurrentHashMap<>();
 
     /**
-     * 临时block集合
-     * 分片上传时存储分片的临时block
-     */
-    private final ConcurrentHashMap<String, Block> tempBlockMap = new ConcurrentHashMap<>();
-
-    /**
      * block id provider
      */
     private final AtomicInteger blockIdProvider = new AtomicInteger(1);

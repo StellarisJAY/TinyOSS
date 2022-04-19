@@ -7,7 +7,8 @@ import lombok.ToString;
 
 /**
  * <p>
- *
+ *  对象索引
+ *  记录对象在Block中的位置
  * </p>
  *
  * @author Jay

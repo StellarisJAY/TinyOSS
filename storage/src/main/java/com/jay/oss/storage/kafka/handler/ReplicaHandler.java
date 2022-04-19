@@ -8,7 +8,6 @@ import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
-import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;

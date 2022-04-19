@@ -20,19 +20,8 @@ import java.util.function.Function;
  * @date 2022/01/18 14:48
  */
 public class MetaManager {
-    /**
-     * 元数据缓存
-     */
-    private final ConcurrentHashMap<String, FileMetaWithChunkInfo> fileMetaCache = new ConcurrentHashMap<>(256);
     private final ConcurrentHashMap<Long, ObjectIndex> indexCache = new ConcurrentHashMap<>(256);
 
-    public boolean saveMeta(FileMetaWithChunkInfo meta){
-        return fileMetaCache.putIfAbsent(meta.getKey(), meta) == null;
-    }
-
-    public void computeIfAbsent(String key, Function<String, ?extends FileMetaWithChunkInfo> function){
-        fileMetaCache.computeIfAbsent(key, function);
-    }
 
     public void computeIfAbsent(long objectId, Function<Long, ?extends ObjectIndex> function){
         indexCache.computeIfAbsent(objectId, function);
@@ -50,16 +39,4 @@ public class MetaManager {
         this.indexCache.putAll(indexMap);
     }
 
-    public FileMetaWithChunkInfo delete(String key){
-        return fileMetaCache.remove(key);
-    }
-
-
-    public FileMetaWithChunkInfo getMeta(String key){
-        return fileMetaCache.get(key);
-    }
-
-    public List<FileMetaWithChunkInfo> snapshot(){
-        return new ArrayList<>(fileMetaCache.values());
-    }
 }
