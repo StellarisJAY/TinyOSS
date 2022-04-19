@@ -4,18 +4,11 @@ import com.alibaba.fastjson.JSON;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.acl.Acl;
-import com.jay.oss.common.bitcask.HintIndex;
-import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.edit.EditLog;
-import com.jay.oss.common.edit.EditLogManager;
-import com.jay.oss.common.edit.EditOperation;
 import com.jay.oss.common.entity.bucket.*;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
-import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.FastOssCommand;
 import com.jay.oss.common.remoting.FastOssProtocol;
@@ -44,15 +37,13 @@ import java.util.stream.Collectors;
 public class BucketProcessor extends TrackerProcessor {
 
     private final StorageRegistry storageRegistry;
-    private final EditLogManager editLogManager;
     private final ObjectTracker objectTracker;
     private final SnowflakeIdGenerator objectIdGenerator;
 
-    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry, EditLogManager editLogManager,
+    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry,
                            ObjectTracker objectTracker, CommandFactory commandFactory) {
         super(commandFactory, bucketManager);
         this.storageRegistry = storageRegistry;
-        this.editLogManager = editLogManager;
         this.objectTracker = objectTracker;
         this.objectIdGenerator = new SnowflakeIdGenerator(0L, 0L);
     }
@@ -152,32 +143,6 @@ public class BucketProcessor extends TrackerProcessor {
                     .createResponse(command.getId(), e.getMessage(), FastOssProtocol.NO_ENOUGH_STORAGES);
         }
         return response;
-    }
-
-    /**
-     * 追加添加Bucket日志
-     * @param bucket {@link Bucket}
-     */
-    private void appendAddBucketLog(Bucket bucket){
-        String key = bucket.getBucketName() + "-" + bucket.getAppId();
-        Index index = bucketManager.getIndex(key);
-        HintIndex hint = new HintIndex(key, index.getChunkId(), index.getOffset(), index.isRemoved());
-        byte[] content = SerializeUtil.serialize(hint, HintIndex.class);
-        EditLog editLog = new EditLog(EditOperation.ADD, content);
-        editLogManager.append(editLog);
-    }
-
-
-    /**
-     * 追加Bucket添加Object日志
-     * @param objectKey objectKey
-     */
-    private void appendBucketPutObjectLog(String objectKey){
-        Index index = objectTracker.getIndex(objectKey);
-        HintIndex hint = new HintIndex(objectKey, index.getChunkId(), index.getOffset(), index.isRemoved());
-        byte[] serialized = SerializeUtil.serialize(hint, HintIndex.class);
-        EditLog editLog = new EditLog(EditOperation.BUCKET_PUT_OBJECT, serialized);
-        editLogManager.append(editLog);
     }
 
 

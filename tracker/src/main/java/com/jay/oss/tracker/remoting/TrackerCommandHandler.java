@@ -26,9 +26,8 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
     public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageRegistry storageRegistry,
                                  EditLogManager editLogManager, MultipartUploadTracker multipartUploadTracker, RecordProducer trackerProducer, CommandFactory commandFactory) {
         super(commandFactory);
-        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, editLogManager,
-                objectTracker, commandFactory);
-        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, editLogManager, trackerProducer, commandFactory);
+        BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, storageRegistry, objectTracker, commandFactory);
+        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, trackerProducer, commandFactory);
         MultipartUploadProcessor multipartUploadProcessor = new MultipartUploadProcessor(bucketManager, objectTracker,  storageRegistry, multipartUploadTracker, editLogManager, commandFactory);
         // 桶相关处理器
         this.registerProcessor(FastOssProtocol.PUT_BUCKET, bucketProcessor);
