@@ -1,11 +1,10 @@
 package com.jay.oss.common.config;
 
 import com.jay.dove.transport.Url;
-import com.jay.oss.common.GzipCompressor;
+import com.jay.oss.common.util.GzipCompressor;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 
 /**
  * <p>

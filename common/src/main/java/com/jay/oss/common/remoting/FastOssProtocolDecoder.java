@@ -50,7 +50,7 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
             // 读 content
             if(length - FastOssProtocol.HEADER_LENGTH > 0){
                 // 如果该报文是文件传输，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
-                if(code == FastOssProtocol.UPLOAD_FILE_PARTS.value() || code == FastOssProtocol.DOWNLOAD_RESPONSE.value() || code == FastOssProtocol.MULTIPART_UPLOAD_PART.value() || code == FastOssProtocol.UPLOAD_REQUEST.value()){
+                if(code == FastOssProtocol.DOWNLOAD_RESPONSE.value() || code == FastOssProtocol.MULTIPART_UPLOAD_PART.value() || code == FastOssProtocol.UPLOAD_REQUEST.value()){
                     in.retain();
                     ByteBuf data = in.slice(in.readerIndex(), length - FastOssProtocol.HEADER_LENGTH);
                     in.readerIndex(in.readerIndex() + length - FastOssProtocol.HEADER_LENGTH);

@@ -251,11 +251,8 @@ public class TrackerEditLogManager extends AbstractEditLogManager {
      */
     private void bucketDeleteObject(byte[] content){
         String objectKey = new String(content, OssConfigs.DEFAULT_CHARSET);
-        String bucket = KeyUtil.getBucket(objectKey);
         // 删除object位置记录
         objectTracker.deleteObject(objectKey);
-        // 存储桶删除object
-        bucketManager.deleteObject(bucket, objectKey);
     }
 
     /**

@@ -5,7 +5,6 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.CommandHandler;
 import com.jay.dove.transport.protocol.*;
-import org.checkerframework.checker.units.qual.C;
 
 /**
  * <p>
@@ -73,7 +72,6 @@ public class FastOssProtocol implements Protocol {
     public static final CommandCode GET_SERVICE = new CommandCode((short)116);
     public static final CommandCode UPDATE_BUCKET_ACL = new CommandCode((short)117);
 
-    public static final CommandCode ASYNC_BACKUP = new CommandCode((short)120);
     public static final CommandCode ASYNC_BACKUP_PART = new CommandCode((short)121);
 
     public static final CommandCode INIT_MULTIPART_UPLOAD = new CommandCode((short)131);

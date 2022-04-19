@@ -1,10 +1,7 @@
 package com.jay.oss.storage.meta;
 
-import com.jay.oss.common.entity.FileMetaWithChunkInfo;
 import com.jay.oss.storage.fs.ObjectIndex;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;

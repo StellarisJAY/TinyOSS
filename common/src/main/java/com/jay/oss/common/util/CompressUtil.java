@@ -1,7 +1,6 @@
 package com.jay.oss.common.util;
 
 import com.jay.dove.compress.Compressor;
-import com.jay.oss.common.GzipCompressor;
 
 /**
  * <p>

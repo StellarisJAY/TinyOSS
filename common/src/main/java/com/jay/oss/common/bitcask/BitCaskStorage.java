@@ -198,8 +198,7 @@ public class BitCaskStorage {
         synchronized (activeChunkLock){
             byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
             ensureActiveChunk(key, value);
-            byte[] compressedValue = CompressUtil.compress(value);
-            int offset = activeChunk.writeMmap(keyBytes, compressedValue);
+            int offset = activeChunk.writeMmap(keyBytes, value);
             Index index = new Index(activeChunk.getChunkId(), offset, false);
             indexCache.put(key, index);
             return true;

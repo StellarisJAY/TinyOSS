@@ -1,4 +1,4 @@
-package com.jay.oss.common;
+package com.jay.oss.common.util;
 
 import com.jay.dove.compress.Compressor;
 import lombok.extern.slf4j.Slf4j;
