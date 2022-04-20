@@ -9,7 +9,7 @@ import com.jay.oss.common.entity.request.CompleteMultipartUploadRequest;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,13 +28,13 @@ import java.util.List;
 public class MultipartUploadProcessor extends AbstractProcessor {
 
     private final BlockManager blockManager;
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final EditLogManager editLogManager;
     private final CommandFactory commandFactory;
 
-    public MultipartUploadProcessor(BlockManager blockManager, MetaManager metaManager, EditLogManager editLogManager, CommandFactory commandFactory) {
+    public MultipartUploadProcessor(BlockManager blockManager, ObjectIndexManager objectIndexManager, EditLogManager editLogManager, CommandFactory commandFactory) {
         this.blockManager = blockManager;
-        this.metaManager = metaManager;
+        this.objectIndexManager = objectIndexManager;
         this.editLogManager = editLogManager;
         this.commandFactory = commandFactory;
     }

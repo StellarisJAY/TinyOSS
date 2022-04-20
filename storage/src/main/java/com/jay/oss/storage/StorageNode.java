@@ -31,7 +31,7 @@ import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
@@ -52,7 +52,7 @@ public class StorageNode extends AbstractLifeCycle {
 
     private final DoveServer server;
     private final DoveClient client;
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final BlockManager blockManager;
     private final StorageNodeCommandHandler commandHandler;
     private final Registry registry;
@@ -69,15 +69,15 @@ public class StorageNode extends AbstractLifeCycle {
             TinyOssConnectionFactory connectionFactory = new TinyOssConnectionFactory();
             ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
             this.client = new DoveClient(connectionManager, commandFactory);
-            this.metaManager = new MetaManager();
-            this.blockManager = new BlockManager(metaManager);
+            this.objectIndexManager = new ObjectIndexManager();
+            this.blockManager = new BlockManager(objectIndexManager);
             this.registry = new ZookeeperRegistry();
             this.storageNodeConsumer = new RecordConsumer();
             this.storageNodeProducer = new RecordProducer();
             // commandHandler执行器线程池
             ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
             // 命令处理器
-            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, metaManager, storageNodeProducer, blockManager);
+            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, objectIndexManager, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
@@ -95,7 +95,7 @@ public class StorageNode extends AbstractLifeCycle {
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
 
         Map<Long, ObjectIndex> indexes = blockManager.loadBlocks();
-        metaManager.putIndexes(indexes);
+        objectIndexManager.putIndexes(indexes);
         /*
             初始化注册中心客户端
          */
@@ -106,8 +106,8 @@ public class StorageNode extends AbstractLifeCycle {
         /*
             订阅消息主题
          */
-        storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(metaManager, blockManager));
-        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, metaManager, blockManager));
+        storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(objectIndexManager, blockManager));
+        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{

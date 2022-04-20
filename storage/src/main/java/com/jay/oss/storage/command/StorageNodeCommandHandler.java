@@ -5,7 +5,7 @@ import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommandHandler;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.storage.fs.BlockManager;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import com.jay.oss.storage.processor.FileDownloadProcessor;
 import com.jay.oss.storage.processor.FileUploadProcessor;
 
@@ -22,12 +22,12 @@ import java.util.concurrent.ExecutorService;
  */
 public class StorageNodeCommandHandler extends TinyOssCommandHandler {
 
-    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, MetaManager metaManager,
+    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, ObjectIndexManager objectIndexManager,
                                      RecordProducer storageNodeProducer, BlockManager blockManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(metaManager, blockManager, commandFactory, storageNodeProducer);
-        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(metaManager, blockManager, commandFactory);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(objectIndexManager, blockManager, commandFactory, storageNodeProducer);
+        FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(objectIndexManager, blockManager, commandFactory);
         /*
             Put Object处理器
          */

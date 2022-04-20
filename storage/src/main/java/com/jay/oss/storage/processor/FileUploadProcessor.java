@@ -13,7 +13,7 @@ import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -32,12 +32,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FileUploadProcessor extends AbstractProcessor {
 
     private final BlockManager blockManager;
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final CommandFactory commandFactory;
     private final RecordProducer storageNodeProducer;
 
-    public FileUploadProcessor(MetaManager metaManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
-        this.metaManager = metaManager;
+    public FileUploadProcessor(ObjectIndexManager objectIndexManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
+        this.objectIndexManager = objectIndexManager;
         this.commandFactory = commandFactory;
         this.storageNodeProducer = storageNodeProducer;
         this.blockManager = blockManager;
@@ -72,7 +72,7 @@ public class FileUploadProcessor extends AbstractProcessor {
         /*
             computeIfAbsent 保证同一个key的meta只保存一次
          */
-            metaManager.computeIfAbsent(objectId, (id)->{
+            objectIndexManager.computeIfAbsent(objectId, (id)->{
                 // 获取chunk文件
                 Block block = blockManager.getBlockBySize((int)size);
                 ObjectIndex index = block.write(id, data, (int) size);
@@ -95,6 +95,10 @@ public class FileUploadProcessor extends AbstractProcessor {
         }
     }
 
+    /**
+     * 向Tracker发送接收完成的消息，通知Tracker下发副本复制指令
+     * @param objectId 对象ID
+     */
     private void sendUploadCompleteRecord(long objectId){
         storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
     }

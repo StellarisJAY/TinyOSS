@@ -9,7 +9,7 @@ import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +25,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class FileDownloadProcessor extends AbstractProcessor {
 
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final BlockManager blockManager;
     private final CommandFactory commandFactory;
 
-    public FileDownloadProcessor(MetaManager metaManager, BlockManager blockManager, CommandFactory commandFactory) {
-        this.metaManager = metaManager;
+    public FileDownloadProcessor(ObjectIndexManager objectIndexManager, BlockManager blockManager, CommandFactory commandFactory) {
+        this.objectIndexManager = objectIndexManager;
         this.blockManager = blockManager;
         this.commandFactory = commandFactory;
     }
@@ -43,11 +43,15 @@ public class FileDownloadProcessor extends AbstractProcessor {
         }
     }
 
+    /**
+     * 处理下载请求
+     * @param context {@link ChannelHandlerContext}
+     * @param command {@link TinyOssCommand}
+     */
     private void processDownload(ChannelHandlerContext context, TinyOssCommand command){
         GetObjectRequest request = SerializeUtil.deserialize(command.getContent(), GetObjectRequest.class);
-        ObjectIndex objectIndex = metaManager.getObjectIndex(request.getObjectId());
+        ObjectIndex objectIndex = objectIndexManager.getObjectIndex(request.getObjectId());
         if(objectIndex == null){
-            log.warn("Object not found, id: {}", request.getObjectId());
             sendResponse(context, commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND));
             return;
         }

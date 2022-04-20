@@ -1,7 +1,6 @@
 package com.jay.oss.storage.fs;
 
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.storage.meta.MetaManager;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
@@ -36,10 +35,10 @@ public class BlockManager {
 
     private final Object mutex = new Object();
 
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
 
-    public BlockManager(MetaManager metaManager) {
-        this.metaManager = metaManager;
+    public BlockManager(ObjectIndexManager objectIndexManager) {
+        this.objectIndexManager = objectIndexManager;
     }
 
     /**
@@ -132,7 +131,7 @@ public class BlockManager {
         for (Map.Entry<Integer, Block> entry : blockMap.entrySet()) {
             Block block = entry.getValue();
             Map<Long, ObjectIndex> updatedIndex = block.compact();
-            metaManager.putIndexes(updatedIndex);
+            objectIndexManager.putIndexes(updatedIndex);
         }
     }
 }
