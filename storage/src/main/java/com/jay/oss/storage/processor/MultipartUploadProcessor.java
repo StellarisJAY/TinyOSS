@@ -6,7 +6,7 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.entity.request.CompleteMultipartUploadRequest;
-import com.jay.oss.common.remoting.FastOssCommand;
+import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.meta.MetaManager;
@@ -41,8 +41,8 @@ public class MultipartUploadProcessor extends AbstractProcessor {
 
     @Override
     public void process(ChannelHandlerContext context, Object o) {
-        if(o instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) o;
+        if(o instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) o;
             CommandCode code = command.getCommandCode();
         }
     }
@@ -50,27 +50,27 @@ public class MultipartUploadProcessor extends AbstractProcessor {
     /**
      * 处理上传分片
      * @param context {@link ChannelHandlerContext}
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      */
-    private void processUploadPart(ChannelHandlerContext context, FastOssCommand command){
+    private void processUploadPart(ChannelHandlerContext context, TinyOssCommand command){
 
     }
 
     /**
      * 处理分片上传完成
      * @param context {@link ChannelHandlerContext}
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      */
-    private void completeMultipartUpload(ChannelHandlerContext context, FastOssCommand command){
+    private void completeMultipartUpload(ChannelHandlerContext context, TinyOssCommand command){
 
     }
 
     /**
      * 处理取消分片上传
      * @param context {@link ChannelHandlerContext}
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      */
-    private void abortMultipartUpload(ChannelHandlerContext context, FastOssCommand command){
+    private void abortMultipartUpload(ChannelHandlerContext context, TinyOssCommand command){
 
     }
 

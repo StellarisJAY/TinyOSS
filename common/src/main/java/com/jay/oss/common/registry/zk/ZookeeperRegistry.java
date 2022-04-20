@@ -30,7 +30,7 @@ import java.util.concurrent.CountDownLatch;
 public class ZookeeperRegistry implements Registry {
     private ZooKeeper zooKeeper;
     private ZkUtil zkUtil;
-    private static final String ROOT_PATH = "/fastOss/storages";
+    private static final String ROOT_PATH = "/tinyOss/storages";
     @Override
     public void init() throws Exception{
         String host = OssConfigs.zookeeperHost();
@@ -83,9 +83,9 @@ public class ZookeeperRegistry implements Registry {
      * @throws Exception e
      */
     private void ensureRootPath() throws Exception{
-        if(!zkUtil.exists("/fastOss")){
-            zkUtil.create("/fastOss", "FastOss v1.0", false);
-            zkUtil.create(ROOT_PATH, "FastOss v1.0/storages", false);
+        if(!zkUtil.exists("/tinyOss")){
+            zkUtil.create("/tinyOss", "TinyOss v1.0", false);
+            zkUtil.create(ROOT_PATH, "TinyOss v1.0/storages", false);
         }
     }
 

@@ -16,15 +16,15 @@ import java.util.List;
  * @author Jay
  * @date 2022/01/17 14:35
  */
-public class FastOssProtocolDecoder implements ProtocolDecoder {
+public class TinyOssProtocolDecoder implements ProtocolDecoder {
     @Override
     public void decode(ChannelHandlerContext channelHandlerContext, ByteBuf in, List<Object> out) {
         in.markReaderIndex();
-        if(in.readableBytes() < FastOssProtocol.HEADER_LENGTH){
+        if(in.readableBytes() < TinyOssProtocol.HEADER_LENGTH){
             return;
         }
         byte proto = in.readByte();
-        if(proto != FastOssProtocol.PROTOCOL_CODE.value()){
+        if(proto != TinyOssProtocol.PROTOCOL_CODE.value()){
             throw new RuntimeException("Invalid protocol for FastOssProtocolDecoder, code: " + proto);
         }
         /*
@@ -38,7 +38,7 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
         byte compressor = in.readByte();
 
         // build command
-        FastOssCommand.FastOssCommandBuilder commandBuilder = FastOssCommand.builder().length(length)
+        TinyOssCommand.FastOssCommandBuilder commandBuilder = TinyOssCommand.builder().length(length)
                 .id(id)
                 .commandCode(new CommandCode(code))
                 .timeout(timeout)
@@ -46,17 +46,17 @@ public class FastOssProtocolDecoder implements ProtocolDecoder {
                 .compressor(compressor);
 
         // 检查buffer中内容是否完整，避免TCP拆包
-        if(in.readableBytes() >= length - FastOssProtocol.HEADER_LENGTH){
+        if(in.readableBytes() >= length - TinyOssProtocol.HEADER_LENGTH){
             // 读 content
-            if(length - FastOssProtocol.HEADER_LENGTH > 0){
+            if(length - TinyOssProtocol.HEADER_LENGTH > 0){
                 // 如果该报文是文件传输，将数据部分ByteBuf拷贝，在后续的processor中使用零拷贝写入
-                if(code == FastOssProtocol.DOWNLOAD_RESPONSE.value() || code == FastOssProtocol.MULTIPART_UPLOAD_PART.value() || code == FastOssProtocol.UPLOAD_REQUEST.value()){
+                if(code == TinyOssProtocol.DOWNLOAD_RESPONSE.value() || code == TinyOssProtocol.MULTIPART_UPLOAD_PART.value() || code == TinyOssProtocol.UPLOAD_REQUEST.value()){
                     in.retain();
-                    ByteBuf data = in.slice(in.readerIndex(), length - FastOssProtocol.HEADER_LENGTH);
-                    in.readerIndex(in.readerIndex() + length - FastOssProtocol.HEADER_LENGTH);
+                    ByteBuf data = in.slice(in.readerIndex(), length - TinyOssProtocol.HEADER_LENGTH);
+                    in.readerIndex(in.readerIndex() + length - TinyOssProtocol.HEADER_LENGTH);
                     commandBuilder.data(data);
                 }else{
-                    byte[] content = new byte[length - FastOssProtocol.HEADER_LENGTH];
+                    byte[] content = new byte[length - TinyOssProtocol.HEADER_LENGTH];
                     in.readBytes(content);
                     commandBuilder.content(content);
                 }

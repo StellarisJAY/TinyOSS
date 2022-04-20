@@ -7,8 +7,8 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
@@ -59,10 +59,10 @@ public class UploadService {
         long size = content.readableBytes();
         String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // 向存储桶put object
-        FastOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token, md5);
+        TinyOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token, md5);
         CommandCode code = bucketResponse.getCommandCode();
         // 向桶内添加对象记录
-        if(!code.equals(FastOssProtocol.SUCCESS)){
+        if(!code.equals(TinyOssProtocol.SUCCESS)){
             return HttpUtil.errorResponse(code);
         }else {
             String str = StringUtil.toString(bucketResponse.getContent());
@@ -100,11 +100,11 @@ public class UploadService {
                 buffer.markReaderIndex();
                 buffer.retain();
                 RemotingCommand command = storageClient.getCommandFactory()
-                        .createRequest(buffer, FastOssProtocol.UPLOAD_REQUEST);
+                        .createRequest(buffer, TinyOssProtocol.UPLOAD_REQUEST);
                 RemotingCommand response = storageClient.sendSync(url, command, null);
                 buffer.resetReaderIndex();
                 buffer.release();
-                if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
                     successReplica ++;
                 }
             }catch (Exception e){
@@ -118,11 +118,11 @@ public class UploadService {
                 buffer.markReaderIndex();
                 buffer.retain();
                 RemotingCommand command = storageClient.getCommandFactory()
-                        .createRequest(buffer, FastOssProtocol.UPLOAD_REQUEST);
+                        .createRequest(buffer, TinyOssProtocol.UPLOAD_REQUEST);
                 RemotingCommand response = storageClient.sendSync(url, command, null);
                 buffer.resetReaderIndex();
                 buffer.release();
-                if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
                     successReplica ++;
                 }
             }catch (Exception e){
@@ -141,10 +141,10 @@ public class UploadService {
      * @param size 大小
      * @param createTime 创建时间
      * @param token 访问token
-     * @return {@link FastOssCommand}
+     * @return {@link TinyOssCommand}
      * @throws Exception e
      */
-    private FastOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token, String md5)throws Exception{
+    private TinyOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token, String md5)throws Exception{
         // 获取tracker服务器地址
         String tracker = OssConfigs.trackerServerHost();
         Url url = Url.parseString(tracker);
@@ -158,8 +158,8 @@ public class UploadService {
                 .build();
         // 发送
         RemotingCommand command = storageClient.getCommandFactory()
-                .createRequest(request, FastOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
-        return (FastOssCommand) storageClient.sendSync(url, command, null);
+                .createRequest(request, TinyOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
+        return (TinyOssCommand) storageClient.sendSync(url, command, null);
     }
 
 }

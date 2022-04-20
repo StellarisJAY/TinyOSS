@@ -7,8 +7,8 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.entity.request.UploadRequest;
 import com.jay.oss.common.kafka.RecordProducer;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
@@ -45,10 +45,10 @@ public class FileUploadProcessor extends AbstractProcessor {
 
     @Override
     public void process(ChannelHandlerContext channelHandlerContext, Object o) {
-        if(o instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) o;
+        if(o instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) o;
             CommandCode commandCode = command.getCommandCode();
-            if(FastOssProtocol.UPLOAD_REQUEST.equals(commandCode)){
+            if(TinyOssProtocol.UPLOAD_REQUEST.equals(commandCode)){
                 processUploadRequest(channelHandlerContext, command);
             }
         }
@@ -58,9 +58,9 @@ public class FileUploadProcessor extends AbstractProcessor {
     /**
      * 处理上传请求
      * @param context context
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      */
-    private void processUploadRequest(ChannelHandlerContext context, FastOssCommand command){
+    private void processUploadRequest(ChannelHandlerContext context, TinyOssCommand command){
         ByteBuf data = command.getData();
         try{
             if(data.readableBytes() <= UploadRequest.HEADER_LENGTH){
@@ -83,11 +83,11 @@ public class FileUploadProcessor extends AbstractProcessor {
             // 没能够成功进行computeIfAbsent的重复的key
             if(duplicateObject.get()){
                 // 发送重复回复报文
-                RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+                RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
                 sendResponse(context, response);
             } else{
                 sendUploadCompleteRecord(objectId);
-                RemotingCommand response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
+                RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
                 sendResponse(context, response);
             }
         }finally {

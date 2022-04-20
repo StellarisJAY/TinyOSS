@@ -2,8 +2,8 @@ package com.jay.oss.storage.command;
 
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.kafka.RecordProducer;
-import com.jay.oss.common.remoting.FastOssCommandHandler;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommandHandler;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.meta.MetaManager;
 import com.jay.oss.storage.processor.FileDownloadProcessor;
@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutorService;
  * @author Jay
  * @date 2022/01/18 14:42
  */
-public class StorageNodeCommandHandler extends FastOssCommandHandler {
+public class StorageNodeCommandHandler extends TinyOssCommandHandler {
 
     public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, MetaManager metaManager,
                                      RecordProducer storageNodeProducer, BlockManager blockManager) {
@@ -31,13 +31,13 @@ public class StorageNodeCommandHandler extends FastOssCommandHandler {
         /*
             Put Object处理器
          */
-        this.registerProcessor(FastOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
-        this.registerProcessor(FastOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
-        this.registerProcessor(FastOssProtocol.UPLOAD_REQUEST, fileUploadProcessor);
+        this.registerProcessor(TinyOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
+        this.registerProcessor(TinyOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
+        this.registerProcessor(TinyOssProtocol.UPLOAD_REQUEST, fileUploadProcessor);
         /*
             Get Object 处理器
          */
-        this.registerProcessor(FastOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
-        this.registerProcessor(FastOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
+        this.registerProcessor(TinyOssProtocol.DOWNLOAD_FULL, fileDownloadProcessor);
+        this.registerProcessor(TinyOssProtocol.DOWNLOAD_RANGED, fileDownloadProcessor);
     }
 }

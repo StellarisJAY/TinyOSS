@@ -6,8 +6,8 @@ import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.entity.bucket.UpdateAclRequest;
 import com.jay.oss.common.entity.request.*;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.tracker.meta.BucketManager;
@@ -43,15 +43,15 @@ public abstract class TrackerProcessor extends AbstractProcessor {
         /*
             注册需要检查权限的请求
          */
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.LIST_BUCKET, ListBucketRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.DELETE_OBJECT, DeleteObjectInBucketRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.GET_OBJECT_META, LocateObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(FastOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.LIST_BUCKET, ListBucketRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.DELETE_OBJECT, DeleteObjectInBucketRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.GET_OBJECT_META, LocateObjectRequest.class);
+        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
     }
 
     protected TrackerProcessor(CommandFactory commandFactory, BucketManager bucketManager) {
@@ -61,13 +61,13 @@ public abstract class TrackerProcessor extends AbstractProcessor {
 
     @Override
     public final void process(ChannelHandlerContext context, Object o) {
-        if(o instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) o;
+        if(o instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) o;
             try{
                 Class<? extends BucketAccessRequest> requestClazz;
                 if((requestClazz = REQUEST_CLASS_MAPPING.get(command.getCommandCode())) != null){
                     CommandCode auth = checkAuthorization(command, requestClazz);
-                    if(auth.equals(FastOssProtocol.SUCCESS)){
+                    if(auth.equals(TinyOssProtocol.SUCCESS)){
                         sendResponse(context, doProcess(command));
                     }else{
                         sendResponse(context, commandFactory.createResponse(command.getId(), "", auth));
@@ -77,7 +77,7 @@ public abstract class TrackerProcessor extends AbstractProcessor {
                 }
             }catch (Exception e){
                 log.error("Tracker Processor Error ", e);
-                sendResponse(context, commandFactory.createResponse(command.getId(), e.getMessage(), FastOssProtocol.ERROR));
+                sendResponse(context, commandFactory.createResponse(command.getId(), e.getMessage(), TinyOssProtocol.ERROR));
             }
         }
     }
@@ -85,15 +85,15 @@ public abstract class TrackerProcessor extends AbstractProcessor {
     /**
      * 请求过滤
      * 过滤掉没有访问权限的请求
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @param requestClazz {@link Class}
      * @return {@link CommandCode}
      */
-    private CommandCode checkAuthorization(FastOssCommand command, Class<? extends BucketAccessRequest> requestClazz){
+    private CommandCode checkAuthorization(TinyOssCommand command, Class<? extends BucketAccessRequest> requestClazz){
         // 反序列化
         BucketAccessRequest request = SerializeUtil.deserialize(command.getContent(), requestClazz);
         if(StringUtil.isNullOrEmpty(request.bucket())){
-            return FastOssProtocol.ACCESS_DENIED;
+            return TinyOssProtocol.ACCESS_DENIED;
         }
         // 验证访问权限
         return BucketAclUtil.checkAuthorization(bucketManager, request.bucket(), request.token(), request.accessMode());
@@ -101,9 +101,9 @@ public abstract class TrackerProcessor extends AbstractProcessor {
 
     /**
      * 实际的处理逻辑
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      * @throws Exception exception
      */
-    public abstract RemotingCommand doProcess(FastOssCommand command) throws Exception;
+    public abstract RemotingCommand doProcess(TinyOssCommand command) throws Exception;
 }

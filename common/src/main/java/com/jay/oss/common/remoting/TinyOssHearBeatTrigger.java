@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
  * @date 2022/01/27 14:28
  */
 @Slf4j
-public class FastOssHeartBeatTrigger implements HeartBeatTrigger {
+public class TinyOssHearBeatTrigger implements HeartBeatTrigger {
     @Override
     public void heartBeatTriggered(ChannelHandlerContext channelHandlerContext) {
         if(log.isDebugEnabled()){

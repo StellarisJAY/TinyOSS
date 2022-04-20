@@ -11,8 +11,8 @@ import com.jay.dove.transport.connection.ConnectEventHandler;
  * @author Jay
  * @date 2022/01/27 10:03
  */
-public class FastOssConnectionFactory extends AbstractConnectionFactory {
-    public FastOssConnectionFactory() {
-        super(new FastOssCodec(), FastOssProtocol.PROTOCOL_CODE, new ConnectEventHandler());
+public class TinyOssConnectionFactory extends AbstractConnectionFactory {
+    public TinyOssConnectionFactory() {
+        super(new TinyOssCodec(), TinyOssProtocol.PROTOCOL_CODE, new ConnectEventHandler());
     }
 }

@@ -17,26 +17,26 @@ import java.util.List;
  * @author Jay
  * @date 2022/02/13 12:59
  */
-public class FastOssM2mEncoder implements ProtocolM2mEncoder {
+public class TinyOssM2mEncoder implements ProtocolM2mEncoder {
     @Override
     public void encode(ChannelHandlerContext context, Object o, List<Object> out) {
-        if(o instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) o;
+        if(o instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) o;
             // 创建header
             ByteBuf header = createHeader(command);
             // 输出header
             out.add(header);
             CommandCode code = command.getCommandCode();
             // 处理文件分片
-            if(FastOssProtocol.UPLOAD_REQUEST.equals(code)){
+            if(TinyOssProtocol.UPLOAD_REQUEST.equals(code)){
                 out.add(command.getData());
             }
-            else if(FastOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
+            else if(TinyOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
                 ByteBuf multipartContent = createMultipartContent(command.getFilePartWrapper());
                 out.add(multipartContent);
             }
             // 处理下载的fileRegion
-            else if(FastOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
+            else if(TinyOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
                 out.add(command.getData());
             }
             // 处理序列化的content
@@ -48,12 +48,12 @@ public class FastOssM2mEncoder implements ProtocolM2mEncoder {
 
     /**
      * 创建Header
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link ByteBuf}
      */
-    private ByteBuf createHeader(FastOssCommand command){
-        ByteBuf header = Unpooled.directBuffer(FastOssProtocol.HEADER_LENGTH);
-        header.writeByte(FastOssProtocol.PROTOCOL_CODE.value());
+    private ByteBuf createHeader(TinyOssCommand command){
+        ByteBuf header = Unpooled.directBuffer(TinyOssProtocol.HEADER_LENGTH);
+        header.writeByte(TinyOssProtocol.PROTOCOL_CODE.value());
         header.writeInt(command.getLength());
         header.writeInt(command.getId());
         header.writeShort(command.getCommandCode().value());

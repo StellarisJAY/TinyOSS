@@ -4,7 +4,7 @@ import com.jay.dove.transport.Url;
 import com.jay.dove.transport.callback.InvokeCallback;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -34,7 +34,7 @@ public class CompleteMultipartUploadCallback implements InvokeCallback {
     @Override
     public void onComplete(RemotingCommand remotingCommand) {
         CommandCode code = remotingCommand.getCommandCode();
-        if(FastOssProtocol.SUCCESS.equals(code)){
+        if(TinyOssProtocol.SUCCESS.equals(code)){
             successUrls.add(url);
         }else{
             asyncBackupUrls.add(url);

@@ -12,10 +12,10 @@ import com.jay.dove.util.NamedThreadFactory;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.prometheus.PrometheusServer;
-import com.jay.oss.common.remoting.FastOssCommandFactory;
-import com.jay.oss.common.remoting.FastOssCommandHandler;
-import com.jay.oss.common.remoting.FastOssConnectionFactory;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommandFactory;
+import com.jay.oss.common.remoting.TinyOssCommandHandler;
+import com.jay.oss.common.remoting.TinyOssConnectionFactory;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.proxy.handler.BucketHandler;
@@ -64,8 +64,8 @@ public class ProxyNode extends AbstractLifeCycle {
     private final CommandHandler commandHandler;
     public ProxyNode() {
         httpServer = new HttpServer();
-        CommandFactory commandFactory = new FastOssCommandFactory();
-        ConnectionFactory connectionFactory = new FastOssConnectionFactory();
+        CommandFactory commandFactory = new TinyOssCommandFactory();
+        ConnectionFactory connectionFactory = new TinyOssConnectionFactory();
         ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
         // commandHandler执行器线程池
         ExecutorService commandHandlerExecutor = new ThreadPoolExecutor(2 * Runtime.getRuntime().availableProcessors(),
@@ -74,7 +74,7 @@ public class ProxyNode extends AbstractLifeCycle {
                 new LinkedBlockingQueue<>(),
                 new NamedThreadFactory("command-handler-thread-", true));
         // command handler
-        commandHandler = new FastOssCommandHandler(commandFactory, commandHandlerExecutor);
+        commandHandler = new TinyOssCommandHandler(commandFactory, commandHandlerExecutor);
         // 存储节点客户端
         storageClient = new DoveClient(connectionManager, commandFactory);
         uploadService = new UploadService(storageClient);
@@ -90,7 +90,7 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册序列化器
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
         // 注册FastOSS协议
-        ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
+        ProtocolManager.registerProtocol(TinyOssProtocol.PROTOCOL_CODE, new TinyOssProtocol(commandHandler));
         // 注册handler
         HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService, multipartUploadService));
         HandlerMapping.registerHandler("bucket", new BucketHandler(bucketService));

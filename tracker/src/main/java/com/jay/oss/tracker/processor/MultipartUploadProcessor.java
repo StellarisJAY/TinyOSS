@@ -15,8 +15,8 @@ import com.jay.oss.common.entity.request.LookupMultipartUploadRequest;
 import com.jay.oss.common.entity.MultipartUploadTask;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.registry.StorageNodeInfo;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.tracker.meta.BucketManager;
@@ -52,14 +52,14 @@ public class MultipartUploadProcessor extends TrackerProcessor {
     }
 
     @Override
-    public RemotingCommand doProcess(FastOssCommand command) {
+    public RemotingCommand doProcess(TinyOssCommand command) {
         CommandCode code = command.getCommandCode();
-        if(FastOssProtocol.INIT_MULTIPART_UPLOAD.equals(code)){
+        if(TinyOssProtocol.INIT_MULTIPART_UPLOAD.equals(code)){
             return initMultipartUpload(command);
-        }else if(FastOssProtocol.LOOKUP_MULTIPART_UPLOAD.equals(code)){
+        }else if(TinyOssProtocol.LOOKUP_MULTIPART_UPLOAD.equals(code)){
             return lookupMultipartUpload(command);
         }
-        else if(FastOssProtocol.COMPLETE_MULTIPART_UPLOAD.equals(code)){
+        else if(TinyOssProtocol.COMPLETE_MULTIPART_UPLOAD.equals(code)){
             return completeMultipartUpload(command);
         }
         return null;
@@ -67,10 +67,10 @@ public class MultipartUploadProcessor extends TrackerProcessor {
 
     /**
      * 处理初始化MultipartUpload
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand initMultipartUpload(FastOssCommand command){
+    private RemotingCommand initMultipartUpload(TinyOssCommand command){
         byte[] content = command.getContent();
         BucketPutObjectRequest request = SerializeUtil.deserialize(content, BucketPutObjectRequest.class);
         String bucket = request.getBucket();
@@ -93,14 +93,14 @@ public class MultipartUploadProcessor extends TrackerProcessor {
             MultipartUploadTask task = new MultipartUploadTask(uploadId, objectKey, location, versionId, request.getCreateTime());
             if(uploadTracker.saveUploadTask(uploadId, task)){
                 // 返回uploadID
-                response = commandFactory.createResponse(command.getId(), uploadId+";"+versionId, FastOssProtocol.SUCCESS);
+                response = commandFactory.createResponse(command.getId(), uploadId+";"+versionId, TinyOssProtocol.SUCCESS);
             }
             else{
-                response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+                response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
             }
 
         }catch (Exception e){
-            response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.NO_ENOUGH_STORAGES);
+            response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.NO_ENOUGH_STORAGES);
         }
         return response;
     }
@@ -110,10 +110,10 @@ public class MultipartUploadProcessor extends TrackerProcessor {
 
     /**
      * 查询分片上传任务
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand lookupMultipartUpload(FastOssCommand command){
+    private RemotingCommand lookupMultipartUpload(TinyOssCommand command){
         LookupMultipartUploadRequest request = SerializeUtil.deserialize(command.getContent(),
                 LookupMultipartUploadRequest.class);
         String uploadId = request.getUploadId();
@@ -121,13 +121,13 @@ public class MultipartUploadProcessor extends TrackerProcessor {
         MultipartUploadTask task = uploadTracker.getTask(uploadId);
         if(task == null){
             // task为null，上传任务无效
-            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.MULTIPART_UPLOAD_FINISHED);
         }else{
             // 检查objectKey是否和上传任务相同
             if(!task.getObjectKey().equals(objectKey)){
-                return commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+                return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
             }else{
-                return commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
+                return commandFactory.createResponse(command.getId(), task.getLocations(), TinyOssProtocol.SUCCESS);
             }
         }
     }
@@ -136,10 +136,10 @@ public class MultipartUploadProcessor extends TrackerProcessor {
     /**
      * 完成MultipartUpload
      * 将元数据保存，并删除upload记录
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand completeMultipartUpload(FastOssCommand command){
+    private RemotingCommand completeMultipartUpload(TinyOssCommand command){
         CompleteMultipartUploadRequest request = SerializeUtil.deserialize(command.getContent(), CompleteMultipartUploadRequest.class);
         String bucket = request.getBucket();
         String objectKey = request.getObjectKey();
@@ -149,7 +149,7 @@ public class MultipartUploadProcessor extends TrackerProcessor {
         MultipartUploadTask task = uploadTracker.getTask(uploadId);
         if(task == null || !task.getObjectKey().equals(objectKey) || !task.getVersionId().equals(request.getVersionId())){
             // 记录不存在 或者 记录的object和当前object不符
-            response = commandFactory.createResponse(command.getId(), "", FastOssProtocol.MULTIPART_UPLOAD_FINISHED);
+            response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.MULTIPART_UPLOAD_FINISHED);
         }
         else{
             ObjectMeta objectMeta = ObjectMeta.builder()
@@ -162,10 +162,10 @@ public class MultipartUploadProcessor extends TrackerProcessor {
             // 保存object,检查key是否重复
             if(objectTracker.putObjectMeta(task.getObjectKey(), objectMeta)){
                 bucketManager.putObject(bucket, objectMeta.getObjectKey());
-                response = commandFactory.createResponse(command.getId(), task.getLocations(), FastOssProtocol.SUCCESS);
+                response = commandFactory.createResponse(command.getId(), task.getLocations(), TinyOssProtocol.SUCCESS);
             }else{
                 // object key 重复，返回locations，让客户端通知storage删除分片
-                response = commandFactory.createResponse(command.getId(), task.getUploadId(), FastOssProtocol.DUPLICATE_OBJECT_KEY);
+                response = commandFactory.createResponse(command.getId(), task.getUploadId(), TinyOssProtocol.DUPLICATE_OBJECT_KEY);
             }
         }
         return response;
