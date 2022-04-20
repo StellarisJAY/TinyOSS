@@ -15,11 +15,11 @@ import lombok.extern.slf4j.Slf4j;
  * @date 2022/01/17 14:35
  */
 @Slf4j
-public class FastOssProtocolEncoder implements ProtocolEncoder {
+public class TinyOssProtocolEncoder implements ProtocolEncoder {
     @Override
     public void encode(ChannelHandlerContext channelHandlerContext, Object msg, ByteBuf out) {
-        if(msg instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) msg;
+        if(msg instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) msg;
             out.writeInt(command.getLength());
             out.writeInt(command.getId());
             out.writeShort(command.getCommandCode().value());
@@ -28,7 +28,7 @@ public class FastOssProtocolEncoder implements ProtocolEncoder {
             out.writeByte(command.getCompressor());
 
             // 文件分片上传报文需要单独解析
-            if(command.getCommandCode().equals(FastOssProtocol.UPLOAD_FILE_PARTS)){
+            if(command.getCommandCode().equals(TinyOssProtocol.UPLOAD_FILE_PARTS)){
                 FilePartWrapper partWrapper = command.getFilePartWrapper();
                 // 写入key长度
                 out.writeInt(partWrapper.getKeyLength());
@@ -42,7 +42,7 @@ public class FastOssProtocolEncoder implements ProtocolEncoder {
                 // 释放一个 content refCnt
                 partWrapper.getFullContent().release();
             }
-            else if(command.getCommandCode().equals(FastOssProtocol.DOWNLOAD_RESPONSE)){
+            else if(command.getCommandCode().equals(TinyOssProtocol.DOWNLOAD_RESPONSE)){
                 // 下载返回
                 out.writeBytes(command.getData());
                 command.getData().release();

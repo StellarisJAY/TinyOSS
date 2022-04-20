@@ -4,8 +4,8 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.oss.common.acl.Acl;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.entity.bucket.Bucket;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.AccessTokenUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class BucketAclUtil {
      * @param bucketName 桶
      * @param token token
      * @param accessMode 访问模式，{@link BucketAccessMode}
-     * @return {@link FastOssCommand} 回复报文
+     * @return {@link TinyOssCommand} 回复报文
      */
     public static CommandCode checkAuthorization(BucketManager bucketManager, String bucketName, String token, BucketAccessMode accessMode){
         // 获取桶
@@ -40,32 +40,32 @@ public class BucketAclUtil {
             if(accessMode == BucketAccessMode.READ){
                 // PRIVATE acl下需要检查token
                 if(acl == Acl.PRIVATE && !AccessTokenUtil.checkAccessToken(accessKey, secretKey, token)){
-                    code = FastOssProtocol.ACCESS_DENIED;
+                    code = TinyOssProtocol.ACCESS_DENIED;
                 }else{
-                    code = FastOssProtocol.SUCCESS;
+                    code = TinyOssProtocol.SUCCESS;
                 }
             }
             // 检查 WRITE权限
             else if(accessMode == BucketAccessMode.WRITE){
                 // 非PUBLIC_WRITE acl下需要检验token
                 if(acl != Acl.PUBLIC_WRITE && !AccessTokenUtil.checkAccessToken(accessKey, secretKey, token)){
-                    code = FastOssProtocol.ACCESS_DENIED;
+                    code = TinyOssProtocol.ACCESS_DENIED;
                 }else{
-                    code = FastOssProtocol.SUCCESS;
+                    code = TinyOssProtocol.SUCCESS;
                 }
             }
             // 检查WRITE_ACL权限
             else{
                 if(!AccessTokenUtil.checkAccessToken(accessKey, secretKey, token)){
-                    code = FastOssProtocol.ACCESS_DENIED;
+                    code = TinyOssProtocol.ACCESS_DENIED;
                 }else{
-                    code = FastOssProtocol.SUCCESS;
+                    code = TinyOssProtocol.SUCCESS;
                 }
             }
 
         }else{
             // 桶不存在，返回NOT_FOUND
-            code = FastOssProtocol.NOT_FOUND;
+            code = TinyOssProtocol.NOT_FOUND;
         }
         return code;
     }

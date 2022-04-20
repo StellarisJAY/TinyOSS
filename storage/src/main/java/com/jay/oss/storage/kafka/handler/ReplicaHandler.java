@@ -6,8 +6,8 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.kafka.RecordHandler;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
@@ -64,12 +64,12 @@ public class ReplicaHandler implements RecordHandler {
         try{
             GetObjectRequest request = new GetObjectRequest(objectId, 0, -1);
             RemotingCommand command = client.getCommandFactory()
-                    .createRequest(request, FastOssProtocol.DOWNLOAD_FULL, GetObjectRequest.class);
+                    .createRequest(request, TinyOssProtocol.DOWNLOAD_FULL, GetObjectRequest.class);
             long start = System.currentTimeMillis();
             // 向目标主机发送GetObject请求
-            FastOssCommand response = (FastOssCommand)client.sendSync(Url.parseString(url), command, null);
+            TinyOssCommand response = (TinyOssCommand)client.sendSync(Url.parseString(url), command, null);
             CommandCode code = response.getCommandCode();
-            if(FastOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
+            if(TinyOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
                 saveObject(objectId, response.getData());
                 log.info("Object backup task done, object: {}, src: {}, time used: {}ms", objectId, url, (System.currentTimeMillis() - start));
             }

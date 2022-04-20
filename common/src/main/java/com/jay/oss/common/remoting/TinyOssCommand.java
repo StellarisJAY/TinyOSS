@@ -39,7 +39,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-public class FastOssCommand implements RemotingCommand {
+public class TinyOssCommand implements RemotingCommand {
 
     private int id;
     private int length;

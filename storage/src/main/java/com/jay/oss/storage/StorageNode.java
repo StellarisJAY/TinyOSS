@@ -17,10 +17,10 @@ import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
-import com.jay.oss.common.remoting.FastOssCodec;
-import com.jay.oss.common.remoting.FastOssCommandFactory;
-import com.jay.oss.common.remoting.FastOssConnectionFactory;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCodec;
+import com.jay.oss.common.remoting.TinyOssCommandFactory;
+import com.jay.oss.common.remoting.TinyOssConnectionFactory;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.NodeInfoCollector;
@@ -65,8 +65,8 @@ public class StorageNode extends AbstractLifeCycle {
         try{
             ConfigsManager.loadConfigs(configPath);
             this.port = OssConfigs.port();
-            CommandFactory commandFactory = new FastOssCommandFactory();
-            FastOssConnectionFactory connectionFactory = new FastOssConnectionFactory();
+            CommandFactory commandFactory = new TinyOssCommandFactory();
+            TinyOssConnectionFactory connectionFactory = new TinyOssConnectionFactory();
             ConnectionManager connectionManager = new ConnectionManager(connectionFactory);
             this.client = new DoveClient(connectionManager, commandFactory);
             this.metaManager = new MetaManager();
@@ -79,7 +79,7 @@ public class StorageNode extends AbstractLifeCycle {
             // 命令处理器
             this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, metaManager, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
-            this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+            this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
         }catch (Exception e){
             throw new RuntimeException(e);
@@ -91,7 +91,7 @@ public class StorageNode extends AbstractLifeCycle {
         /*
             注册协议 和 序列化器
          */
-        ProtocolManager.registerProtocol(FastOssProtocol.PROTOCOL_CODE, new FastOssProtocol(commandHandler));
+        ProtocolManager.registerProtocol(TinyOssProtocol.PROTOCOL_CODE, new TinyOssProtocol(commandHandler));
         SerializerManager.registerSerializer(OssConfigs.PROTOSTUFF_SERIALIZER, new ProtostuffSerializer());
 
         Map<Long, ObjectIndex> indexes = blockManager.loadBlocks();

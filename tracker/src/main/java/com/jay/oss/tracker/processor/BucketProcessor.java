@@ -10,8 +10,8 @@ import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
 import com.jay.oss.common.registry.StorageNodeInfo;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.SnowflakeIdGenerator;
 import com.jay.oss.common.util.UrlUtil;
@@ -49,21 +49,21 @@ public class BucketProcessor extends TrackerProcessor {
     }
 
     @Override
-    public RemotingCommand doProcess(FastOssCommand command) {
+    public RemotingCommand doProcess(TinyOssCommand command) {
         CommandCode code = command.getCommandCode();
-        if(FastOssProtocol.PUT_BUCKET.equals(code)){
+        if(TinyOssProtocol.PUT_BUCKET.equals(code)){
             return processPutBucket(command);
         }
-        else if(FastOssProtocol.LIST_BUCKET.equals(code)){
+        else if(TinyOssProtocol.LIST_BUCKET.equals(code)){
             return processListBucket(command);
         }
-        else if(FastOssProtocol.BUCKET_PUT_OBJECT.equals(code)){
+        else if(TinyOssProtocol.BUCKET_PUT_OBJECT.equals(code)){
             return bucketPutObject(command);
         }
-        else if(FastOssProtocol.GET_SERVICE.equals(code)){
+        else if(TinyOssProtocol.GET_SERVICE.equals(code)){
             return processGetService(command);
         }
-        else if(FastOssProtocol.UPDATE_BUCKET_ACL.equals(code)){
+        else if(TinyOssProtocol.UPDATE_BUCKET_ACL.equals(code)){
             return processUpdateAcl(command);
         }
         return null;
@@ -71,24 +71,24 @@ public class BucketProcessor extends TrackerProcessor {
 
     /**
      * 处理put bucket请求
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand processPutBucket(FastOssCommand command){
+    private RemotingCommand processPutBucket(TinyOssCommand command){
         byte[] content = command.getContent();
         Bucket bucket = SerializeUtil.deserialize(content, Bucket.class);
         // 保存存储桶，并生成appId、AK、SK
         bucket = bucketManager.addBucket(bucket);
         String keyPair = bucket.getAppId() + ";" + bucket.getAccessKey() + ";" + bucket.getSecretKey();
-        return commandFactory.createResponse(command.getId(), keyPair, FastOssProtocol.SUCCESS);
+        return commandFactory.createResponse(command.getId(), keyPair, TinyOssProtocol.SUCCESS);
     }
 
     /**
      * 处理list bucket请求
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand processListBucket(FastOssCommand command){
+    private RemotingCommand processListBucket(TinyOssCommand command){
         byte[] content = command.getContent();
         // 反序列化请求
         ListBucketRequest request = SerializeUtil.deserialize(content, ListBucketRequest.class);
@@ -96,15 +96,15 @@ public class BucketProcessor extends TrackerProcessor {
         List<String> objects = bucketManager.listBucket(request.getBucket(), request.getCount(), request.getOffset());
         // 转换成JSON
         String json = JSON.toJSONString(objects);
-        return commandFactory.createResponse(command.getId(), json, FastOssProtocol.SUCCESS);
+        return commandFactory.createResponse(command.getId(), json, TinyOssProtocol.SUCCESS);
     }
 
     /**
      * 处理向桶中放入object元数据
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand bucketPutObject(FastOssCommand command){
+    private RemotingCommand bucketPutObject(TinyOssCommand command){
         BucketPutObjectRequest request = SerializeUtil.deserialize(command.getContent(), BucketPutObjectRequest.class);
         String bucket = request.getBucket();
         String objectKey = request.getKey();
@@ -132,15 +132,15 @@ public class BucketProcessor extends TrackerProcessor {
             if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
                 bucketManager.putObject(bucket, objectKey);
                 urls = urls + meta.getObjectId() + ";" +  versionId;
-                response = commandFactory.createResponse(command.getId(), urls, FastOssProtocol.SUCCESS);
+                response = commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
             }else{
                 // object key 重复
-                response =commandFactory.createResponse(command.getId(), "", FastOssProtocol.DUPLICATE_OBJECT_KEY);
+                response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
             }
         }catch (Exception e){
             log.error("bucket put object error ", e);
             response = commandFactory
-                    .createResponse(command.getId(), e.getMessage(), FastOssProtocol.NO_ENOUGH_STORAGES);
+                    .createResponse(command.getId(), e.getMessage(), TinyOssProtocol.NO_ENOUGH_STORAGES);
         }
         return response;
     }
@@ -149,10 +149,10 @@ public class BucketProcessor extends TrackerProcessor {
     /**
      * 处理GetService请求
      * 列出系统中的所有存储桶信息
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand processGetService(FastOssCommand command){
+    private RemotingCommand processGetService(TinyOssCommand command){
         GetServiceRequest request = SerializeUtil.deserialize(command.getContent(), GetServiceRequest.class);
         int count = request.getCount();
         int offset = request.getOffset();
@@ -172,7 +172,7 @@ public class BucketProcessor extends TrackerProcessor {
             response = new GetServiceResponse(vos, buckets.size());
         }
         byte[] serialize = SerializeUtil.serialize(response, GetServiceResponse.class);
-        responseCommand = commandFactory.createResponse(command.getId(), serialize, FastOssProtocol.SUCCESS);
+        responseCommand = commandFactory.createResponse(command.getId(), serialize, TinyOssProtocol.SUCCESS);
         return responseCommand;
     }
 
@@ -191,21 +191,21 @@ public class BucketProcessor extends TrackerProcessor {
 
     /**
      * 处理修改存储桶acl的请求
-     * @param command {@link FastOssCommand}
+     * @param command {@link TinyOssCommand}
      * @return {@link RemotingCommand}
      */
-    private RemotingCommand processUpdateAcl(FastOssCommand command){
+    private RemotingCommand processUpdateAcl(TinyOssCommand command){
         UpdateAclRequest request = SerializeUtil.deserialize(command.getContent(), UpdateAclRequest.class);
         String bucketKey = request.getBucket();
         Bucket bucket = bucketManager.getBucket(bucketKey);
         if(bucket == null){
-            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.NOT_FOUND);
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.NOT_FOUND);
         }
         bucket.setAcl(request.getAcl());
         if(bucketManager.updateBucket(bucketKey, bucket)){
-            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.SUCCESS);
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
         }else{
-            return commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR);
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
         }
     }
 }

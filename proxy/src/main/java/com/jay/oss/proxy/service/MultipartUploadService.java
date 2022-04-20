@@ -11,8 +11,8 @@ import com.jay.oss.common.entity.request.BucketPutObjectRequest;
 import com.jay.oss.common.entity.request.CompleteMultipartUploadRequest;
 import com.jay.oss.common.entity.request.LookupMultipartUploadRequest;
 import com.jay.oss.common.fs.FilePartWrapper;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
@@ -65,16 +65,16 @@ public class MultipartUploadService {
                 .build();
 
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
+                .createRequest(request, TinyOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
 
         Url url = OssConfigs.trackerServerUrl();
         FullHttpResponse httpResponse;
         try {
             // 发送INIT_MULTIPART 请求
-            FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
+            TinyOssCommand response = (TinyOssCommand) client.sendSync(url, command, null);
             CommandCode code = response.getCommandCode();
 
-            if(code.equals(FastOssProtocol.SUCCESS)){
+            if(code.equals(TinyOssProtocol.SUCCESS)){
                 // 获取返回的uploadID
                 String content = new String(response.getContent(), OssConfigs.DEFAULT_CHARSET);
                 String[] split = content.split(";");
@@ -109,14 +109,14 @@ public class MultipartUploadService {
         FullHttpResponse httpResponse;
         try{
             // 用uploadId查询分片上传任务的storages
-            FastOssCommand lookupResponse = lookupMultipartRequest(objectKey, uploadId, bucket, token);
+            TinyOssCommand lookupResponse = lookupMultipartRequest(objectKey, uploadId, bucket, token);
             CommandCode code = lookupResponse.getCommandCode();
-            if(FastOssProtocol.SUCCESS.equals(code)){
+            if(TinyOssProtocol.SUCCESS.equals(code)){
                 // 查询到的目标storages
                 List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(lookupResponse.getContent()));
                 // 完成分片上传
                 httpResponse = doMultipartUpload(uploadId, urls, partNum, content);
-            }else if(FastOssProtocol.MULTIPART_UPLOAD_FINISHED.equals(code)){
+            }else if(TinyOssProtocol.MULTIPART_UPLOAD_FINISHED.equals(code)){
                 httpResponse = HttpUtil.badRequestResponse("Multi-part Upload Task already Cancelled");
             } else{
                 // 存储桶访问权限response
@@ -134,15 +134,15 @@ public class MultipartUploadService {
      * @param uploadId uploadID
      * @param bucket 存储桶
      * @param token token
-     * @return {@link FastOssCommand}
+     * @return {@link TinyOssCommand}
      * @throws InterruptedException e
      */
-    private FastOssCommand lookupMultipartRequest(String objectKey, String uploadId, String bucket, String token) throws InterruptedException {
+    private TinyOssCommand lookupMultipartRequest(String objectKey, String uploadId, String bucket, String token) throws InterruptedException {
         Url url = OssConfigs.trackerServerUrl();
         LookupMultipartUploadRequest request = new LookupMultipartUploadRequest(uploadId, objectKey, bucket, token, BucketAccessMode.WRITE);
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
-        return (FastOssCommand) client.sendSync(url, command, null);
+                .createRequest(request, TinyOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
+        return (TinyOssCommand) client.sendSync(url, command, null);
     }
 
     /**
@@ -165,8 +165,8 @@ public class MultipartUploadService {
         for (i = 0; i < urls.size() && successCount < syncWriteReplicas; i++) {
             Url url = urls.get(i);
             try{
-                FastOssCommand response = doUpload(url, uploadId, partNum, content);
-                if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+                TinyOssCommand response = doUpload(url, uploadId, partNum, content);
+                if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
                     successUrls.add(url);
                     successCount ++;
                 }else{
@@ -191,10 +191,10 @@ public class MultipartUploadService {
      * @param uploadId 上传任务ID
      * @param partNum 分片编号
      * @param content 数据 {@link ByteBuf}
-     * @return {@link FastOssCommand}
+     * @return {@link TinyOssCommand}
      * @throws InterruptedException e
      */
-    private FastOssCommand doUpload(Url url, String uploadId, int partNum, ByteBuf content) throws InterruptedException {
+    private TinyOssCommand doUpload(Url url, String uploadId, int partNum, ByteBuf content) throws InterruptedException {
         byte[] keyBytes = StringUtil.getBytes(uploadId);
         FilePartWrapper wrapper = FilePartWrapper.builder()
                 .fullContent(content).partNum(partNum)
@@ -203,8 +203,8 @@ public class MultipartUploadService {
                 .build();
         content.retain();
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(wrapper, FastOssProtocol.MULTIPART_UPLOAD_PART);
-        return (FastOssCommand) client.sendSync(url, command, null);
+                .createRequest(wrapper, TinyOssProtocol.MULTIPART_UPLOAD_PART);
+        return (TinyOssCommand) client.sendSync(url, command, null);
     }
 
     /**
@@ -231,7 +231,7 @@ public class MultipartUploadService {
             // 发送异步备份请求
             AsyncBackupRequest request = new AsyncBackupRequest(uploadId, urls, partNum);
             RemotingCommand command =  client.getCommandFactory()
-                    .createRequest(request, FastOssProtocol.ASYNC_BACKUP_PART, AsyncBackupRequest.class);
+                    .createRequest(request, TinyOssProtocol.ASYNC_BACKUP_PART, AsyncBackupRequest.class);
             client.sendOneway(successUrls.get(i), command);
         }
     }
@@ -261,16 +261,16 @@ public class MultipartUploadService {
                 .build();
         Url url = OssConfigs.trackerServerUrl();
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
+                .createRequest(request, TinyOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
 
         try{
             RemotingCommand response = client.sendSync(url, command, null);
             CommandCode code = response.getCommandCode();
-            if(code.equals(FastOssProtocol.SUCCESS)){
+            if(code.equals(TinyOssProtocol.SUCCESS)){
                 List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
                 return completeStorageMultipartUpload(urls, request);
             }
-            else if(code.equals(FastOssProtocol.DUPLICATE_OBJECT_KEY)){
+            else if(code.equals(TinyOssProtocol.DUPLICATE_OBJECT_KEY)){
                 List<Url> urls = UrlUtil.parseUrls(StringUtil.toString(response.getContent()));
                 return cancelStorageMultipartUpload(urls);
             }
@@ -296,7 +296,7 @@ public class MultipartUploadService {
         CountDownLatch countDownLatch = new CountDownLatch(replicas);
         for (Url url : urls) {
             RemotingCommand command = client.getCommandFactory()
-                    .createRequest(request, FastOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
+                    .createRequest(request, TinyOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
             // 发送异步请求
             client.sendAsync(url, command, new CompleteMultipartUploadCallback(url, successUrls, asyncBackupUrls, countDownLatch));
         }

@@ -13,8 +13,8 @@ import com.jay.oss.common.entity.bucket.UpdateAclRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
 import com.jay.oss.common.entity.bucket.GetServiceRequest;
 import com.jay.oss.common.entity.bucket.GetServiceResponse;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.proxy.entity.Result;
@@ -55,13 +55,13 @@ public class BucketService {
                 .versioning(versioning)
                 .build();
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(bucket, FastOssProtocol.PUT_BUCKET, Bucket.class);
+                .createRequest(bucket, TinyOssProtocol.PUT_BUCKET, Bucket.class);
         // 获取Tracker地址
         Url url = OssConfigs.trackerServerUrl();
         FullHttpResponse httpResponse;
         try{
             // 发送请求
-            FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
+            TinyOssCommand response = (TinyOssCommand) client.sendSync(url, command, null);
             String keyPair = new String(response.getContent(), StandardCharsets.UTF_8);
             String[] keyPairs = keyPair.split(";");
             String appId = keyPairs[0];
@@ -92,16 +92,16 @@ public class BucketService {
     public FullHttpResponse listBucket(String bucket, String token, int count, int offset){
         ListBucketRequest request = new ListBucketRequest(bucket, token, count, offset, BucketAccessMode.READ);
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.LIST_BUCKET, ListBucketRequest.class);
+                .createRequest(request, TinyOssProtocol.LIST_BUCKET, ListBucketRequest.class);
         // 查询目标storage
         Url url = Url.parseString(OssConfigs.trackerServerHost());
 
         FullHttpResponse httpResponse;
         try{
             // 发送List请求
-            FastOssCommand response = (FastOssCommand) client.sendSync(url, command, null);
+            TinyOssCommand response = (TinyOssCommand) client.sendSync(url, command, null);
             CommandCode code = response.getCommandCode();
-            if(FastOssProtocol.SUCCESS.equals(code)){
+            if(TinyOssProtocol.SUCCESS.equals(code)){
                 byte[] content = response.getContent();
                 String json = StringUtil.toString(content);
                 List<String> list = JSON.parseArray(json, String.class);
@@ -123,7 +123,7 @@ public class BucketService {
         Url url = OssConfigs.trackerServerUrl();
         try{
             RemotingCommand command = client.getCommandFactory()
-                    .createRequest(request, FastOssProtocol.GET_SERVICE, GetServiceRequest.class);
+                    .createRequest(request, TinyOssProtocol.GET_SERVICE, GetServiceRequest.class);
             RemotingCommand response = client.sendSync(url, command, null);
             GetServiceResponse getServiceResponse = SerializeUtil.deserialize(response.getContent(), GetServiceResponse.class);
 
@@ -158,9 +158,9 @@ public class BucketService {
         Url url = OssConfigs.trackerServerUrl();
         try{
             RemotingCommand command = client.getCommandFactory()
-                    .createRequest(request, FastOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
+                    .createRequest(request, TinyOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
             RemotingCommand response = client.sendSync(url, command, null);
-            if(response.getCommandCode().equals(FastOssProtocol.SUCCESS)){
+            if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
                 return HttpUtil.okResponse("Success");
             }else{
                 return HttpUtil.errorResponse(response.getCommandCode());

@@ -14,7 +14,7 @@ import com.jay.dove.transport.protocol.*;
  * @author Jay
  * @date 2022/01/17 14:34
  */
-public class FastOssProtocol implements Protocol {
+public class TinyOssProtocol implements Protocol {
     /**
      * 协议编号
      */
@@ -27,14 +27,14 @@ public class FastOssProtocol implements Protocol {
     /**
      * decoder
      */
-    private final ProtocolDecoder decoder = new FastOssProtocolDecoder();
+    private final ProtocolDecoder decoder = new TinyOssProtocolDecoder();
     /**
      * encoder
      */
-    private final ProtocolEncoder encoder = new FastOssProtocolEncoder();
+    private final ProtocolEncoder encoder = new TinyOssProtocolEncoder();
 
 
-    private final CommandFactory commandFactory = new FastOssCommandFactory();
+    private final CommandFactory commandFactory = new TinyOssCommandFactory();
     /**
      * 上传文件头命令，该命令作用是让StorageNode开启上传流程
      */
@@ -98,9 +98,9 @@ public class FastOssProtocol implements Protocol {
      * 默认心跳处理器
      */
     private final HeartBeatTrigger heartBeatTrigger;
-    public FastOssProtocol(CommandHandler commandHandler) {
+    public TinyOssProtocol(CommandHandler commandHandler) {
         this.commandHandler = commandHandler;
-        this.heartBeatTrigger = new FastOssHeartBeatTrigger();
+        this.heartBeatTrigger = new TinyOssHearBeatTrigger();
     }
 
     @Override
@@ -110,7 +110,7 @@ public class FastOssProtocol implements Protocol {
 
     @Override
     public ProtocolM2mEncoder getM2mEncoder() {
-        return new FastOssM2mEncoder();
+        return new TinyOssM2mEncoder();
     }
 
     @Override

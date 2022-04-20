@@ -15,9 +15,9 @@ import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
-import com.jay.oss.common.remoting.FastOssCodec;
-import com.jay.oss.common.remoting.FastOssCommandFactory;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCodec;
+import com.jay.oss.common.remoting.TinyOssCommandFactory;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.common.util.Scheduler;
@@ -63,7 +63,7 @@ public class Tracker extends AbstractLifeCycle {
         try{
             ConfigsManager.loadConfigs();
             int port = OssConfigs.port();
-            FastOssCommandFactory commandFactory = new FastOssCommandFactory();
+            TinyOssCommandFactory commandFactory = new TinyOssCommandFactory();
             this.ring = new ConsistentHashRing();
             this.storageRegistry = new StorageRegistry(ring);
             this.bitCaskStorage = new BitCaskStorage();
@@ -78,7 +78,7 @@ public class Tracker extends AbstractLifeCycle {
                     multipartUploadTracker, trackerProducer, commandFactory);
             this.registry = new ZookeeperRegistry();
             this.storageRegistry.setRegistry(registry);
-            this.server = new DoveServer(new FastOssCodec(), port, commandFactory);
+            this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
 
             this.prometheusServer = new PrometheusServer();
         }catch (Exception e){
@@ -89,7 +89,7 @@ public class Tracker extends AbstractLifeCycle {
     private void init() throws Exception {
         Banner.printBanner();
         // 协议添加默认command handler
-        FastOssProtocol fastOssProtocol = new FastOssProtocol(this.commandHandler);
+        TinyOssProtocol fastOssProtocol = new TinyOssProtocol(this.commandHandler);
         // 注册协议
         ProtocolManager.registerProtocol(fastOssProtocol.getCode(), fastOssProtocol);
         // 注册默认序列化器

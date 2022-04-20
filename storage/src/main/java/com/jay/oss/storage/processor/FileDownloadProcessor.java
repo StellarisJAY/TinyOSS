@@ -3,8 +3,8 @@ package com.jay.oss.storage.processor;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.entity.request.GetObjectRequest;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
@@ -37,18 +37,18 @@ public class FileDownloadProcessor extends AbstractProcessor {
 
     @Override
     public void process(ChannelHandlerContext channelHandlerContext, Object o) {
-        if(o instanceof FastOssCommand){
-            FastOssCommand command = (FastOssCommand) o;
+        if(o instanceof TinyOssCommand){
+            TinyOssCommand command = (TinyOssCommand) o;
             processDownload(channelHandlerContext, command);
         }
     }
 
-    private void processDownload(ChannelHandlerContext context, FastOssCommand command){
+    private void processDownload(ChannelHandlerContext context, TinyOssCommand command){
         GetObjectRequest request = SerializeUtil.deserialize(command.getContent(), GetObjectRequest.class);
         ObjectIndex objectIndex = metaManager.getObjectIndex(request.getObjectId());
         if(objectIndex == null){
             log.warn("Object not found, id: {}", request.getObjectId());
-            sendResponse(context, commandFactory.createResponse(command.getId(), "", FastOssProtocol.OBJECT_NOT_FOUND));
+            sendResponse(context, commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND));
             return;
         }
         Block block = blockManager.getBlockById(objectIndex.getBlockId());
@@ -56,9 +56,9 @@ public class FileDownloadProcessor extends AbstractProcessor {
             int readStart = request.getEnd() == -1 ? 0 : request.getStart();
             int readLength = request.getEnd() == -1 ? objectIndex.getSize() : request.getEnd() - request.getStart();
             ByteBuf buffer = block.read(objectIndex.getOffset(), readStart, readLength);
-            sendResponse(context, commandFactory.createResponse(command.getId(), buffer, FastOssProtocol.DOWNLOAD_RESPONSE));
+            sendResponse(context, commandFactory.createResponse(command.getId(), buffer, TinyOssProtocol.DOWNLOAD_RESPONSE));
         }else{
-            sendResponse(context, commandFactory.createResponse(command.getId(), "", FastOssProtocol.ERROR));
+            sendResponse(context, commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR));
         }
     }
 }

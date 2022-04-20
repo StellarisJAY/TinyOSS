@@ -8,8 +8,8 @@ import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
-import com.jay.oss.common.remoting.FastOssCommand;
-import com.jay.oss.common.remoting.FastOssProtocol;
+import com.jay.oss.common.remoting.TinyOssCommand;
+import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.common.util.UrlUtil;
@@ -53,13 +53,13 @@ public class DownloadService {
         }
         String objectKey = KeyUtil.getObjectKey(key, bucket, versionId);
         // 根据范围判断下载类型，full或者ranged
-        CommandCode commandCode = rangeEnd == -1 ? FastOssProtocol.DOWNLOAD_FULL : FastOssProtocol.DOWNLOAD_RANGED;
+        CommandCode commandCode = rangeEnd == -1 ? TinyOssProtocol.DOWNLOAD_FULL : TinyOssProtocol.DOWNLOAD_RANGED;
 
         try{
             // 向Tracker服务器定位Object位置
-            FastOssCommand locateResponse = locateObject(objectKey, bucket, token);
+            TinyOssCommand locateResponse = locateObject(objectKey, bucket, token);
             CommandCode code = locateResponse.getCommandCode();
-            if(!code.equals(FastOssProtocol.SUCCESS)){
+            if(!code.equals(TinyOssProtocol.SUCCESS)){
                 return HttpUtil.bucketAclResponse(code);
             }
             String respContent = StringUtil.toString(locateResponse.getContent());
@@ -78,13 +78,13 @@ public class DownloadService {
         }
     }
 
-    public FastOssCommand locateObject(String key, String bucket, String token) throws Exception {
+    public TinyOssCommand locateObject(String key, String bucket, String token) throws Exception {
         Url url = OssConfigs.trackerServerUrl();
         LocateObjectRequest request = new LocateObjectRequest(key, bucket, token, BucketAccessMode.READ);
         RemotingCommand command = client.getCommandFactory()
-                .createRequest(request, FastOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
+                .createRequest(request, TinyOssProtocol.LOCATE_OBJECT, LocateObjectRequest.class);
         // 同步发送
-        return (FastOssCommand)client.sendSync(url, command, null);
+        return (TinyOssCommand)client.sendSync(url, command, null);
     }
 
 
@@ -95,9 +95,9 @@ public class DownloadService {
         for (Url url : urls) {
             try{
                 // 发送下载请求
-                FastOssCommand response = (FastOssCommand)client.sendSync(url, command, null);
+                TinyOssCommand response = (TinyOssCommand)client.sendSync(url, command, null);
                 CommandCode respCode = response.getCommandCode();
-                if(respCode.equals(FastOssProtocol.DOWNLOAD_RESPONSE)){
+                if(respCode.equals(TinyOssProtocol.DOWNLOAD_RESPONSE)){
                     // 全量下载返回 200OK
                     if(end == -1){
                         return HttpUtil.okResponse(response.getData());
