@@ -4,7 +4,7 @@ import com.jay.oss.common.kafka.RecordHandler;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -20,11 +20,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 @Slf4j
 public class DeleteHandler implements RecordHandler {
 
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final BlockManager blockManager;
 
-    public DeleteHandler(MetaManager metaManager, BlockManager blockManager) {
-        this.metaManager = metaManager;
+    public DeleteHandler(ObjectIndexManager objectIndexManager, BlockManager blockManager) {
+        this.objectIndexManager = objectIndexManager;
         this.blockManager = blockManager;
     }
 
@@ -32,7 +32,7 @@ public class DeleteHandler implements RecordHandler {
     public void handle(Iterable<ConsumerRecord<String, String>> records, ConsumerGroupMetadata groupMetadata) {
         for (ConsumerRecord<String, String> record : records) {
             long objectId = Long.parseLong(record.key());
-            ObjectIndex index = metaManager.getObjectIndex(objectId);
+            ObjectIndex index = objectIndexManager.getObjectIndex(objectId);
             Block block;
             if(index != null && (block = blockManager.getBlockById(index.getBlockId())) != null){
                 if(block.delete(objectId, index.getOffset())){

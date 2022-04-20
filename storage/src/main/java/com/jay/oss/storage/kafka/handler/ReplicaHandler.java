@@ -11,7 +11,7 @@ import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
-import com.jay.oss.storage.meta.MetaManager;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
@@ -29,14 +29,14 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 public class ReplicaHandler implements RecordHandler {
 
     private final DoveClient client;
-    private final MetaManager metaManager;
+    private final ObjectIndexManager objectIndexManager;
     private final BlockManager blockManager;
 
-    public ReplicaHandler(DoveClient client, MetaManager metaManager, BlockManager blockManager) {
+    public ReplicaHandler(DoveClient client, ObjectIndexManager objectIndexManager, BlockManager blockManager) {
         try{
             this.blockManager = blockManager;
             this.client = client;
-            this.metaManager = metaManager;
+            this.objectIndexManager = objectIndexManager;
         }catch (Exception e){
             throw new RuntimeException(e);
         }
@@ -87,7 +87,7 @@ public class ReplicaHandler implements RecordHandler {
      * @param data {@link ByteBuf} object数据
      */
     private void saveObject(long objectId, ByteBuf data) {
-        metaManager.computeIfAbsent(objectId, (id)->{
+        objectIndexManager.computeIfAbsent(objectId, (id)->{
             int size = data.readableBytes();
             Block block = blockManager.getBlockBySize(size);
             ObjectIndex index = block.write(objectId, data, size);

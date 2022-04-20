@@ -5,12 +5,14 @@ import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.fs.FilePartWrapper;
+import com.jay.oss.common.remoting.builder.*;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -28,42 +30,31 @@ public class TinyOssCommandFactory implements CommandFactory {
      */
     private final AtomicInteger requestIdProvider = new AtomicInteger(1);
 
+    static Map<Class<?>, BuilderStrategy> strategyHolder = new HashMap<>(16);
+
+    static {
+        strategyHolder.put(null, new EmptyContentStrategy());
+        strategyHolder.put(byte[].class, new ByteArrayStrategy());
+        strategyHolder.put(DefaultFileRegion.class, new FileRegionStrategy());
+        strategyHolder.put(String.class, new StringStrategy());
+        strategyHolder.put(ByteBuf.class, new ByteBufStrategy());
+        strategyHolder.put(FilePartWrapperStrategy.class, new FilePartWrapperStrategy());
+    }
+
     @Override
     public RemotingCommand createRequest(Object o, CommandCode commandCode) {
-        TinyOssCommand.FastOssCommandBuilder builder = TinyOssCommand.builder()
-                .id(requestIdProvider.getAndIncrement())
-                .commandCode(commandCode)
-                .serializer(OssConfigs.DEFAULT_SERIALIZER)
-                .timeout(System.currentTimeMillis() + 60 * 1000);
-        if(o instanceof byte[]){
-            byte[] content = (byte[])o;
-            return builder
-                    .length(TinyOssProtocol.HEADER_LENGTH + content.length)
-                    .content(content).build();
+        TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(requestIdProvider.getAndIncrement(), commandCode);
+        if(o == null){
+            return strategyHolder.get(null).build(builder, null);
         }
-        else if(o instanceof ByteBuf){
-            ByteBuf data = (ByteBuf) o;
-            return builder.data(data)
-                    .length(TinyOssProtocol.HEADER_LENGTH + data.readableBytes())
-                    .build();
-        }
-        else if (o instanceof FilePartWrapper){
-            FilePartWrapper partWrapper = (FilePartWrapper) o;
-            return builder.filePartWrapper(partWrapper)
-                    .length(TinyOssProtocol.HEADER_LENGTH + partWrapper.getKeyLength() + partWrapper.getLength() + 8)
-                    .build();
-        }
-        return null;
+        BuilderStrategy strategy;
+        return (strategy = strategyHolder.get(o.getClass())) == null ? null : strategy.build(builder, o);
     }
 
     @Override
     public <T> RemotingCommand createRequest(T t, CommandCode commandCode, Class<T> aClass) {
         if(t instanceof Serializable){
-            TinyOssCommand.FastOssCommandBuilder builder = TinyOssCommand.builder()
-                    .id(requestIdProvider.getAndIncrement())
-                    .commandCode(commandCode)
-                    .serializer(OssConfigs.DEFAULT_SERIALIZER)
-                    .timeout(System.currentTimeMillis() + 60 * 1000);
+            TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(requestIdProvider.getAndIncrement(), commandCode);
             byte[] content = SerializeUtil.serialize(t, aClass);
             return builder.content(content).length(TinyOssProtocol.HEADER_LENGTH + content.length).build();
         }
@@ -72,55 +63,19 @@ public class TinyOssCommandFactory implements CommandFactory {
 
     @Override
     public RemotingCommand createResponse(int id, Object o, CommandCode commandCode) {
-        TinyOssCommand.FastOssCommandBuilder builder = TinyOssCommand.builder()
-                .id(id)
-                .timeout(System.currentTimeMillis() * 2)
-                .serializer(OssConfigs.DEFAULT_SERIALIZER)
-                .compressor((byte) 0)
-                .commandCode(commandCode);
-        if(o instanceof String){
-            byte[] content = ((String)o).getBytes(DoveConfigs.DEFAULT_CHARSET);
-            return builder.content(content)
-                    .length(TinyOssProtocol.HEADER_LENGTH + content.length)
-                    .build();
+        TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(id, commandCode);
+        if(o == null){
+            return strategyHolder.get(null).build(builder, null);
         }
-        else if(o instanceof byte[]){
-            byte[] content = (byte[])o;
-            return builder.content(content)
-                    .length(TinyOssProtocol.HEADER_LENGTH + content.length)
-                    .build();
-        }
-        else if(o instanceof ByteBuf){
-            ByteBuf data = (ByteBuf) o;
-            return builder.data(data)
-                    .length(data.readableBytes() + TinyOssProtocol.HEADER_LENGTH)
-                    .build();
-        }
-        else if(o instanceof DefaultFileRegion){
-            DefaultFileRegion fileRegion = (DefaultFileRegion) o;
-            return builder.length(TinyOssProtocol.HEADER_LENGTH + (int) fileRegion.count())
-                    .fileRegion(fileRegion)
-                    .build();
-        }
-        else{
-            return builder.length(TinyOssProtocol.HEADER_LENGTH).build();
-        }
+        BuilderStrategy strategy;
+        return (strategy = strategyHolder.get(o.getClass())) == null ? null : strategy.build(builder, o);
     }
 
     @Override
     public RemotingCommand createTimeoutResponse(int id, Object o) {
-        TinyOssCommand.FastOssCommandBuilder builder = TinyOssCommand.builder()
-                .id(id)
-                .timeout(System.currentTimeMillis() * 2)
-                .serializer(OssConfigs.DEFAULT_SERIALIZER)
-                .commandCode(TinyOssProtocol.REQUEST_TIMEOUT);
+        TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(id, TinyOssProtocol.REQUEST_TIMEOUT);
         if(o instanceof String){
             byte[] content = ((String) o).getBytes(DoveConfigs.DEFAULT_CHARSET);
-            return builder.content(content)
-                    .length(TinyOssProtocol.HEADER_LENGTH + content.length)
-                    .build();
-        }else if (o instanceof byte[]){
-            byte[] content = (byte[]) o;
             return builder.content(content)
                     .length(TinyOssProtocol.HEADER_LENGTH + content.length)
                     .build();
@@ -147,5 +102,13 @@ public class TinyOssCommandFactory implements CommandFactory {
                 .content(content).length(TinyOssProtocol.HEADER_LENGTH + content.length)
                 .timeout(System.currentTimeMillis() * 2)
                 .serializer(OssConfigs.DEFAULT_SERIALIZER).build();
+    }
+
+    private TinyOssCommand.TinyOssCommandBuilder getCommandBuilder(int id, CommandCode code){
+        return TinyOssCommand.builder()
+                .id(id)
+                .timeout(System.currentTimeMillis() * 2)
+                .serializer(OssConfigs.DEFAULT_SERIALIZER)
+                .commandCode(code);
     }
 }

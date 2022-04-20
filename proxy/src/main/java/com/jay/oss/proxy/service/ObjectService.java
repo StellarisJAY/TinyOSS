@@ -79,6 +79,14 @@ public class ObjectService {
         return (TinyOssCommand) client.sendSync(url, command, null);
     }
 
+    /**
+     * 从Tracker服务器获取对象元数据
+     * @param key objectKey
+     * @param bucket 存储桶
+     * @param version 对象版本号（如果开启了版本控制）
+     * @param token 访问Token
+     * @return {@link FullHttpResponse}
+     */
     public FullHttpResponse getObjectMeta(String key, String bucket, String version, String token){
         String objectKey = KeyUtil.getObjectKey(key, bucket, version);
         LocateObjectRequest request = new LocateObjectRequest(objectKey, bucket, token, BucketAccessMode.READ);

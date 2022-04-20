@@ -4,25 +4,16 @@ import com.alibaba.fastjson.JSON;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.bucket.*;
-import com.jay.oss.common.entity.object.ObjectMeta;
-import com.jay.oss.common.entity.request.BucketPutObjectRequest;
 import com.jay.oss.common.entity.request.ListBucketRequest;
-import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
-import com.jay.oss.common.util.SnowflakeIdGenerator;
-import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
-import com.jay.oss.tracker.registry.StorageRegistry;
-import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -36,16 +27,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class BucketProcessor extends TrackerProcessor {
 
-    private final StorageRegistry storageRegistry;
-    private final ObjectTracker objectTracker;
-    private final SnowflakeIdGenerator objectIdGenerator;
-
-    public BucketProcessor(BucketManager bucketManager, StorageRegistry storageRegistry,
-                           ObjectTracker objectTracker, CommandFactory commandFactory) {
+    public BucketProcessor(BucketManager bucketManager, CommandFactory commandFactory) {
         super(commandFactory, bucketManager);
-        this.storageRegistry = storageRegistry;
-        this.objectTracker = objectTracker;
-        this.objectIdGenerator = new SnowflakeIdGenerator(0L, 0L);
     }
 
     @Override
@@ -56,9 +39,6 @@ public class BucketProcessor extends TrackerProcessor {
         }
         else if(TinyOssProtocol.LIST_BUCKET.equals(code)){
             return processListBucket(command);
-        }
-        else if(TinyOssProtocol.BUCKET_PUT_OBJECT.equals(code)){
-            return bucketPutObject(command);
         }
         else if(TinyOssProtocol.GET_SERVICE.equals(code)){
             return processGetService(command);
@@ -97,52 +77,6 @@ public class BucketProcessor extends TrackerProcessor {
         // 转换成JSON
         String json = JSON.toJSONString(objects);
         return commandFactory.createResponse(command.getId(), json, TinyOssProtocol.SUCCESS);
-    }
-
-    /**
-     * 处理向桶中放入object元数据
-     * @param command {@link TinyOssCommand}
-     * @return {@link RemotingCommand}
-     */
-    private RemotingCommand bucketPutObject(TinyOssCommand command){
-        BucketPutObjectRequest request = SerializeUtil.deserialize(command.getContent(), BucketPutObjectRequest.class);
-        String bucket = request.getBucket();
-        String objectKey = request.getKey();
-        long size = request.getSize();
-        RemotingCommand response;
-        // 判断桶是否开启了版本控制
-        String versionId = "";
-        if(bucketManager.getBucket(bucket).isVersioning()){
-            // 生成版本号
-            versionId = UUID.randomUUID().toString();
-            objectKey = objectKey + "/" + versionId;
-        }
-        try{
-            // 选择上传点
-            List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
-            String urls = UrlUtil.stringifyFromNodes(nodes);
-            ObjectMeta meta = ObjectMeta.builder()
-                    .objectId(objectIdGenerator.nextId())
-                    .locations(urls).fileName(request.getFilename())
-                    .md5(request.getMd5()).objectKey(request.getKey())
-                    .size(size).createTime(request.getCreateTime())
-                    .versionId(versionId)
-                    .build();
-            // 保存object位置，判断object是否已经存在
-            if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
-                bucketManager.putObject(bucket, objectKey);
-                urls = urls + meta.getObjectId() + ";" +  versionId;
-                response = commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
-            }else{
-                // object key 重复
-                response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
-            }
-        }catch (Exception e){
-            log.error("bucket put object error ", e);
-            response = commandFactory
-                    .createResponse(command.getId(), e.getMessage(), TinyOssProtocol.NO_ENOUGH_STORAGES);
-        }
-        return response;
     }
 
 

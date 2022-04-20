@@ -3,7 +3,6 @@ package com.jay.oss.common.remoting;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.protocol.ProtocolDecoder;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.util.List;
@@ -38,7 +37,7 @@ public class TinyOssProtocolDecoder implements ProtocolDecoder {
         byte compressor = in.readByte();
 
         // build command
-        TinyOssCommand.FastOssCommandBuilder commandBuilder = TinyOssCommand.builder().length(length)
+        TinyOssCommand.TinyOssCommandBuilder commandBuilder = TinyOssCommand.builder().length(length)
                 .id(id)
                 .commandCode(new CommandCode(code))
                 .timeout(timeout)
@@ -66,18 +65,5 @@ public class TinyOssProtocolDecoder implements ProtocolDecoder {
             // 有 TCP 拆包，重置readerIndex
             in.resetReaderIndex();
         }
-    }
-
-    /**
-     *  拷贝一定长度的数据到新的byteBuf中，该过程使用直接内存和readBytes零拷贝完成
-     * @param in {@link ByteBuf} src
-     * @param length copied length
-     * @return {@link ByteBuf} copied parts of the original buffer
-     */
-    @Deprecated
-    private ByteBuf copyByteBuf(ByteBuf in, int length){
-        ByteBuf buffer = Unpooled.directBuffer(length);
-        in.readBytes(buffer, length);
-        return buffer;
     }
 }

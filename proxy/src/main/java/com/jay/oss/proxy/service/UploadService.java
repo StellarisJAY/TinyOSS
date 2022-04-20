@@ -84,6 +84,16 @@ public class UploadService {
         }
     }
 
+    /**
+     * 向Storage服务器发送对象
+     * 会根据副本策略向一定数量的storage发送数据
+     * 如果成功收到对象的服务器数量满足策略要求，则返回成功。
+     * @param urls storage服务器列表
+     * @param content 对象数据
+     * @param size 对象大小
+     * @param objectId 对象ID
+     * @return 发送状态
+     */
     private boolean doUpload(List<Url> urls, ByteBuf content, int size, long objectId){
         int successReplica = 0;
         // 需要写入成功的数量
@@ -134,6 +144,7 @@ public class UploadService {
 
     /**
      * 存储桶put object
+     * 向Tracker发送对象元数据
      * 同时校验访问权限 和 分配上传点
      * @param bucket bucket
      * @param filename 对象名称

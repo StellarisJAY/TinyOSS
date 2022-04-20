@@ -78,6 +78,14 @@ public class DownloadService {
         }
     }
 
+    /**
+     * 从Tracker获取object所在的存储服务器
+     * @param key objectKey
+     * @param bucket 存储桶
+     * @param token 访问token
+     * @return {@link TinyOssCommand}
+     * @throws Exception e
+     */
     public TinyOssCommand locateObject(String key, String bucket, String token) throws Exception {
         Url url = OssConfigs.trackerServerUrl();
         LocateObjectRequest request = new LocateObjectRequest(key, bucket, token, BucketAccessMode.READ);
@@ -87,7 +95,16 @@ public class DownloadService {
         return (TinyOssCommand)client.sendSync(url, command, null);
     }
 
-
+    /**
+     * 尝试从存储服务器下载对象
+     * 默认会打乱存储服务器顺序，来简单地实现负载均衡
+     * @param urls 存储服务器地址列表
+     * @param objectId 对象ID
+     * @param start 下载范围开始位置
+     * @param end 下载范围结束位置
+     * @param code {@link CommandCode}
+     * @return {@link FullHttpResponse}
+     */
     private FullHttpResponse tryDownload(List<Url> urls, long objectId, int start, int end, CommandCode code){
         GetObjectRequest request = new GetObjectRequest(objectId, start, end);
         RemotingCommand command = client.getCommandFactory().createRequest(request, code, GetObjectRequest.class);
