@@ -31,8 +31,6 @@ public class StorageNodeCommandHandler extends TinyOssCommandHandler {
         /*
             Put Object处理器
          */
-        this.registerProcessor(TinyOssProtocol.UPLOAD_FILE_HEADER, fileUploadProcessor);
-        this.registerProcessor(TinyOssProtocol.UPLOAD_FILE_PARTS, fileUploadProcessor);
         this.registerProcessor(TinyOssProtocol.UPLOAD_REQUEST, fileUploadProcessor);
         /*
             Get Object 处理器

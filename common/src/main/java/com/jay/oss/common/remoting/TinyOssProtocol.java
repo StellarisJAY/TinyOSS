@@ -33,17 +33,18 @@ public class TinyOssProtocol implements Protocol {
      */
     private final ProtocolEncoder encoder = new TinyOssProtocolEncoder();
 
+    private final ProtocolM2mEncoder m2mEncoder = new TinyOssM2mEncoder();
+
 
     private final CommandFactory commandFactory = new TinyOssCommandFactory();
     /**
-     * 上传文件头命令，该命令作用是让StorageNode开启上传流程
+     *  上传请求
      */
-    public static final CommandCode UPLOAD_FILE_HEADER = new CommandCode((short)101);
+    public static final CommandCode UPLOAD_REQUEST = new CommandCode((short)101);
     /**
      * 上传文件分片，该命令的数据部分为文件的一个分片
      */
     public static final CommandCode UPLOAD_FILE_PARTS = new CommandCode((short)102);
-    public static final CommandCode RESPONSE_UPLOAD_DONE = new CommandCode((short)103);
 
     /**
      * 下载完整对象命令，该命令表示当前下载请求要求读取整个对象
@@ -79,7 +80,6 @@ public class TinyOssProtocol implements Protocol {
     public static final CommandCode LOOKUP_MULTIPART_UPLOAD = new CommandCode((short)133);
     public static final CommandCode MULTIPART_UPLOAD_FINISHED = new CommandCode((short)134);
     public static final CommandCode COMPLETE_MULTIPART_UPLOAD = new CommandCode((short)135);
-    public static final CommandCode CANCEL_MULTIPART_UPLOAD = new CommandCode((short)136);
 
     public static final CommandCode SUCCESS = new CommandCode((short)200);
     public static final CommandCode ERROR = new CommandCode((short)500);
@@ -89,7 +89,7 @@ public class TinyOssProtocol implements Protocol {
     public static final CommandCode NO_ENOUGH_STORAGES = new CommandCode((short)600);
     public static final CommandCode DUPLICATE_OBJECT_KEY = new CommandCode((short)700);
 
-    public static final CommandCode UPLOAD_REQUEST = new CommandCode((short)1111);
+
     /**
      * 默认命令处理器
      */
@@ -110,7 +110,7 @@ public class TinyOssProtocol implements Protocol {
 
     @Override
     public ProtocolM2mEncoder getM2mEncoder() {
-        return new TinyOssM2mEncoder();
+        return m2mEncoder;
     }
 
     @Override
