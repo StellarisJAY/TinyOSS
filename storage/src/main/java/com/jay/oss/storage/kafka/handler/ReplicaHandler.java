@@ -71,7 +71,6 @@ public class ReplicaHandler implements RecordHandler {
             CommandCode code = response.getCommandCode();
             if(TinyOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
                 saveObject(objectId, response.getData());
-                log.info("Object backup task done, object: {}, src: {}, time used: {}ms", objectId, url, (System.currentTimeMillis() - start));
             }
             else{
                 log.error("Object replica not found, object:{}, src:{}", objectId, url);

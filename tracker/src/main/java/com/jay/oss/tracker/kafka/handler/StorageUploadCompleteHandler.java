@@ -43,7 +43,6 @@ public class StorageUploadCompleteHandler implements RecordHandler {
                 continue;
             }
             String urls = meta.getLocations();
-            log.info("Received Upload complete message, objectId: {}, replica locations: {}", objectId, urls);
             if(!StringUtil.isNullOrEmpty(urls)){
                 String[] storages = urls.split(";");
                 // 排除已上传成功的storage
