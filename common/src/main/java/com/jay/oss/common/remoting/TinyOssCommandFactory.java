@@ -9,6 +9,7 @@ import com.jay.oss.common.remoting.builder.*;
 import com.jay.oss.common.util.SerializeUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jay
  * @date 2022/01/25 10:47
  */
+@Slf4j
 public class TinyOssCommandFactory implements CommandFactory {
     /**
      * 报文ID生成
@@ -47,8 +49,11 @@ public class TinyOssCommandFactory implements CommandFactory {
         if(o == null){
             return strategyHolder.get(null).build(builder, null);
         }
-        BuilderStrategy strategy;
-        return (strategy = strategyHolder.get(o.getClass())) == null ? null : strategy.build(builder, o);
+        if(o instanceof ByteBuf){
+            return strategyHolder.get(ByteBuf.class).build(builder, o);
+        }
+        BuilderStrategy strategy = strategyHolder.get(o.getClass());
+        return strategy == null ? null : strategy.build(builder, o);
     }
 
     @Override
@@ -66,6 +71,9 @@ public class TinyOssCommandFactory implements CommandFactory {
         TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(id, commandCode);
         if(o == null){
             return strategyHolder.get(null).build(builder, null);
+        }
+        if(o instanceof ByteBuf){
+            return strategyHolder.get(ByteBuf.class).build(builder, o);
         }
         BuilderStrategy strategy;
         return (strategy = strategyHolder.get(o.getClass())) == null ? null : strategy.build(builder, o);
