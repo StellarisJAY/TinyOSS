@@ -4,13 +4,13 @@ import com.jay.dove.DoveServer;
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
-import com.jay.oss.common.bitcask.BitCaskStorage;
+import com.jay.oss.common.kv.bitcask.BitCaskStorage;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
-import com.jay.oss.common.edit.EditLogManager;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
+import com.jay.oss.common.kv.KvStorage;
 import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
@@ -20,19 +20,14 @@ import com.jay.oss.common.remoting.TinyOssCommandFactory;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
-import com.jay.oss.common.util.Scheduler;
-import com.jay.oss.tracker.edit.TrackerEditLogManager;
 import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import com.jay.oss.tracker.track.ConsistentHashRing;
-import com.jay.oss.tracker.track.MultipartUploadTracker;
 import com.jay.oss.tracker.track.ObjectTracker;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -48,13 +43,11 @@ public class Tracker extends AbstractLifeCycle {
     private final StorageRegistry storageRegistry;
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
-    private final BitCaskStorage bitCaskStorage;
-    private final MultipartUploadTracker multipartUploadTracker;
+    private final KvStorage kvStorage;
     private final TrackerCommandHandler commandHandler;
     private final DoveServer server;
     private final Registry registry;
     private final ConsistentHashRing ring;
-    private final EditLogManager editLogManager;
     private final RecordProducer trackerProducer;
     private final RecordConsumer trackerConsumer;
     private final PrometheusServer prometheusServer;
@@ -66,16 +59,13 @@ public class Tracker extends AbstractLifeCycle {
             TinyOssCommandFactory commandFactory = new TinyOssCommandFactory();
             this.ring = new ConsistentHashRing();
             this.storageRegistry = new StorageRegistry(ring);
-            this.bitCaskStorage = new BitCaskStorage();
-            this.bucketManager = new BucketManager(bitCaskStorage);
-            this.objectTracker = new ObjectTracker(bitCaskStorage);
-            this.multipartUploadTracker = new MultipartUploadTracker(bitCaskStorage);
+            this.kvStorage = new BitCaskStorage();
+            this.bucketManager = new BucketManager(kvStorage);
+            this.objectTracker = new ObjectTracker(kvStorage);
 
-            this.editLogManager = new TrackerEditLogManager(objectTracker, bucketManager, multipartUploadTracker);
             this.trackerProducer = new RecordProducer();
             this.trackerConsumer = new RecordConsumer();
-            this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, editLogManager,
-                    multipartUploadTracker, trackerProducer, commandFactory);
+            this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer, commandFactory);
             this.registry = new ZookeeperRegistry();
             this.storageRegistry.setRegistry(registry);
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
@@ -97,11 +87,7 @@ public class Tracker extends AbstractLifeCycle {
         SerializerManager.registerSerializer(OssConfigs.DEFAULT_SERIALIZER, serializer);
         // 注册Gauge
         registerGauges();
-        bitCaskStorage.init();
-        // 初始化 并 加载编辑日志
-        editLogManager.init();
-        // 加载editLog并压缩日志，该过程会压缩bitCask chunk
-        editLogManager.loadAndCompress();
+        kvStorage.init();
         // 初始化远程注册中心客户端
         registry.init();
         // 初始化本地storage记录
@@ -110,10 +96,6 @@ public class Tracker extends AbstractLifeCycle {
             订阅消息主题
          */
         trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
-        // 系统关闭hook，关闭时flush日志
-        Runtime.getRuntime().addShutdownHook(new Thread(()-> {editLogManager.swapBuffer(true);editLogManager.close();}, "shutdown-log-flush"));
-        // 定时flush任务
-        Scheduler.scheduleAtFixedRate(()->editLogManager.swapBuffer(true), OssConfigs.editLogFlushInterval(), OssConfigs.editLogFlushInterval(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -139,6 +121,7 @@ public class Tracker extends AbstractLifeCycle {
 
     public static void main(String[] args) {
         Tracker tracker = new Tracker();
+
         tracker.startup();
     }
 
