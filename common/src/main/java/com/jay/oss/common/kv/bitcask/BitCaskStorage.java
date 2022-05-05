@@ -1,7 +1,7 @@
-package com.jay.oss.common.bitcask;
+package com.jay.oss.common.kv.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
-import com.jay.oss.common.util.CompressUtil;
+import com.jay.oss.common.kv.KvStorage;
 import com.jay.oss.common.util.StringUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
  * @date 2022/03/04 10:55
  */
 @Slf4j
-public class BitCaskStorage {
+public class BitCaskStorage implements KvStorage {
     /**
      * Index Hash表
      */
@@ -89,6 +89,7 @@ public class BitCaskStorage {
      * 首先会加载目录下的chunk文件，然后读取Hint日志来加载索引信息。
      * @throws Exception e
      */
+    @Override
     public void init() throws Exception {
         String path = OssConfigs.dataPath() + CHUNK_DIRECTORY;
         File directory = new File(path);
@@ -144,6 +145,7 @@ public class BitCaskStorage {
      * @return byte[]
      * @throws IOException chunk读取异常
      */
+    @Override
     public byte[] get(String key) throws IOException {
         try{
             compactLock.readLock().lock();
@@ -166,7 +168,8 @@ public class BitCaskStorage {
      * @param key key
      * @param value value byte[]
      */
-    public boolean put(String key, byte[] value)  {
+    @Override
+    public boolean putIfAbsent(String key, byte[] value)  {
         if(!indexCache.containsKey(key)){
             synchronized (activeChunkLock){
                 try{
@@ -191,17 +194,21 @@ public class BitCaskStorage {
      * 更新值
      * @param key key
      * @param value value
-     * @return boolean
-     * @throws IOException IOException
      */
-    public boolean update(String key, byte[] value) throws IOException {
+    @Override
+    public boolean put(String key, byte[] value) {
         synchronized (activeChunkLock){
-            byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
-            ensureActiveChunk(key, value);
-            int offset = activeChunk.writeMmap(keyBytes, value);
-            Index index = new Index(activeChunk.getChunkId(), offset, false);
-            indexCache.put(key, index);
-            return true;
+            try{
+                byte[] keyBytes = key.getBytes(OssConfigs.DEFAULT_CHARSET);
+                ensureActiveChunk(key, value);
+                int offset = activeChunk.writeMmap(keyBytes, value);
+                Index index = new Index(activeChunk.getChunkId(), offset, false);
+                indexCache.put(key, index);
+                return true;
+            }catch (IOException e){
+                log.warn("Put kv failed, key: {} ",key, e);
+                return false;
+            }
         }
     }
 
@@ -210,6 +217,7 @@ public class BitCaskStorage {
      * @param key key
      * @return boolean
      */
+    @Override
     public boolean delete(String key){
         if(indexCache.containsKey(key)){
             synchronized (activeChunkLock){
@@ -411,6 +419,7 @@ public class BitCaskStorage {
         }
     }
 
+    @Override
     public List<String> keys(){
         return new ArrayList<>(indexCache.keySet());
     }
