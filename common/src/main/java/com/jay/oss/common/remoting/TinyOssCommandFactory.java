@@ -40,7 +40,6 @@ public class TinyOssCommandFactory implements CommandFactory {
         strategyHolder.put(DefaultFileRegion.class, new FileRegionStrategy());
         strategyHolder.put(String.class, new StringStrategy());
         strategyHolder.put(ByteBuf.class, new ByteBufStrategy());
-        strategyHolder.put(FilePartWrapperStrategy.class, new FilePartWrapperStrategy());
     }
 
     @Override

@@ -47,9 +47,6 @@ public abstract class TrackerProcessor extends AbstractProcessor {
         REQUEST_CLASS_MAPPING.put(TinyOssProtocol.LIST_BUCKET, ListBucketRequest.class);
         REQUEST_CLASS_MAPPING.put(TinyOssProtocol.DELETE_OBJECT, DeleteObjectInBucketRequest.class);
         REQUEST_CLASS_MAPPING.put(TinyOssProtocol.BUCKET_PUT_OBJECT, BucketPutObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.INIT_MULTIPART_UPLOAD, BucketPutObjectRequest.class);
-        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.LOOKUP_MULTIPART_UPLOAD, LookupMultipartUploadRequest.class);
-        REQUEST_CLASS_MAPPING.put(TinyOssProtocol.COMPLETE_MULTIPART_UPLOAD, CompleteMultipartUploadRequest.class);
         REQUEST_CLASS_MAPPING.put(TinyOssProtocol.GET_OBJECT_META, LocateObjectRequest.class);
         REQUEST_CLASS_MAPPING.put(TinyOssProtocol.UPDATE_BUCKET_ACL, UpdateAclRequest.class);
     }

@@ -54,7 +54,6 @@ public class ProxyNode extends AbstractLifeCycle {
      * 存储节点访问客户端
      */
     private final DoveClient storageClient;
-    private final MultipartUploadService multipartUploadService;
     private final UploadService uploadService;
     private final DownloadService downloadService;
     private final ObjectService objectService;
@@ -81,7 +80,6 @@ public class ProxyNode extends AbstractLifeCycle {
         downloadService = new DownloadService(storageClient);
         objectService = new ObjectService(storageClient);
         bucketService = new BucketService(storageClient);
-        multipartUploadService = new MultipartUploadService(storageClient);
         prometheusServer = new PrometheusServer();
     }
 
@@ -92,7 +90,7 @@ public class ProxyNode extends AbstractLifeCycle {
         // 注册FastOSS协议
         ProtocolManager.registerProtocol(TinyOssProtocol.PROTOCOL_CODE, new TinyOssProtocol(commandHandler));
         // 注册handler
-        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService, multipartUploadService));
+        HandlerMapping.registerHandler("object", new ObjectHandler(uploadService, downloadService, objectService));
         HandlerMapping.registerHandler("bucket", new BucketHandler(bucketService));
     }
 

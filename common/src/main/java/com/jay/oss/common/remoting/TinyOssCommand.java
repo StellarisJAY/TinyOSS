@@ -2,7 +2,6 @@ package com.jay.oss.common.remoting;
 
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
-import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
 import lombok.Builder;
@@ -50,7 +49,6 @@ public class TinyOssCommand implements RemotingCommand {
 
     private byte[] content;
     private ByteBuf data;
-    private FilePartWrapper filePartWrapper;
     private DefaultFileRegion fileRegion;
 
     @Override
