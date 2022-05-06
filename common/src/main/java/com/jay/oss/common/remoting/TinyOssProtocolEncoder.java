@@ -1,7 +1,6 @@
 package com.jay.oss.common.remoting;
 
 import com.jay.dove.transport.protocol.ProtocolEncoder;
-import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
@@ -27,22 +26,8 @@ public class TinyOssProtocolEncoder implements ProtocolEncoder {
             out.writeByte(command.getSerializer());
             out.writeByte(command.getCompressor());
 
-            // 文件分片上传报文需要单独解析
-            if(command.getCommandCode().equals(TinyOssProtocol.UPLOAD_FILE_PARTS)){
-                FilePartWrapper partWrapper = command.getFilePartWrapper();
-                // 写入key长度
-                out.writeInt(partWrapper.getKeyLength());
-                // 写入key
-                out.writeBytes(partWrapper.getKey());
-                // 写入分片号
-                out.writeInt(partWrapper.getPartNum());
-                // 写入content
-                int readerIndex = partWrapper.getFullContent().readerIndex();
-                out.writeBytes(partWrapper.getFullContent(), partWrapper.getIndex(), partWrapper.getLength());
-                // 释放一个 content refCnt
-                partWrapper.getFullContent().release();
-            }
-            else if(command.getCommandCode().equals(TinyOssProtocol.DOWNLOAD_RESPONSE)){
+
+            if(command.getCommandCode().equals(TinyOssProtocol.DOWNLOAD_RESPONSE)){
                 // 下载返回
                 out.writeBytes(command.getData());
                 command.getData().release();

@@ -2,7 +2,6 @@ package com.jay.oss.common.remoting;
 
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.protocol.ProtocolM2mEncoder;
-import com.jay.oss.common.fs.FilePartWrapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -31,10 +30,6 @@ public class TinyOssM2mEncoder implements ProtocolM2mEncoder {
             if(TinyOssProtocol.UPLOAD_REQUEST.equals(code)){
                 out.add(command.getData());
             }
-            else if(TinyOssProtocol.MULTIPART_UPLOAD_PART.equals(code)){
-                ByteBuf multipartContent = createMultipartContent(command.getFilePartWrapper());
-                out.add(multipartContent);
-            }
             // 处理下载的fileRegion
             else if(TinyOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
                 out.add(command.getData());
@@ -61,15 +56,5 @@ public class TinyOssM2mEncoder implements ProtocolM2mEncoder {
         header.writeByte(command.getSerializer());
         header.writeByte(command.getCompressor());
         return header;
-    }
-
-    private ByteBuf createMultipartContent(FilePartWrapper partWrapper){
-        ByteBuf out = Unpooled.directBuffer(partWrapper.getKeyLength() + 8 + partWrapper.getLength());
-        out.writeInt(partWrapper.getKeyLength());
-        out.writeBytes(partWrapper.getKey());
-        out.writeInt(partWrapper.getPartNum());
-        out.writeBytes(partWrapper.getFullContent(), 0, partWrapper.getLength());
-        partWrapper.getFullContent().release();
-        return out;
     }
 }
