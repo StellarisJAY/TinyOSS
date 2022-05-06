@@ -2,13 +2,14 @@ package com.jay.oss.common.util;
 
 import io.netty.util.internal.StringUtil;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
  * <p>
  *  通过AccessKey和SecretKey生成token
- *  双重摘要算法加密：MD5(MD5(sk + endTimestamp) + ak)
+ *  双重摘要算法加密：SHA(ak + SHA(sk + endTimestamp))
  *
  *  token 组成： ak;end;alg=algorithm;sig=..........
  * </p>
@@ -27,9 +28,10 @@ public class AccessTokenUtil {
      * @return byte[] token
      */
     public static String getToken(String accessKey, String secretKey, String algorithm, long period) throws NoSuchAlgorithmException {
+        // 计算时间戳
         long startTime = System.currentTimeMillis();
         long endTime = startTime + period;
-
+        // 摘要算法
         String signature = digest(accessKey, secretKey, algorithm, endTime);
         return accessKey +
                 ";" +
@@ -49,10 +51,14 @@ public class AccessTokenUtil {
      */
     public static String digest(String accessKey, String secretKey, String algorithm, long endTime) throws NoSuchAlgorithmException {
         MessageDigest instance = MessageDigest.getInstance(algorithm);
+        // 第一层摘要，密钥+有效时间
         instance.update((secretKey + endTime).getBytes());
+        String encryption1 = new String(instance.digest());
+        // 第二层摘要，公钥+第一层摘要
+        instance.update((accessKey + encryption1).getBytes());
         byte[] encryption = instance.digest();
-
         StringBuilder builder = new StringBuilder();
+        // 转换成16进制字符串
         for (byte b : encryption) {
             String hex = Integer.toHexString((int)b & 0xff);
             if(hex.length() == 1){

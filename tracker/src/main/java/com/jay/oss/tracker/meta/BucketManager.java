@@ -2,14 +2,12 @@ package com.jay.oss.tracker.meta;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.jay.oss.common.bitcask.BitCaskStorage;
-import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.bucket.Bucket;
+import com.jay.oss.common.kv.KvStorage;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.SnowflakeIdGenerator;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +33,7 @@ public class BucketManager {
     /**
      * 桶磁盘存储
      */
-    private final BitCaskStorage bucketStorage;
+    private final KvStorage bucketStorage;
 
     private final SnowflakeIdGenerator idGenerator = new SnowflakeIdGenerator(0L, 0L);
     /**
@@ -47,7 +45,7 @@ public class BucketManager {
             .recordStats()
             .build();
 
-    public BucketManager(BitCaskStorage bucketStorage) {
+    public BucketManager(KvStorage bucketStorage) {
         this.bucketStorage = bucketStorage;
     }
 
@@ -69,7 +67,7 @@ public class BucketManager {
 
         try{
             byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
-            if(bucketStorage.put(key, serialized)){
+            if(bucketStorage.putIfAbsent(key, serialized)){
                 return bucket;
             }
             return null;
@@ -89,8 +87,9 @@ public class BucketManager {
         try{
             cache.invalidate(bucketKey);
             byte[] serialized = SerializeUtil.serialize(bucket, Bucket.class);
-            return bucketStorage.update(bucketKey, serialized);
-        }catch (IOException e){
+            bucketStorage.put(bucketKey, serialized);
+            return true;
+        }catch (Exception e){
             log.warn("Update Bucket Failed, bucket: {} ", bucketKey, e);
             return false;
         }
@@ -114,7 +113,7 @@ public class BucketManager {
             }else{
                 return bucket;
             }
-        }catch (IOException e){
+        }catch (Exception e){
             log.error("Get Bucket Failed, key: {}", key, e);
         }
         return null;
@@ -153,14 +152,6 @@ public class BucketManager {
         }else{
             return objects.subList(offset, offset + count);
         }
-    }
-
-    public Index getIndex(String key){
-        return bucketStorage.getIndex(key);
-    }
-
-    public void saveIndex(String key, Index index){
-        bucketStorage.saveIndex(key, index);
     }
 
     public List<String> listBuckets(){

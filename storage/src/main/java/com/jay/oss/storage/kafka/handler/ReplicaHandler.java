@@ -44,6 +44,7 @@ public class ReplicaHandler implements RecordHandler {
 
     @Override
     public void handle(Iterable<ConsumerRecord<String, String>> records, ConsumerGroupMetadata groupMeta) {
+        // 遍历消息列表
         for (ConsumerRecord<String, String> record : records) {
             long objectId = Long.parseLong(record.key());
             String value = record.value();
@@ -54,7 +55,6 @@ public class ReplicaHandler implements RecordHandler {
             }
         }
     }
-
     /**
      * 从目标服务器读取对象
      * @param objectId 对象Key
@@ -70,6 +70,7 @@ public class ReplicaHandler implements RecordHandler {
             TinyOssCommand response = (TinyOssCommand)client.sendSync(Url.parseString(url), command, null);
             CommandCode code = response.getCommandCode();
             if(TinyOssProtocol.DOWNLOAD_RESPONSE.equals(code)){
+                // 保存对象数据
                 saveObject(objectId, response.getData());
             }
             else{

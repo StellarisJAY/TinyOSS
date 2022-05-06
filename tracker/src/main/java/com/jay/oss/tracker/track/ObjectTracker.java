@@ -2,15 +2,12 @@ package com.jay.oss.tracker.track;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.jay.oss.common.bitcask.BitCaskStorage;
-import com.jay.oss.common.bitcask.Index;
 import com.jay.oss.common.entity.object.ObjectMeta;
+import com.jay.oss.common.kv.KvStorage;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,9 +31,9 @@ public class ObjectTracker {
     /**
      * 元数据磁盘存储
      */
-    private final BitCaskStorage metaStorage;
+    private final KvStorage metaStorage;
 
-    public ObjectTracker(BitCaskStorage metaStorage) {
+    public ObjectTracker(KvStorage metaStorage) {
         this.metaStorage = metaStorage;
     }
 
@@ -69,7 +66,7 @@ public class ObjectTracker {
                 }
                 return null;
             }
-        }catch (IOException e){
+        }catch (Exception e){
             log.error("Get Object Meta Failed, meta: {}", objectKey, e);
             return null;
         }
@@ -82,12 +79,12 @@ public class ObjectTracker {
      */
     public boolean putObjectMeta(String objectKey, ObjectMeta meta)  {
         byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
-        return metaStorage.put(objectKey, serialized);
+        return metaStorage.putIfAbsent(objectKey, serialized);
     }
 
     public boolean putObjectId(long objectId, String objectKey){
         String id = Long.toString(objectId);
-        return metaStorage.put(id, StringUtil.getBytes(objectKey));
+        return metaStorage.putIfAbsent(id, StringUtil.getBytes(objectKey));
     }
 
     public ObjectMeta getMetaById(String objectId){
@@ -112,36 +109,5 @@ public class ObjectTracker {
             return meta;
         }
         return null;
-    }
-
-    /**
-     * 获取object的索引
-     * @param key objectKey
-     * @return {@link Index}
-     */
-    public Index getIndex(String key){
-        return metaStorage.getIndex(key);
-    }
-
-    /**
-     * 保存object索引
-     * @param key objectKey
-     * @param index {@link Index}
-     */
-    public void saveObjectIndex(String key, Index index){
-        metaStorage.saveIndex(key, index);
-    }
-
-    /**
-     * 删除object
-     * @param key objectKey
-     */
-    public void deleteObject(String key){
-        cache.invalidate(key);
-        metaStorage.delete(key);
-    }
-
-    public List<String> listObject(){
-        return metaStorage.keys();
     }
 }

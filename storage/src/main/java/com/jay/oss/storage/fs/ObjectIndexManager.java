@@ -1,7 +1,5 @@
 package com.jay.oss.storage.fs;
 
-import com.jay.oss.storage.fs.ObjectIndex;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;

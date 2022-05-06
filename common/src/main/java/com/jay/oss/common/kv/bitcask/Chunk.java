@@ -1,4 +1,4 @@
-package com.jay.oss.common.bitcask;
+package com.jay.oss.common.kv.bitcask;
 
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.util.StringUtil;
