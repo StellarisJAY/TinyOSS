@@ -11,7 +11,7 @@ import com.jay.oss.tracker.processor.ObjectProcessor;
 import com.jay.oss.tracker.processor.PutObjectMetaProcessor;
 import com.jay.oss.tracker.processor.SimpleRegistryProcessor;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
-import com.jay.oss.tracker.registry.StorageRegistry;
+import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -29,13 +29,14 @@ import lombok.extern.slf4j.Slf4j;
 public class TrackerCommandHandler extends AbstractCommandHandler {
     private final SimpleRegistry simpleRegistry;
     public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageNodeRegistry storageRegistry,
-                                 RecordProducer trackerProducer, SimpleRegistry simpleRegistry, CommandFactory commandFactory) {
+                                 RecordProducer trackerProducer, SimpleRegistry simpleRegistry, StorageTaskManager storageTaskManager,
+                                 CommandFactory commandFactory) {
         super(commandFactory);
         this.simpleRegistry = simpleRegistry;
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, commandFactory);
-        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, trackerProducer, commandFactory);
+        ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, trackerProducer, commandFactory, storageTaskManager);
         PutObjectMetaProcessor putObjectMetaProcessor = new PutObjectMetaProcessor(commandFactory, bucketManager, storageRegistry, objectTracker);
-        SimpleRegistryProcessor simpleRegistryProcessor = new SimpleRegistryProcessor(simpleRegistry);
+        SimpleRegistryProcessor simpleRegistryProcessor = new SimpleRegistryProcessor(simpleRegistry, storageTaskManager, commandFactory);
         // 桶相关处理器
         this.registerProcessor(TinyOssProtocol.PUT_BUCKET, bucketProcessor);
         this.registerProcessor(TinyOssProtocol.LIST_BUCKET, bucketProcessor);

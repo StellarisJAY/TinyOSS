@@ -27,6 +27,7 @@ import com.jay.oss.tracker.registry.StorageNodeRegistry;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import com.jay.oss.tracker.replica.SpaceBalancedReplicaSelector;
+import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
 import io.prometheus.client.Gauge;
@@ -50,7 +51,7 @@ public class Tracker extends AbstractLifeCycle {
     private final TrackerCommandHandler commandHandler;
     private final DoveServer server;
     private final Registry registry;
-    private final ConsistentHashRing ring;
+    private final StorageTaskManager storageTaskManager;
     private final RecordProducer trackerProducer;
     private final RecordConsumer trackerConsumer;
     private final PrometheusServer prometheusServer;
@@ -60,7 +61,6 @@ public class Tracker extends AbstractLifeCycle {
             ConfigsManager.loadConfigs();
             int port = OssConfigs.port();
             TinyOssCommandFactory commandFactory = new TinyOssCommandFactory();
-            this.ring = new ConsistentHashRing();
 
             this.kvStorage = new BitCaskStorage();
             this.bucketManager = new BucketManager(kvStorage);
@@ -68,17 +68,17 @@ public class Tracker extends AbstractLifeCycle {
 
             this.trackerProducer = new RecordProducer();
             this.trackerConsumer = new RecordConsumer();
-
+            this.storageTaskManager = new StorageTaskManager();
             if(OssConfigs.enableTrackerRegistry()){
                 this.registry = new SimpleRegistry();
                 this.storageRegistry = new StorageNodeRegistry(this.registry, new SpaceBalancedReplicaSelector());
                 this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer,
-                        (SimpleRegistry) registry, commandFactory);
+                        (SimpleRegistry) registry, storageTaskManager, commandFactory);
             }else{
                 this.registry = new ZookeeperRegistry();
                 this.storageRegistry = new StorageNodeRegistry(this.registry, new SpaceBalancedReplicaSelector());
                 this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer,
-                        null, commandFactory);
+                        null, storageTaskManager, commandFactory);
             }
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
@@ -130,7 +130,6 @@ public class Tracker extends AbstractLifeCycle {
 
     public static void main(String[] args) {
         Tracker tracker = new Tracker();
-
         tracker.startup();
     }
 

@@ -10,6 +10,7 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
+import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.prometheus.GaugeManager;
@@ -33,6 +34,7 @@ import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
 import com.jay.oss.storage.fs.ObjectIndexManager;
+import com.jay.oss.storage.task.StorageTaskManager;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,6 +59,7 @@ public class StorageNode extends AbstractLifeCycle {
     private final BlockManager blockManager;
     private final StorageNodeCommandHandler commandHandler;
     private final Registry registry;
+    private final StorageTaskManager storageTaskManager;
     private final RecordConsumer storageNodeConsumer;
     private final RecordProducer storageNodeProducer;
     private final PrometheusServer prometheusServer;
@@ -72,13 +75,20 @@ public class StorageNode extends AbstractLifeCycle {
             this.client = new DoveClient(connectionManager, commandFactory);
             this.objectIndexManager = new ObjectIndexManager();
             this.blockManager = new BlockManager(objectIndexManager);
-            this.registry = new SimpleRegistry(this.client);
+
+            if(OssConfigs.enableTrackerRegistry()){
+                this.registry = new SimpleRegistry(this.client);
+            }
+            else{
+                this.registry = new ZookeeperRegistry();
+            }
+            this.storageTaskManager = new StorageTaskManager(client, blockManager, objectIndexManager);
             this.storageNodeConsumer = new RecordConsumer();
             this.storageNodeProducer = new RecordProducer();
             // commandHandler执行器线程池
             ExecutorService commandHandlerExecutor = ThreadPoolUtil.newIoThreadPool("command-handler-worker-");
             // 命令处理器
-            this.commandHandler = new StorageNodeCommandHandler(commandFactory, commandHandlerExecutor, objectIndexManager, storageNodeProducer, blockManager);
+            this.commandHandler = new StorageNodeCommandHandler(client, commandFactory, commandHandlerExecutor, objectIndexManager, storageNodeProducer, blockManager);
             // FastOSS协议Dove服务器
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
@@ -113,7 +123,13 @@ public class StorageNode extends AbstractLifeCycle {
         Scheduler.scheduleAtFixedRate(()->{
             try{
                 StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
-                registry.update(storageNodeInfo);
+                if(OssConfigs.enableTrackerRegistry()){
+                    StorageHeartBeatResponse response = registry.trackerHeartBeat(storageNodeInfo);
+                    storageTaskManager.addReplicaTasks(response.getReplicaTasks());
+                    storageTaskManager.addDeleteTask(response.getDeleteTasks());
+                }else{
+                    registry.update(storageNodeInfo);
+                }
                 // 更新存储容量监控数据
                 GaugeManager.getGauge("storage_used").set(storageNodeInfo.getUsedSpace());
                 GaugeManager.getGauge("storage_free").set(storageNodeInfo.getSpace());
