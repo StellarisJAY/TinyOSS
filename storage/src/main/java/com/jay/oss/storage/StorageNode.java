@@ -16,6 +16,7 @@ import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
+import com.jay.oss.common.registry.simple.SimpleRegistry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.TinyOssCodec;
 import com.jay.oss.common.remoting.TinyOssCommandFactory;
@@ -71,7 +72,7 @@ public class StorageNode extends AbstractLifeCycle {
             this.client = new DoveClient(connectionManager, commandFactory);
             this.objectIndexManager = new ObjectIndexManager();
             this.blockManager = new BlockManager(objectIndexManager);
-            this.registry = new ZookeeperRegistry();
+            this.registry = new SimpleRegistry(this.client);
             this.storageNodeConsumer = new RecordConsumer();
             this.storageNodeProducer = new RecordProducer();
             // commandHandler执行器线程池

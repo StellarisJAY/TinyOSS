@@ -14,6 +14,7 @@ import com.jay.oss.common.kv.KvStorage;
 import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
+import com.jay.oss.common.registry.simple.SimpleRegistry;
 import com.jay.oss.common.registry.zk.ZookeeperRegistry;
 import com.jay.oss.common.remoting.TinyOssCodec;
 import com.jay.oss.common.remoting.TinyOssCommandFactory;
@@ -22,8 +23,10 @@ import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
 import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.registry.StorageNodeRegistry;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
+import com.jay.oss.tracker.replica.SpaceBalancedReplicaSelector;
 import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
 import io.prometheus.client.Gauge;
@@ -40,7 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class Tracker extends AbstractLifeCycle {
 
-    private final StorageRegistry storageRegistry;
+    private final StorageNodeRegistry storageRegistry;
     private final BucketManager bucketManager;
     private final ObjectTracker objectTracker;
     private final KvStorage kvStorage;
@@ -58,18 +61,26 @@ public class Tracker extends AbstractLifeCycle {
             int port = OssConfigs.port();
             TinyOssCommandFactory commandFactory = new TinyOssCommandFactory();
             this.ring = new ConsistentHashRing();
-            this.storageRegistry = new StorageRegistry(ring);
+
             this.kvStorage = new BitCaskStorage();
             this.bucketManager = new BucketManager(kvStorage);
             this.objectTracker = new ObjectTracker(kvStorage);
 
             this.trackerProducer = new RecordProducer();
             this.trackerConsumer = new RecordConsumer();
-            this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer, commandFactory);
-            this.registry = new ZookeeperRegistry();
-            this.storageRegistry.setRegistry(registry);
-            this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
 
+            if(OssConfigs.enableTrackerRegistry()){
+                this.registry = new SimpleRegistry();
+                this.storageRegistry = new StorageNodeRegistry(this.registry, new SpaceBalancedReplicaSelector());
+                this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer,
+                        (SimpleRegistry) registry, commandFactory);
+            }else{
+                this.registry = new ZookeeperRegistry();
+                this.storageRegistry = new StorageNodeRegistry(this.registry, new SpaceBalancedReplicaSelector());
+                this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer,
+                        null, commandFactory);
+            }
+            this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
         }catch (Exception e){
             throw new RuntimeException(e);
@@ -90,8 +101,6 @@ public class Tracker extends AbstractLifeCycle {
         kvStorage.init();
         // 初始化远程注册中心客户端
         registry.init();
-        // 初始化本地storage记录
-        storageRegistry.init();
         /*
             订阅消息主题
          */

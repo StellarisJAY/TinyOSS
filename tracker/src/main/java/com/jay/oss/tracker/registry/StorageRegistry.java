@@ -47,8 +47,6 @@ public class StorageRegistry {
         for (StorageNodeInfo node : storageNodeInfoMap.values()) {
             addStorageNode(node);
         }
-        // 订阅节点更新事件
-        registry.subscribe(new RemoteRegistryWatcher());
     }
 
     public void addStorageNode(StorageNodeInfo node){
@@ -71,67 +69,9 @@ public class StorageRegistry {
         String mainReplica = ring.locateObject(key);
         // 选择备份节点
         List<StorageNodeInfo> result;
-        result = replicaSelector.select(nodes, size, replica - 1, mainReplica);
+        result = replicaSelector.select(nodes, size, replica - 1);
         // 将主副本节点添加到列表头部
         result.add(0, storages.get(mainReplica));
         return result;
-    }
-
-    class RemoteRegistryWatcher implements Watcher{
-        @Override
-        public void process(WatchedEvent watchedEvent) {
-            if(watchedEvent.getState() == Event.KeeperState.SyncConnected){
-                try{
-                    String path = watchedEvent.getPath();
-                    switch(watchedEvent.getType()){
-                        case NodeDeleted: onNodeDeleted(path); break;
-                        case NodeDataChanged: onNodeDataChanged(path); break;
-                        case NodeChildrenChanged: onNodeChildrenChanged(path);break;
-                        case NodeCreated: onNodeCreated(path); break;
-                        default:break;
-                    }
-                }catch (Exception e){
-                    log.warn("event watcher error: ", e);
-                }
-            }
-        }
-
-        /**
-         * Node删除事件，即storage节点下线事件
-         * @param path path
-         */
-        private void onNodeDeleted(String path){
-            log.info("storage node offline: {}", path);
-            int i = path.lastIndexOf("/");
-            String url = path.substring(i + 1);
-            // 设置节点状态为不可用
-            StorageNodeInfo node = storages.get(url);
-            if(node != null){
-                node.setAvailable(false);
-            }
-            // 一致性hash环删除该节点
-            ring.deleteStorageNode(url);
-        }
-
-        private void onNodeDataChanged(String path) throws Exception{
-            StorageNodeInfo node = registry.lookup(path);
-            storages.put(node.getUrl(), node);
-        }
-
-        private void onNodeChildrenChanged(String path){
-            log.info("node children changed: {}", path);
-        }
-
-        /**
-         * 新增node事件，即storage上线事件
-         * @param path path
-         * @throws Exception e
-         */
-        private void onNodeCreated(String path) throws Exception{
-            log.info("storage node online: {}", path);
-            // 注册表添加新节点
-            StorageNodeInfo node = registry.lookup(path);
-            addStorageNode(node);
-        }
     }
 }

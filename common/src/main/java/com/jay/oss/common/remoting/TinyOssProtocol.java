@@ -89,6 +89,8 @@ public class TinyOssProtocol implements Protocol {
     public static final CommandCode NO_ENOUGH_STORAGES = new CommandCode((short)600);
     public static final CommandCode DUPLICATE_OBJECT_KEY = new CommandCode((short)700);
 
+    public static final CommandCode REGISTER_STORAGE = new CommandCode((short)10001);
+    public static final CommandCode STORAGE_HEART_BEAT = new CommandCode((short)10002);
 
     /**
      * 默认命令处理器
