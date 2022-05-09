@@ -2,6 +2,7 @@ package com.jay.oss.common.registry;
 
 import org.apache.zookeeper.Watcher;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,10 +47,9 @@ public interface Registry {
     StorageNodeInfo lookup(String path) throws Exception;
 
     /**
-     * 订阅事件
-     * @param watcher 事件Watcher
-     * @throws Exception e
+     * 获取所有存活的节点
+     * @return {@link List<StorageNodeInfo>}
      */
-    void subscribe(Watcher watcher) throws Exception;
+    List<StorageNodeInfo> aliveNodes();
 
 }

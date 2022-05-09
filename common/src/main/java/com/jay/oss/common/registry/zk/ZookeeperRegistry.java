@@ -6,13 +6,17 @@ import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.util.ZkUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
+import java.rmi.Remote;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -28,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
  */
 @Slf4j
 public class ZookeeperRegistry implements Registry {
+    private final ConcurrentHashMap<String, StorageNodeInfo> localCache = new ConcurrentHashMap<>(256);
     private ZooKeeper zooKeeper;
     private ZkUtil zkUtil;
     private static final String ROOT_PATH = "/tinyOss/storages";
@@ -91,24 +96,29 @@ public class ZookeeperRegistry implements Registry {
 
     @Override
     public Map<String, StorageNodeInfo> lookupAll() throws Exception {
-        HashMap<String, StorageNodeInfo> result = new HashMap<>(16);
-        try{
-            // 获取当前存在的所有storage
-            List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);
-            log.info("nodes: {}", nodes);
-            // 遍历获取每个storage信息
-            for(String path : nodes){
-                String json = zkUtil.getData(ROOT_PATH + "/" + path);
-                StorageNodeInfo nodeInfo = JSON.parseObject(json, StorageNodeInfo.class);
-                int i = path.lastIndexOf("/");
-                String url = path.substring(i + 1);
-                result.put(url, nodeInfo);
+        if(localCache.isEmpty()){
+            HashMap<String, StorageNodeInfo> result = new HashMap<>(16);
+            try{
+                // 获取当前存在的所有storage
+                List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);
+                log.info("nodes: {}", nodes);
+                // 遍历获取每个storage信息
+                for(String path : nodes){
+                    String json = zkUtil.getData(ROOT_PATH + "/" + path);
+                    StorageNodeInfo nodeInfo = JSON.parseObject(json, StorageNodeInfo.class);
+                    int i = path.lastIndexOf("/");
+                    String url = path.substring(i + 1);
+                    result.put(url, nodeInfo);
+                }
+                localCache.putAll(result);
+                zkUtil.subscribe(ROOT_PATH, new RemoteRegistryWatcher());
+            }catch (Exception e){
+                log.error("lookup storages error ", e);
+                throw e;
             }
-        }catch (Exception e){
-            log.error("lookup storages error ", e);
-            throw e;
+            return result;
         }
-        return result;
+        return localCache;
     }
 
     @Override
@@ -118,9 +128,70 @@ public class ZookeeperRegistry implements Registry {
     }
 
     @Override
-    public void subscribe(Watcher watcher) throws Exception{
-        zkUtil.subscribe(ROOT_PATH, watcher);
+    public List<StorageNodeInfo> aliveNodes() {
+        try{
+            return lookupAll().values().stream()
+                    .filter(StorageNodeInfo::isAvailable)
+                    .collect(Collectors.toList());
+        }catch (Exception e){
+            return null;
+        }
     }
 
 
+    class RemoteRegistryWatcher implements Watcher{
+        @Override
+        public void process(WatchedEvent watchedEvent) {
+            if(watchedEvent.getState() == Event.KeeperState.SyncConnected){
+                try{
+                    String path = watchedEvent.getPath();
+                    switch(watchedEvent.getType()){
+                        case NodeDeleted: onNodeDeleted(path); break;
+                        case NodeDataChanged: onNodeDataChanged(path); break;
+                        case NodeChildrenChanged: onNodeChildrenChanged(path);break;
+                        case NodeCreated: onNodeCreated(path); break;
+                        default:break;
+                    }
+                }catch (Exception e){
+                    log.warn("event watcher error: ", e);
+                }
+            }
+        }
+
+        /**
+         * Node删除事件，即storage节点下线事件
+         * @param path path
+         */
+        private void onNodeDeleted(String path){
+            log.info("storage node offline: {}", path);
+            int i = path.lastIndexOf("/");
+            String url = path.substring(i + 1);
+            // 设置节点状态为不可用
+            StorageNodeInfo node = localCache.get(url);
+            if(node != null){
+                node.setAvailable(false);
+            }
+        }
+
+        private void onNodeDataChanged(String path) throws Exception{
+            StorageNodeInfo node = lookup(path);
+            localCache.put(node.getUrl(), node);
+        }
+
+        private void onNodeChildrenChanged(String path){
+            log.info("node children changed: {}", path);
+        }
+
+        /**
+         * 新增node事件，即storage上线事件
+         * @param path path
+         * @throws Exception e
+         */
+        private void onNodeCreated(String path) throws Exception{
+            log.info("storage node online: {}", path);
+            // 注册表添加新节点
+            StorageNodeInfo node = lookup(path);
+            localCache.put(node.getUrl(), node);
+        }
+    }
 }
