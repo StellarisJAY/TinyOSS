@@ -9,7 +9,9 @@ import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.object.ObjectVO;
 import com.jay.oss.common.entity.request.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
+import com.jay.oss.common.entity.request.StartCopyReplicaRequest;
 import com.jay.oss.common.entity.task.DeleteTask;
+import com.jay.oss.common.entity.task.ReplicaTask;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
@@ -19,6 +21,8 @@ import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
+
+import javax.crypto.spec.PSource;
 
 /**
  * <p>
@@ -53,6 +57,9 @@ public class ObjectProcessor extends TrackerProcessor {
         }
         else if(TinyOssProtocol.GET_OBJECT_META.equals(code)){
             return getObjectMeta(command);
+        }
+        else if(TinyOssProtocol.UPLOAD_COMPLETE.equals(code)){
+            return startCopyReplica(command);
         }
         return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
     }
@@ -116,6 +123,25 @@ public class ObjectProcessor extends TrackerProcessor {
         }else{
             byte[] content = SerializeUtil.serialize(getObjectVO(objectMeta), ObjectVO.class);
             return commandFactory.createResponse(command.getId(), content, TinyOssProtocol.SUCCESS);
+        }
+    }
+
+    private RemotingCommand startCopyReplica(TinyOssCommand command){
+        StartCopyReplicaRequest request = SerializeUtil.deserialize(command.getContent(), StartCopyReplicaRequest.class);
+        long objectId = request.getObjectId();
+        ObjectMeta meta = objectTracker.getMetaById(Long.toString(objectId));
+        if(meta != null){
+            String[] locations = meta.getLocations().split(";");
+            ReplicaTask replicaTask = new ReplicaTask(0, objectId, request.getSourceUrl());
+            for (String location : locations) {
+                if(!location.equals(request.getSourceUrl())){
+                    storageTaskManager.addReplicaTask(location, replicaTask);
+                }
+            }
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
+        }
+        else{
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
         }
     }
 

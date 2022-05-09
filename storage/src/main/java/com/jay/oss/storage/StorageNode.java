@@ -39,6 +39,7 @@ import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -124,9 +125,11 @@ public class StorageNode extends AbstractLifeCycle {
             try{
                 StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
                 if(OssConfigs.enableTrackerRegistry()){
-                    StorageHeartBeatResponse response = registry.trackerHeartBeat(storageNodeInfo);
-                    storageTaskManager.addReplicaTasks(response.getReplicaTasks());
-                    storageTaskManager.addDeleteTask(response.getDeleteTasks());
+                    Optional.ofNullable(registry.trackerHeartBeat(storageNodeInfo))
+                            .ifPresent(response->{
+                                storageTaskManager.addReplicaTasks(response.getReplicaTasks());
+                                storageTaskManager.addDeleteTask(response.getDeleteTasks());
+                            });
                 }else{
                     registry.update(storageNodeInfo);
                 }

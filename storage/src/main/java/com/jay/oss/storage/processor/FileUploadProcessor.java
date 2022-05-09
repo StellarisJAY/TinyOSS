@@ -1,10 +1,13 @@
 package com.jay.oss.storage.processor;
 
+import com.jay.dove.DoveClient;
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
+import com.jay.oss.common.entity.request.StartCopyReplicaRequest;
 import com.jay.oss.common.entity.request.UploadRequest;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommand;
@@ -31,12 +34,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class FileUploadProcessor extends AbstractProcessor {
 
+    private final DoveClient trackerClient;
     private final BlockManager blockManager;
     private final ObjectIndexManager objectIndexManager;
     private final CommandFactory commandFactory;
     private final RecordProducer storageNodeProducer;
 
-    public FileUploadProcessor(ObjectIndexManager objectIndexManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
+    public FileUploadProcessor(DoveClient trackerClient, ObjectIndexManager objectIndexManager, BlockManager blockManager, CommandFactory commandFactory, RecordProducer storageNodeProducer) {
+        this.trackerClient = trackerClient;
         this.objectIndexManager = objectIndexManager;
         this.commandFactory = commandFactory;
         this.storageNodeProducer = storageNodeProducer;
@@ -100,6 +105,19 @@ public class FileUploadProcessor extends AbstractProcessor {
      * @param objectId 对象ID
      */
     private void sendUploadCompleteRecord(long objectId){
-        storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
+        if(OssConfigs.enableTrackerMessaging()){
+            try{
+                StartCopyReplicaRequest request = new StartCopyReplicaRequest(objectId, NodeInfoCollector.getAddress());
+                RemotingCommand command = commandFactory.createRequest(request, TinyOssProtocol.UPLOAD_COMPLETE, StartCopyReplicaRequest.class);
+                RemotingCommand response = trackerClient.sendSync(OssConfigs.trackerServerUrl(), command, null);
+                if(!response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
+                    log.warn("Start copy replica for {} failed", objectId);
+                }
+            }catch (Exception e){
+                log.warn("Error when sending start copy replica for {} ", objectId, e);
+            }
+        }else{
+            storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
+        }
     }
 }

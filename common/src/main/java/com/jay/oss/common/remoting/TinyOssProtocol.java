@@ -92,6 +92,8 @@ public class TinyOssProtocol implements Protocol {
     public static final CommandCode REGISTER_STORAGE = new CommandCode((short)10001);
     public static final CommandCode STORAGE_HEART_BEAT = new CommandCode((short)10002);
 
+    public static final CommandCode UPLOAD_COMPLETE = new CommandCode((short)101001);
+
     /**
      * 默认命令处理器
      */
