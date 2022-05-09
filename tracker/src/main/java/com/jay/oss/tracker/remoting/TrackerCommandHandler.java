@@ -51,6 +51,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         this.registerProcessor(TinyOssProtocol.LOCATE_OBJECT, objectProcessor);
         this.registerProcessor(TinyOssProtocol.DELETE_OBJECT, objectProcessor);
         this.registerProcessor(TinyOssProtocol.GET_OBJECT_META, objectProcessor);
+        this.registerProcessor(TinyOssProtocol.UPLOAD_COMPLETE, objectProcessor);
 
         this.registerProcessor(TinyOssProtocol.REGISTER_STORAGE, simpleRegistryProcessor);
         this.registerProcessor(TinyOssProtocol.STORAGE_HEART_BEAT, simpleRegistryProcessor);

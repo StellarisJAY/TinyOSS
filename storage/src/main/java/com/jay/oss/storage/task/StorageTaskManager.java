@@ -53,7 +53,9 @@ public class StorageTaskManager {
      * @param tasks {@link ReplicaTask}
      */
     public void addReplicaTasks(List<ReplicaTask> tasks){
-        replicaTasks.addAll(tasks);
+        if(tasks != null && !tasks.isEmpty()){
+            replicaTasks.addAll(tasks);
+        }
     }
 
     /**
@@ -61,7 +63,9 @@ public class StorageTaskManager {
      * @param tasks {@link DeleteTask}
      */
     public void addDeleteTask(List<DeleteTask> tasks){
-        deleteTasks.addAll(tasks);
+        if(tasks != null && !tasks.isEmpty()){
+            deleteTasks.addAll(tasks);
+        }
     }
 
     /**
@@ -74,13 +78,11 @@ public class StorageTaskManager {
             ReplicaTask task = replicaTasks.poll();
             if(task != null){
                 try{
-                    long startTime = System.currentTimeMillis();
                     Url url = Url.parseString(task.getStorageUrl());
                     GetObjectRequest request = new GetObjectRequest(task.getObjectId(), 0, -1);
                     RemotingCommand command = storageClient.getCommandFactory().createRequest(request, TinyOssProtocol.DOWNLOAD_FULL, GetObjectRequest.class);
                     TinyOssCommand response = (TinyOssCommand)storageClient.sendSync(url, command, null);
                     saveObject(task.getObjectId(), response.getData());
-                    log.info("Object: {} replica copied from : {}, time used: {}ms", task.getObjectId(), task.getStorageUrl(), (System.currentTimeMillis() - startTime));
                 }catch (Exception e){
                     log.warn("Failed to copy replica from : {}", task.getStorageUrl());
                     replicaTasks.offer(task);

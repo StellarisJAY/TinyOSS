@@ -102,7 +102,8 @@ public class SimpleRegistry implements Registry {
         if(!code.equals(TinyOssProtocol.SUCCESS)){
             throw new RuntimeException("Failed to register Storage Node");
         }else{
-            return SerializeUtil.deserialize(response.getContent(), StorageHeartBeatResponse.class);
+            return response.getContent() == null || response.getContent().length == 0 ?
+                    null : SerializeUtil.deserialize(response.getContent(), StorageHeartBeatResponse.class);
         }
     }
 
