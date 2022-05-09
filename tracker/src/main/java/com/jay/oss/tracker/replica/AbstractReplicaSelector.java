@@ -15,14 +15,14 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractReplicaSelector implements ReplicaSelector {
     @Override
-    public List<StorageNodeInfo> select(List<StorageNodeInfo> candidates, long size, int count, String mainReplica) throws Exception{
+    public List<StorageNodeInfo> select(List<StorageNodeInfo> candidates, long size, int count) throws Exception{
         // 候选节点不足，即集群中初始的节点数量不足
-        if(candidates.size() < count){
+        if(candidates == null || candidates.isEmpty() || candidates.size() < count){
             throw new Exception("no enough storages for " + count + " replicas");
         }
         // 过滤掉 无效节点、空间不足节点、主副本节点
         List<StorageNodeInfo> filtered = candidates.stream()
-                .filter(candidate -> candidate.isAvailable() && candidate.getSpace() >= size && !mainReplica.equals(candidate.getUrl()))
+                .filter(candidate -> candidate.isAvailable() && candidate.getSpace() >= size)
                 .collect(Collectors.toList());
         // 过滤后节点不足
         if(filtered.size() < count){
