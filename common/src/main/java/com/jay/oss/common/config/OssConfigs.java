@@ -81,8 +81,11 @@ public class OssConfigs {
     private static final String BLOCK_COMPACT_INTERVAL = "oss.fs.block_compact_interval";
     private static final int DEFAULT_COMPACT_INTERVAL = 30;
 
-    private static final String ENABLE_TRACKER_REGISTRY = "oss.registry.enable-tracker-registry";
+    private static final String ENABLE_TRACKER_REGISTRY = "oss.tracker.enable-tracker-registry";
     private static final boolean DEFAULT_ENABLE_TRACKER_REGISTRY = false;
+
+    private static final String ENABLE_TRACKER_MESSAGING = "oss.tracker.enable-tracker-messaging";
+    private static final boolean DEFAULT_ENABLE_TRACKER_MESSAGING = false;
 
     public static String zookeeperHost(){
         return ConfigsManager.get(ZOOKEEPER_REGISTRY_HOST);
@@ -143,5 +146,9 @@ public class OssConfigs {
 
     public static boolean enableTrackerRegistry(){
         return ConfigsManager.getBoolean(ENABLE_TRACKER_REGISTRY, DEFAULT_ENABLE_TRACKER_REGISTRY);
+    }
+
+    public static boolean enableTrackerMessaging(){
+        return ConfigsManager.getBoolean(ENABLE_TRACKER_MESSAGING, DEFAULT_ENABLE_TRACKER_MESSAGING);
     }
 }
