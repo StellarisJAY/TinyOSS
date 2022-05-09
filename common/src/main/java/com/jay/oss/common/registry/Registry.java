@@ -1,7 +1,8 @@
 package com.jay.oss.common.registry;
 
-import org.apache.zookeeper.Watcher;
+import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +32,16 @@ public interface Registry {
     void update(StorageNodeInfo storageNodeInfo) throws Exception;
 
     /**
+     * 心跳
+     * @param storageNodeInfo {@link StorageNodeInfo}
+     * @return {@link StorageHeartBeatResponse} Tracker端心跳回复
+     * @throws Exception e
+     */
+    default StorageHeartBeatResponse trackerHeartBeat(StorageNodeInfo storageNodeInfo) throws Exception{
+        return null;
+    }
+
+    /**
      * 查询所有注册节点
      * @throws Exception e
      * @return {@link Map} key: groupName, value: List<Storages>
@@ -46,10 +57,9 @@ public interface Registry {
     StorageNodeInfo lookup(String path) throws Exception;
 
     /**
-     * 订阅事件
-     * @param watcher 事件Watcher
-     * @throws Exception e
+     * 获取所有存活的节点
+     * @return {@link List<StorageNodeInfo>}
      */
-    void subscribe(Watcher watcher) throws Exception;
+    List<StorageNodeInfo> aliveNodes();
 
 }

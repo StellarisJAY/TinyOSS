@@ -3,17 +3,20 @@ package com.jay.oss.tracker.processor;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.object.ObjectVO;
 import com.jay.oss.common.entity.request.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
+import com.jay.oss.common.entity.task.DeleteTask;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,11 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 public class ObjectProcessor extends TrackerProcessor {
     private final ObjectTracker objectTracker;
     private final RecordProducer trackerProducer;
+    private final StorageTaskManager storageTaskManager;
 
-    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, RecordProducer trackerProducer, CommandFactory commandFactory) {
+    public ObjectProcessor(BucketManager bucketManager, ObjectTracker objectTracker, RecordProducer trackerProducer, CommandFactory commandFactory, StorageTaskManager storageTaskManager) {
         super(commandFactory, bucketManager);
         this.objectTracker = objectTracker;
         this.trackerProducer = trackerProducer;
+        this.storageTaskManager = storageTaskManager;
     }
 
     @Override
@@ -83,8 +88,16 @@ public class ObjectProcessor extends TrackerProcessor {
         if(meta == null){
             return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND);
         }
-        // 发送删除object消息，由Storage收到消息后异步删除object数据
-        trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(meta.getObjectId()), Long.toString(meta.getObjectId()));
+        if(OssConfigs.enableTrackerMessaging()){
+            String[] storages = meta.getLocations().split(";");
+            DeleteTask task = new DeleteTask(0L, meta.getObjectId());
+            for (String storage : storages) {
+                storageTaskManager.addDeleteTask(storage, task);
+            }
+        }else{
+            // 发送删除object消息，由Storage收到消息后异步删除object数据
+            trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(meta.getObjectId()), Long.toString(meta.getObjectId()));
+        }
         return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
     }
 

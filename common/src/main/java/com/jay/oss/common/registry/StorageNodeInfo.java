@@ -2,6 +2,7 @@ package com.jay.oss.common.registry;
 
 import lombok.*;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -18,7 +19,7 @@ import java.util.Objects;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public class StorageNodeInfo {
+public class StorageNodeInfo implements Serializable {
     /**
      * 存储节点地址
      */

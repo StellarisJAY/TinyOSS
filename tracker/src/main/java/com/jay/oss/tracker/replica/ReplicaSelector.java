@@ -19,9 +19,8 @@ public interface ReplicaSelector {
      * @param candidates 备选节点
      * @param size 对象大小
      * @param count 副本数量
-     * @param mainReplica 主节点
      * @throws Exception 候选节点不足
      * @return List
      */
-    List<StorageNodeInfo> select(List<StorageNodeInfo> candidates, long size, int count, String mainReplica) throws Exception;
+    List<StorageNodeInfo> select(List<StorageNodeInfo> candidates, long size, int count) throws Exception;
 }

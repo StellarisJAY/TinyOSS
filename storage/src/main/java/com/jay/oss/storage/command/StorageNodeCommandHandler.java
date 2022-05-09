@@ -1,5 +1,6 @@
 package com.jay.oss.storage.command;
 
+import com.jay.dove.DoveClient;
 import com.jay.dove.transport.command.CommandFactory;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommandHandler;
@@ -22,11 +23,11 @@ import java.util.concurrent.ExecutorService;
  */
 public class StorageNodeCommandHandler extends TinyOssCommandHandler {
 
-    public StorageNodeCommandHandler(CommandFactory commandFactory, ExecutorService executor, ObjectIndexManager objectIndexManager,
+    public StorageNodeCommandHandler(DoveClient trackerClient, CommandFactory commandFactory, ExecutorService executor, ObjectIndexManager objectIndexManager,
                                      RecordProducer storageNodeProducer, BlockManager blockManager) {
         super(commandFactory, executor);
         // 文件上传处理器
-        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(objectIndexManager, blockManager, commandFactory, storageNodeProducer);
+        FileUploadProcessor fileUploadProcessor = new FileUploadProcessor(trackerClient, objectIndexManager, blockManager, commandFactory, storageNodeProducer);
         FileDownloadProcessor fileDownloadProcessor = new FileDownloadProcessor(objectIndexManager, blockManager, commandFactory);
         /*
             Put Object处理器

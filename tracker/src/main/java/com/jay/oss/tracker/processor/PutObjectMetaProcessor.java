@@ -12,6 +12,7 @@ import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.SnowflakeIdGenerator;
 import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
+import com.jay.oss.tracker.registry.StorageNodeRegistry;
 import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
@@ -29,12 +30,12 @@ import java.util.UUID;
  */
 @Slf4j
 public class PutObjectMetaProcessor extends TrackerProcessor{
-    private final StorageRegistry storageRegistry;
+    private final StorageNodeRegistry storageRegistry;
     private final ObjectTracker objectTracker;
     private final SnowflakeIdGenerator objectIdGenerator;
 
     public PutObjectMetaProcessor(CommandFactory commandFactory, BucketManager bucketManager,
-                                     StorageRegistry storageRegistry,
+                                  StorageNodeRegistry storageRegistry,
                                      ObjectTracker objectTracker) {
         super(commandFactory, bucketManager);
         this.storageRegistry = storageRegistry;
