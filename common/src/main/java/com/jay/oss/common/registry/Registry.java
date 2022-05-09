@@ -1,6 +1,6 @@
 package com.jay.oss.common.registry;
 
-import org.apache.zookeeper.Watcher;
+import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 
 import java.util.List;
 import java.util.Map;
@@ -30,6 +30,16 @@ public interface Registry {
     void register(StorageNodeInfo storageNodeInfo) throws Exception;
 
     void update(StorageNodeInfo storageNodeInfo) throws Exception;
+
+    /**
+     * 心跳
+     * @param storageNodeInfo {@link StorageNodeInfo}
+     * @return {@link StorageHeartBeatResponse} Tracker端心跳回复
+     * @throws Exception e
+     */
+    default StorageHeartBeatResponse trackerHeartBeat(StorageNodeInfo storageNodeInfo) throws Exception{
+        return null;
+    }
 
     /**
      * 查询所有注册节点

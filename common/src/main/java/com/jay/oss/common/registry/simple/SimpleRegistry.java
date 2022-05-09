@@ -1,12 +1,15 @@
 package com.jay.oss.common.registry.simple;
 
 import com.jay.dove.DoveClient;
+import com.jay.dove.transport.Url;
 import com.jay.dove.transport.command.CommandCode;
 import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.TinyOssProtocol;
+import com.jay.oss.common.util.SerializeUtil;
 import io.netty.util.AttributeKey;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,8 +51,10 @@ public class SimpleRegistry implements Registry {
     @Override
     public void register(StorageNodeInfo storageNodeInfo) throws Exception {
         long startTime = System.currentTimeMillis();
+        Url trackerUrl = OssConfigs.trackerServerUrl();
+        trackerUrl.setExpectedConnectionCount(1);
         RemotingCommand command = createRegistryCommand(storageNodeInfo, TinyOssProtocol.REGISTER_STORAGE);
-        RemotingCommand response = trackerClient.sendSync(OssConfigs.trackerServerUrl(), command, null);
+        RemotingCommand response = trackerClient.sendSync(trackerUrl, command, null);
         CommandCode code = response.getCommandCode();
         if(code.equals(TinyOssProtocol.SUCCESS)){
             log.info("Storage Node registered to Tracker time used : {}ms", (System.currentTimeMillis() - startTime));
@@ -60,8 +65,10 @@ public class SimpleRegistry implements Registry {
 
     @Override
     public void update(StorageNodeInfo storageNodeInfo) throws Exception {
+        Url trackerUrl = OssConfigs.trackerServerUrl();
+        trackerUrl.setExpectedConnectionCount(1);
         RemotingCommand command = createRegistryCommand(storageNodeInfo, TinyOssProtocol.STORAGE_HEART_BEAT);
-        RemotingCommand response = trackerClient.sendSync(OssConfigs.trackerServerUrl(), command, null);
+        RemotingCommand response = trackerClient.sendSync(trackerUrl, command, null);
         CommandCode code = response.getCommandCode();
         if(!code.equals(TinyOssProtocol.SUCCESS)){
             throw new RuntimeException("Failed to register Storage Node");
@@ -83,6 +90,20 @@ public class SimpleRegistry implements Registry {
         return storageNodes.values().stream()
                 .filter(StorageNodeInfo::isAvailable)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public StorageHeartBeatResponse trackerHeartBeat(StorageNodeInfo storageNodeInfo) throws Exception {
+        Url trackerUrl = OssConfigs.trackerServerUrl();
+        trackerUrl.setExpectedConnectionCount(1);
+        RemotingCommand command = createRegistryCommand(storageNodeInfo, TinyOssProtocol.STORAGE_HEART_BEAT);
+        RemotingCommand response = trackerClient.sendSync(trackerUrl, command, null);
+        CommandCode code = response.getCommandCode();
+        if(!code.equals(TinyOssProtocol.SUCCESS)){
+            throw new RuntimeException("Failed to register Storage Node");
+        }else{
+            return SerializeUtil.deserialize(response.getContent(), StorageHeartBeatResponse.class);
+        }
     }
 
     private RemotingCommand createRegistryCommand(StorageNodeInfo storageNodeInfo, CommandCode code){

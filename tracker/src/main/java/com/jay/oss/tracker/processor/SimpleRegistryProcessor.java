@@ -2,14 +2,22 @@ package com.jay.oss.tracker.processor;
 
 import com.jay.dove.transport.command.AbstractProcessor;
 import com.jay.dove.transport.command.CommandCode;
+import com.jay.dove.transport.command.CommandFactory;
+import com.jay.dove.transport.command.RemotingCommand;
+import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.registry.simple.SimpleRegistry;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
+import com.jay.oss.common.entity.task.DeleteTask;
+import com.jay.oss.common.entity.task.ReplicaTask;
+import com.jay.oss.tracker.task.StorageTaskManager;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 /**
  * <p>
@@ -23,9 +31,13 @@ import lombok.extern.slf4j.Slf4j;
 public class SimpleRegistryProcessor extends AbstractProcessor {
 
     private final SimpleRegistry simpleRegistry;
+    private final StorageTaskManager storageTaskManager;
+    private final CommandFactory commandFactory;
 
-    public SimpleRegistryProcessor(SimpleRegistry simpleRegistry) {
+    public SimpleRegistryProcessor(SimpleRegistry simpleRegistry, StorageTaskManager taskManager, CommandFactory commandFactory) {
         this.simpleRegistry = simpleRegistry;
+        this.commandFactory = commandFactory;
+        this.storageTaskManager = taskManager;
     }
 
     @Override
@@ -55,6 +67,8 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
             attr.set(storageNodeInfo.getUrl());
         }
         log.info("Storage node online: {}", storageNodeInfo.getUrl());
+        RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
+        sendResponse(context, response);
     }
 
     /**
@@ -69,5 +83,11 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
         if(attr.get() == null){
             attr.set(storageNodeInfo.getUrl());
         }
+        List<ReplicaTask> replicaTasks = storageTaskManager.pollReplicaTasks(storageNodeInfo.getUrl(), 100);
+        List<DeleteTask> deleteTasks = storageTaskManager.pollDeleteTask(storageNodeInfo.getUrl(), 100);
+        StorageHeartBeatResponse heartBeatResponse = new StorageHeartBeatResponse(replicaTasks, deleteTasks);
+        byte[] content = SerializeUtil.serialize(heartBeatResponse, StorageHeartBeatResponse.class);
+        RemotingCommand response = commandFactory.createResponse(command.getId(), content, TinyOssProtocol.SUCCESS);
+        sendResponse(context, response);
     }
 }
