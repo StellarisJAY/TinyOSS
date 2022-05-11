@@ -36,7 +36,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, commandFactory);
         ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, trackerProducer, commandFactory, storageTaskManager);
         PutObjectMetaProcessor putObjectMetaProcessor = new PutObjectMetaProcessor(commandFactory, bucketManager, storageRegistry, objectTracker);
-        SimpleRegistryProcessor simpleRegistryProcessor = new SimpleRegistryProcessor(simpleRegistry, storageTaskManager, commandFactory);
+        SimpleRegistryProcessor simpleRegistryProcessor = new SimpleRegistryProcessor(simpleRegistry, storageTaskManager, objectTracker,commandFactory);
         // 桶相关处理器
         this.registerProcessor(TinyOssProtocol.PUT_BUCKET, bucketProcessor);
         this.registerProcessor(TinyOssProtocol.LIST_BUCKET, bucketProcessor);

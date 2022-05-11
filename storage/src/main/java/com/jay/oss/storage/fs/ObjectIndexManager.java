@@ -1,5 +1,7 @@
 package com.jay.oss.storage.fs;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -29,12 +31,11 @@ public class ObjectIndexManager {
         return indexCache.get(objectId);
     }
 
-    public void deleteIndex(long objectId){
-        indexCache.remove(objectId);
-    }
-
     public void putIndexes(Map<Long, ObjectIndex> indexMap){
         this.indexCache.putAll(indexMap);
     }
 
+    public List<Long> listObjectIds(){
+        return new ArrayList<>(indexCache.keySet());
+    }
 }

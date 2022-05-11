@@ -11,7 +11,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * <p>
- *
+ *  Storage节点任务管理器
+ *  管理每个节点的副本复制任务和删除对象任务队列
  * </p>
  *
  * @author Jay
@@ -31,6 +32,17 @@ public class StorageTaskManager {
         deleteTaskQueues.get(storageNode).offer(task);
     }
 
+    public void addDeleteTasks(String storageNode, List<DeleteTask> tasks){
+        deleteTaskQueues.computeIfAbsent(storageNode, key->new LinkedBlockingQueue<>());
+        deleteTaskQueues.get(storageNode).addAll(tasks);
+    }
+
+    /**
+     * 获取一定数量的副本复制任务
+     * @param storageNode 节点地址
+     * @param limit 任务数量
+     * @return {@link List} 任务列表
+     */
     public List<ReplicaTask> pollReplicaTasks(String storageNode, int limit){
         List<ReplicaTask> tasks = new LinkedList<>();
         Queue<ReplicaTask> queue = replicaTaskQueues.get(storageNode);
@@ -47,6 +59,12 @@ public class StorageTaskManager {
         return tasks;
     }
 
+    /**
+     * 获取一定数量的删除对象任务
+     * @param storageNode 节点地址
+     * @param limit 任务数量
+     * @return {@link List} 任务列表
+     */
     public List<DeleteTask> pollDeleteTask(String storageNode, int limit){
         List<DeleteTask> tasks = new LinkedList<>();
         Queue<DeleteTask> queue = deleteTaskQueues.get(storageNode);

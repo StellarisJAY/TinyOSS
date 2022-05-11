@@ -110,4 +110,8 @@ public class ObjectTracker {
         }
         return null;
     }
+
+    public boolean isObjectDeleted(long objectId){
+        return !metaStorage.containsKey(Long.toString(objectId));
+    }
 }

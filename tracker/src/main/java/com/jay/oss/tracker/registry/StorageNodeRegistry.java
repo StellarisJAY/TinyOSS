@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * <p>
- *
+ *  节点注册中心
  * </p>
  *
  * @author Jay
@@ -31,7 +31,15 @@ public class StorageNodeRegistry {
         log.info("Storage Node registry initialized, Registered Storage nodes: {}", storageNodes.keySet());
     }
 
-    public List<StorageNodeInfo> selectUploadNode(String key, long size, int replica) throws Exception {
+    /**
+     * 根据选择策略选择上传对象的storage节点
+     * @param objectKey 对象key
+     * @param size 对象大小
+     * @param replica 副本数量
+     * @return {@link List<StorageNodeInfo>} storage节点列表
+     * @throws Exception e
+     */
+    public List<StorageNodeInfo> selectUploadNode(String objectKey, long size, int replica) throws Exception {
         List<StorageNodeInfo> aliveNodes = registry.aliveNodes();
         return replicaSelector.select(aliveNodes, size, replica);
     }
