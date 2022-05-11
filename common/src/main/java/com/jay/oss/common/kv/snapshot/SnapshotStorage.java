@@ -85,6 +85,11 @@ public class SnapshotStorage implements KvStorage {
         return new ArrayList<>(memTable.keySet());
     }
 
+    @Override
+    public boolean containsKey(String key) {
+        return memTable.containsKey(key);
+    }
+
     private void tryFlushSnapshot(){
         if (System.currentTimeMillis() - lastFlushTime > FLUSH_INTERVAL){
             flushSnapshot();

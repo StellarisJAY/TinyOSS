@@ -53,4 +53,11 @@ public interface KvStorage {
      * @return List
      */
     List<String> keys();
+
+    /**
+     * if key exists
+     * @param key key
+     * @return boolean
+     */
+    boolean containsKey(String key);
 }
