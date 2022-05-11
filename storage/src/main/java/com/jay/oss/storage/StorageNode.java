@@ -10,7 +10,6 @@ import com.jay.dove.transport.protocol.ProtocolManager;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
-import com.jay.oss.common.entity.response.StorageHeartBeatResponse;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.prometheus.GaugeManager;
@@ -31,9 +30,9 @@ import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.storage.command.StorageNodeCommandHandler;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
+import com.jay.oss.storage.fs.ObjectIndexManager;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
-import com.jay.oss.storage.fs.ObjectIndexManager;
 import com.jay.oss.storage.task.StorageTaskManager;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
@@ -112,34 +111,38 @@ public class StorageNode extends AbstractLifeCycle {
             初始化注册中心客户端
          */
         registry.init();
-        registry.register(NodeInfoCollector.getStorageNodeInfo(port));
+        StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
+        storageNodeInfo.setStoredObjects(objectIndexManager.listObjectIds());
+        registry.register(storageNodeInfo);
 
         registerPrometheusGauge();
-        /*
-            订阅消息主题
-         */
-        storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(objectIndexManager, blockManager));
-        storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
+
+        if(!OssConfigs.enableTrackerMessaging()){
+            // 非全能Tracker模式下，订阅消息主题
+            storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(objectIndexManager, blockManager));
+            storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
+        }
         // 提交定时汇报任务
         Scheduler.scheduleAtFixedRate(()->{
             try{
-                StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
+                StorageNodeInfo nodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
                 if(OssConfigs.enableTrackerRegistry()){
-                    Optional.ofNullable(registry.trackerHeartBeat(storageNodeInfo))
+                    Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
                             .ifPresent(response->{
                                 storageTaskManager.addReplicaTasks(response.getReplicaTasks());
                                 storageTaskManager.addDeleteTask(response.getDeleteTasks());
                             });
                 }else{
-                    registry.update(storageNodeInfo);
+                    registry.update(nodeInfo);
                 }
                 // 更新存储容量监控数据
-                GaugeManager.getGauge("storage_used").set(storageNodeInfo.getUsedSpace());
-                GaugeManager.getGauge("storage_free").set(storageNodeInfo.getSpace());
+                GaugeManager.getGauge("storage_used").set(nodeInfo.getUsedSpace());
+                GaugeManager.getGauge("storage_free").set(nodeInfo.getSpace());
             }catch (Exception e){
                 log.warn("update storage node info error ", e);
             }
         }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
+        // 没6小时尝试压缩block文件
         Scheduler.scheduleAtFixedMinutes(blockManager::compactBlocks, OssConfigs.blockCompactInterval(), OssConfigs.blockCompactInterval());
     }
 
