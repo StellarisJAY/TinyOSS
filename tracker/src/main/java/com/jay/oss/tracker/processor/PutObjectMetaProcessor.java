@@ -13,7 +13,6 @@ import com.jay.oss.common.util.SnowflakeIdGenerator;
 import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
-import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
