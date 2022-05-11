@@ -40,6 +40,8 @@ public class StorageTaskManager {
     private final BlockManager blockManager;
     private final ObjectIndexManager objectIndexManager;
 
+    private static final int REPLICA_COPY_COUNT = 10;
+
     public StorageTaskManager(DoveClient storageClient, BlockManager blockManager, ObjectIndexManager objectIndexManager) {
         this.storageClient = storageClient;
         this.blockManager = blockManager;
@@ -75,8 +77,11 @@ public class StorageTaskManager {
     class ReplicaTaskHandler implements Runnable{
         @Override
         public void run() {
-            ReplicaTask task = replicaTasks.poll();
-            if(task != null){
+            for(int i = 0 ; i < REPLICA_COPY_COUNT; i++){
+                ReplicaTask task = replicaTasks.poll();
+                if(task == null){
+                    break;
+                }
                 try{
                     Url url = Url.parseString(task.getStorageUrl());
                     GetObjectRequest request = new GetObjectRequest(task.getObjectId(), 0, -1);
