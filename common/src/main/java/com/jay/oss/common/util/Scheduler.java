@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
  * @date 2022/02/12 13:18
  */
 public class Scheduler {
-    private static final ScheduledThreadPoolExecutor SCHEDULER = new ScheduledThreadPoolExecutor(3, new NamedThreadFactory("scheduler-"));
+    private static final ScheduledThreadPoolExecutor SCHEDULER = new ScheduledThreadPoolExecutor(Runtime.getRuntime().availableProcessors() * 2, new NamedThreadFactory("scheduler-"));
 
     public static void scheduleAtFixedRate(Runnable task, long delay, long period, TimeUnit timeUnit){
         SCHEDULER.scheduleAtFixedRate(task, delay, period, timeUnit);

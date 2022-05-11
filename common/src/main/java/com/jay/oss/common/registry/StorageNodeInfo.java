@@ -3,6 +3,7 @@ package com.jay.oss.common.registry;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -47,6 +48,8 @@ public class StorageNodeInfo implements Serializable {
      * 该属性用来判断Storage在集群中的权重
      */
     private long memoryTotal;
+
+    private List<Long> storedObjects;
 
 
     @Override

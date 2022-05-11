@@ -115,14 +115,6 @@ public class BitCaskStorage implements KvStorage {
         log.info("BitCask Storage loaded {} chunks", chunks.size());
     }
 
-    public Index getIndex(String key){
-        return indexCache.get(key);
-    }
-
-    public void saveIndex(String key, Index index){
-        indexCache.put(key, index);
-    }
-
     /**
      * 保证activeChunk可写入
      * @throws IOException e
@@ -422,5 +414,11 @@ public class BitCaskStorage implements KvStorage {
     @Override
     public List<String> keys(){
         return new ArrayList<>(indexCache.keySet());
+    }
+
+    @Override
+    public boolean containsKey(String key) {
+        Index index = indexCache.get(key);
+        return index != null && !index.isRemoved();
     }
 }

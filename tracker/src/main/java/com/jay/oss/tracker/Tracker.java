@@ -4,13 +4,13 @@ import com.jay.dove.DoveServer;
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.serialize.SerializerManager;
 import com.jay.dove.transport.protocol.ProtocolManager;
-import com.jay.oss.common.kv.bitcask.BitCaskStorage;
 import com.jay.oss.common.config.ConfigsManager;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.kafka.RecordConsumer;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.kv.KvStorage;
+import com.jay.oss.common.kv.bitcask.BitCaskStorage;
 import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.prometheus.PrometheusServer;
 import com.jay.oss.common.registry.Registry;
@@ -24,11 +24,9 @@ import com.jay.oss.common.util.Banner;
 import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
-import com.jay.oss.tracker.registry.StorageRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
 import com.jay.oss.tracker.replica.SpaceBalancedReplicaSelector;
 import com.jay.oss.tracker.task.StorageTaskManager;
-import com.jay.oss.tracker.track.ConsistentHashRing;
 import com.jay.oss.tracker.track.ObjectTracker;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
@@ -101,10 +99,15 @@ public class Tracker extends AbstractLifeCycle {
         kvStorage.init();
         // 初始化远程注册中心客户端
         registry.init();
-        /*
-            订阅消息主题
-         */
-        trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
+
+        // 使用zookeeper注册中心时，需要初始化存储节点注册缓存
+        if(!OssConfigs.enableTrackerRegistry()){
+            storageRegistry.init();
+        }
+        // 使用消息队列时需要订阅主题
+        if(OssConfigs.enableTrackerMessaging()){
+            trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
+        }
     }
 
     @Override
