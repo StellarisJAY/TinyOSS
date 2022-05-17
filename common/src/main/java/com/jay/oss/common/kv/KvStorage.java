@@ -21,9 +21,8 @@ public interface KvStorage {
      * KV存储get
      * @param key String
      * @return byte[]
-     * @throws Exception get error
      */
-    byte[] get(String key) throws Exception;
+    byte[] get(String key);
 
     /**
      * KV存储putIfAbsent

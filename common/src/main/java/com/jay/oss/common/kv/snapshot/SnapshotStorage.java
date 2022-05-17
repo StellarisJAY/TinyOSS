@@ -57,7 +57,7 @@ public class SnapshotStorage implements KvStorage {
     }
 
     @Override
-    public byte[] get(String key) throws Exception {
+    public byte[] get(String key) {
         return memTable.get(key);
     }
 
