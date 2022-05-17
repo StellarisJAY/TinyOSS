@@ -1,7 +1,6 @@
 package com.jay.oss.common.config;
 
 import com.jay.dove.transport.Url;
-import com.jay.oss.common.util.GzipCompressor;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -21,15 +20,12 @@ public class OssConfigs {
      */
     public static final byte PROTOSTUFF_SERIALIZER = 1;
 
-    public static final byte GZIP_COMPRESSOR = GzipCompressor.CODE;
-
     public static final Charset DEFAULT_CHARSET =  StandardCharsets.UTF_8;
 
     /**
      * 默认序列化器
      */
     public static final byte DEFAULT_SERIALIZER = PROTOSTUFF_SERIALIZER;
-    public static final byte DEFAULT_COMPRESSOR = GZIP_COMPRESSOR;
     /**
      * Zookeeper 地址
      */
