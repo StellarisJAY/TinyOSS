@@ -79,6 +79,12 @@ public class TinyOssCommandFactory implements CommandFactory {
     }
 
     @Override
+    public <T> RemotingCommand createResponse(int id, T content, Class<T> clazz, CommandCode commandCode) {
+        byte[] serializedContent = SerializeUtil.serialize(content, clazz);
+        return createResponse(id, serializedContent, commandCode);
+    }
+
+    @Override
     public RemotingCommand createTimeoutResponse(int id, Object o) {
         TinyOssCommand.TinyOssCommandBuilder builder = getCommandBuilder(id, TinyOssProtocol.REQUEST_TIMEOUT);
         if(o instanceof String){
