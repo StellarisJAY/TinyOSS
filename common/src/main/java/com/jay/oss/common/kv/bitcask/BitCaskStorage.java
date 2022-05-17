@@ -135,18 +135,15 @@ public class BitCaskStorage implements KvStorage {
      * get value
      * @param key key
      * @return byte[]
-     * @throws IOException chunk读取异常
      */
     @Override
-    public byte[] get(String key) throws IOException {
+    public byte[] get(String key) {
         try{
             compactLock.readLock().lock();
             Index index = indexCache.get(key);
             Chunk chunk;
             if(index  != null && !index.isRemoved() && index.getChunkId() < chunks.size() && (chunk = chunks.get(index.getChunkId())) != null){
                 return chunk.readMmap(index.getOffset());
-            }else if(index != null){
-                log.info("unknown chunk id: {}", index.getChunkId());
             }
             return null;
         } finally {
