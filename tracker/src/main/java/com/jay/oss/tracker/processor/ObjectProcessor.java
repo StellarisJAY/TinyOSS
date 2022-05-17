@@ -10,6 +10,7 @@ import com.jay.oss.common.entity.object.ObjectVO;
 import com.jay.oss.common.entity.request.DeleteObjectInBucketRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
 import com.jay.oss.common.entity.request.StartCopyReplicaRequest;
+import com.jay.oss.common.entity.response.LocateObjectResponse;
 import com.jay.oss.common.entity.task.DeleteTask;
 import com.jay.oss.common.entity.task.ReplicaTask;
 import com.jay.oss.common.kafka.RecordProducer;
@@ -23,6 +24,7 @@ import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.spec.PSource;
+import java.util.Set;
 
 /**
  * <p>
@@ -73,12 +75,16 @@ public class ObjectProcessor extends TrackerProcessor {
         byte[] content = command.getContent();
         LocateObjectRequest request = SerializeUtil.deserialize(content, LocateObjectRequest.class);
         String objectKey = request.getObjectKey();
-        // 定位object
-        String urls = objectTracker.locateObject(objectKey);
-        if(StringUtil.isNullOrEmpty(urls)){
+        String objectId = objectTracker.getObjectId(objectKey);
+        if(StringUtil.isNullOrEmpty(objectId)){
+            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND);
+        }
+        Set<String> locations = objectTracker.getObjectLocations(objectId);
+        if(locations == null){
             return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND);
         }else{
-            return commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
+            LocateObjectResponse response = new LocateObjectResponse(Long.parseLong(objectId), locations);
+            return commandFactory.createResponse(command.getId(), SerializeUtil.serialize(response, LocateObjectResponse.class), TinyOssProtocol.SUCCESS);
         }
     }
 
@@ -90,20 +96,20 @@ public class ObjectProcessor extends TrackerProcessor {
     private RemotingCommand deleteObject(TinyOssCommand command){
         DeleteObjectInBucketRequest request = SerializeUtil.deserialize(command.getContent(), DeleteObjectInBucketRequest.class);
         String objectKey = request.getObjectKey();
-        // 定位并删除object
-        ObjectMeta meta = objectTracker.deleteObjectMeta(objectKey);
-        if(meta == null){
+        Long objectId = objectTracker.deleteMeta(objectKey);
+        if(objectId == null){
             return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND);
         }
+        Set<String> locations = objectTracker.getObjectReplicaLocations(objectId);
         if(OssConfigs.enableTrackerMessaging()){
-            String[] storages = meta.getLocations().split(";");
-            DeleteTask task = new DeleteTask(0L, meta.getObjectId());
-            for (String storage : storages) {
-                storageTaskManager.addDeleteTask(storage, task);
+//            String[] storages = meta.getLocations().split(";");
+            DeleteTask task = new DeleteTask(0L, objectId);
+            for (String location : locations) {
+                storageTaskManager.addDeleteTask(location, task);
             }
         }else{
             // 发送删除object消息，由Storage收到消息后异步删除object数据
-            trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(meta.getObjectId()), Long.toString(meta.getObjectId()));
+            trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(objectId), Long.toString(objectId));
         }
         return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
     }
@@ -126,23 +132,35 @@ public class ObjectProcessor extends TrackerProcessor {
         }
     }
 
+    /**
+     * 处理上传成功请求，开启副本复制任务
+     * @param command {@link TinyOssCommand}
+     * @return {@link RemotingCommand}
+     */
     private RemotingCommand startCopyReplica(TinyOssCommand command){
         StartCopyReplicaRequest request = SerializeUtil.deserialize(command.getContent(), StartCopyReplicaRequest.class);
         long objectId = request.getObjectId();
-        ObjectMeta meta = objectTracker.getMetaById(Long.toString(objectId));
-        if(meta != null){
-            String[] locations = meta.getLocations().split(";");
-            ReplicaTask replicaTask = new ReplicaTask(0, objectId, request.getSourceUrl());
-            for (String location : locations) {
-                if(!location.equals(request.getSourceUrl())){
-                    storageTaskManager.addReplicaTask(location, replicaTask);
-                }
-            }
-            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
+        // 保存上传成功副本位置
+        objectTracker.addObjectReplicaLocation(objectId, request.getSourceUrl());
+        ReplicaTask task = new ReplicaTask(0, objectId, request.getSourceUrl());
+        for (String location : request.getTargetUrls()) {
+            storageTaskManager.addReplicaTask(location, task);
         }
-        else{
-            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
-        }
+        return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
+//        ObjectMeta meta = objectTracker.getMetaById(Long.toString(objectId));
+//        if(meta != null){
+//            String[] locations = meta.getLocations().split(";");
+//            ReplicaTask replicaTask = new ReplicaTask(0, objectId, request.getSourceUrl());
+//            for (String location : locations) {
+//                if(!location.equals(request.getSourceUrl())){
+//                    storageTaskManager.addReplicaTask(location, replicaTask);
+//                }
+//            }
+//            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
+//        }
+//        else{
+//            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
+//        }
     }
 
     /**

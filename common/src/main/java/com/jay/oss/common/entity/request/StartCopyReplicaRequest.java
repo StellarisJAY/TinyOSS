@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * <p>
@@ -18,4 +19,5 @@ import java.io.Serializable;
 public class StartCopyReplicaRequest implements Serializable {
     private long objectId;
     private String sourceUrl;
+    private List<String> targetUrls;
 }

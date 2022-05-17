@@ -5,6 +5,7 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.object.ObjectMeta;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
+import com.jay.oss.common.entity.response.PutObjectMetaResponse;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -59,23 +61,31 @@ public class PutObjectMetaProcessor extends TrackerProcessor{
         try{
             // 选择上传点
             List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
-            String urls = UrlUtil.stringifyFromNodes(nodes);
+            List<String> urls = nodes.stream().map(StorageNodeInfo::getUrl).collect(Collectors.toList());
             ObjectMeta meta = ObjectMeta.builder()
-                    .objectId(objectIdGenerator.nextId())
-                    .locations(urls).fileName(request.getFilename())
+                    .objectId(objectIdGenerator.nextId()).fileName(request.getFilename())
                     .md5(request.getMd5()).objectKey(request.getKey())
                     .size(size).createTime(request.getCreateTime())
                     .versionId(versionId)
                     .build();
-            // 保存object位置，判断object是否已经存在
-            if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
-                bucketManager.putObject(bucket, objectKey);
-                urls = urls + meta.getObjectId() + ";" +  versionId;
-                response = commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
+            // 保存元数据
+            if(objectTracker.putMeta(objectKey, meta)){
+//                urls = urls + meta.getObjectId() + ";" +  versionId;
+                PutObjectMetaResponse putResp = new PutObjectMetaResponse(meta.getObjectId(), urls, versionId);
+                response = commandFactory.createResponse(command.getId(), putResp, PutObjectMetaResponse.class, TinyOssProtocol.SUCCESS);
             }else{
                 // object key 重复
                 response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
             }
+//            // 保存object位置，判断object是否已经存在
+//            if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
+//                bucketManager.putObject(bucket, objectKey);
+//                urls = urls + meta.getObjectId() + ";" +  versionId;
+//                response = commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
+//            }else{
+//                // object key 重复
+//                response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
+//            }
         }catch (Exception e){
             log.error("bucket put object error ", e);
             response = commandFactory

@@ -33,12 +33,12 @@ import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.fs.ObjectIndexManager;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
+import com.jay.oss.storage.task.StorageNodeHeartBeatTask;
 import com.jay.oss.storage.task.StorageTaskManager;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -123,25 +123,9 @@ public class StorageNode extends AbstractLifeCycle {
             storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
         }
         // 提交定时汇报任务
-        Scheduler.scheduleAtFixedRate(()->{
-            try{
-                StorageNodeInfo nodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
-                if(OssConfigs.enableTrackerRegistry()){
-                    Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
-                            .ifPresent(response->{
-                                storageTaskManager.addReplicaTasks(response.getReplicaTasks());
-                                storageTaskManager.addDeleteTask(response.getDeleteTasks());
-                            });
-                }else{
-                    registry.update(nodeInfo);
-                }
-                // 更新存储容量监控数据
-                GaugeManager.getGauge("storage_used").set(nodeInfo.getUsedSpace());
-                GaugeManager.getGauge("storage_free").set(nodeInfo.getSpace());
-            }catch (Exception e){
-                log.warn("update storage node info error ", e);
-            }
-        }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
+        Scheduler.scheduleAtFixedRate(new StorageNodeHeartBeatTask(objectIndexManager, registry ,storageTaskManager, port, storageNodeProducer),
+                OssConfigs.ZOOKEEPER_SESSION_TIMEOUT,
+                OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
         // 没6小时尝试压缩block文件
         Scheduler.scheduleAtFixedMinutes(blockManager::compactBlocks, OssConfigs.blockCompactInterval(), OssConfigs.blockCompactInterval());
     }
