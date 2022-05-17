@@ -1,6 +1,7 @@
 package com.jay.oss.storage.task;
 
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.prometheus.GaugeManager;
 import com.jay.oss.common.registry.Registry;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.StringJoiner;
 
 /**
  * <p>
@@ -41,17 +43,21 @@ public class StorageNodeHeartBeatTask implements Runnable{
         try{
             StorageNodeInfo nodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
             List<Long> storedObjects = objectIndexManager.listObjectIds();
-            if(OssConfigs.enableTrackerRegistry()){
-                if(OssConfigs.enableTrackerMessaging()){
-                    nodeInfo.setStoredObjects(storedObjects);
-                    Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
-                            .ifPresent(response->{
-                                storageTaskManager.addReplicaTasks(response.getReplicaTasks());
-                                storageTaskManager.addDeleteTask(response.getDeleteTasks());
-                            });
-                }
+            if(OssConfigs.enableTrackerRegistry() && OssConfigs.enableTrackerMessaging()){
+                // 心跳消息模式下，使用心跳将对象列表发送出去
+                nodeInfo.setStoredObjects(storedObjects);
+                Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
+                        .ifPresent(response->{
+                            storageTaskManager.addReplicaTasks(response.getReplicaTasks());
+                            storageTaskManager.addDeleteTask(response.getDeleteTasks());
+                        });
             }else{
+                // 使用zookeeper更新storage节点状态
                 registry.update(nodeInfo);
+                // 使用消息队列汇报当前storage节点保存的对象ID列表
+                StringJoiner joiner = new StringJoiner(";");
+                storedObjects.forEach(id->joiner.add(Long.toString(id)));
+                recordProducer.send(OssConstants.REPORT_TOPIC, nodeInfo.getUrl(), joiner.toString());
             }
             // 更新存储容量监控数据
             GaugeManager.getGauge("storage_used").set(nodeInfo.getUsedSpace());
