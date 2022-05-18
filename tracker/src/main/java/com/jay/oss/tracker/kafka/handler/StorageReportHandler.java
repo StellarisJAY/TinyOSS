@@ -1,8 +1,7 @@
 package com.jay.oss.tracker.kafka.handler;
 
-import com.jay.oss.common.constant.OssConstants;
 import com.jay.oss.common.kafka.RecordHandler;
-import com.jay.oss.common.kafka.RecordProducer;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.tracker.track.ObjectTracker;
 import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -32,9 +31,9 @@ public class StorageReportHandler implements RecordHandler {
         for (ConsumerRecord<String, String> record : records) {
             String address = record.key();
             String[] objectIds = record.value().split(";");
-            if(objectIds.length > 0){
+            if(objectIds.length > 0 && !StringUtil.isNullOrEmpty(objectIds[0])){
                 // 从objects中过滤出被删除的对象，并向所有Storage节点发送删除消息
-                List<Long> ids = Arrays.asList(objectIds).stream()
+                List<Long> ids = Arrays.stream(objectIds)
                         .map(Long::parseLong).collect(Collectors.toList());
                 // 记录对象副本位置
                 ids.forEach(id->objectTracker.addObjectReplicaLocation(id, address));
