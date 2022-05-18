@@ -47,12 +47,8 @@ public class ReplicaHandler implements RecordHandler {
         // 遍历消息列表
         for (ConsumerRecord<String, String> record : records) {
             long objectId = Long.parseLong(record.key());
-            String value = record.value();
-            String[] split = value.split(";");
-            if(split.length == 2){
-                String srcUrl = split[0];
-                getObject(objectId, srcUrl);
-            }
+            String sourceUrl = record.value();
+            getObject(objectId, sourceUrl);
         }
     }
     /**

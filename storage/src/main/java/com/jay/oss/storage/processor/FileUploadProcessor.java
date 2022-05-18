@@ -124,7 +124,12 @@ public class FileUploadProcessor extends AbstractProcessor {
                 log.warn("Error when sending start copy replica for {} ", objectId, e);
             }
         }else{
+            // 通知Tracker上传完成
             storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
+            // 通知其他storage节点复制副本
+            for (String location : locations) {
+                storageNodeProducer.send(OssConstants.REPLICA_TOPIC + "_" + location.replace(":", "_"), Long.toString(objectId), NodeInfoCollector.getAddress());
+            }
         }
     }
 }
