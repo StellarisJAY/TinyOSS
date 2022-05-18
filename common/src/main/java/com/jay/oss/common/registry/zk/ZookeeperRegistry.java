@@ -6,11 +6,11 @@ import com.jay.oss.common.registry.Registry;
 import com.jay.oss.common.registry.StorageNodeInfo;
 import com.jay.oss.common.util.ZkUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 
-import java.rmi.Remote;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,13 +95,13 @@ public class ZookeeperRegistry implements Registry {
     }
 
     @Override
-    public Map<String, StorageNodeInfo> lookupAll() throws Exception {
+    public Map<String, StorageNodeInfo> lookupAll() {
         if(localCache.isEmpty()){
             HashMap<String, StorageNodeInfo> result = new HashMap<>(16);
             try{
                 // 获取当前存在的所有storage
                 List<String> nodes = zooKeeper.getChildren(ROOT_PATH, false);
-                log.info("nodes: {}", nodes);
+                log.info("online storage nodes: {}", nodes);
                 // 遍历获取每个storage信息
                 for(String path : nodes){
                     String json = zkUtil.getData(ROOT_PATH + "/" + path);
@@ -112,9 +112,10 @@ public class ZookeeperRegistry implements Registry {
                 }
                 localCache.putAll(result);
                 zkUtil.subscribe(ROOT_PATH, new RemoteRegistryWatcher());
+            }catch (KeeperException.NoNodeException e){
+                log.warn("No storage node online");
             }catch (Exception e){
-                log.error("lookup storages error ", e);
-                throw e;
+                throw new RuntimeException(e);
             }
             return result;
         }
