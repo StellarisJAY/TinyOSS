@@ -33,12 +33,14 @@ import com.jay.oss.storage.fs.ObjectIndex;
 import com.jay.oss.storage.fs.ObjectIndexManager;
 import com.jay.oss.storage.kafka.handler.DeleteHandler;
 import com.jay.oss.storage.kafka.handler.ReplicaHandler;
+import com.jay.oss.storage.task.StorageNodeHeartBeatTask;
 import com.jay.oss.storage.task.StorageTaskManager;
 import io.prometheus.client.Gauge;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -112,36 +114,31 @@ public class StorageNode extends AbstractLifeCycle {
          */
         registry.init();
         StorageNodeInfo storageNodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
-        storageNodeInfo.setStoredObjects(objectIndexManager.listObjectIds());
+        // 获取当前storage节点上的所有对象ID
+        List<Long> storedObjects = objectIndexManager.listObjectIds();
+        // 如果开启了Tracker心跳，使用注册报文发送当前storage上保存的对象
+        if(OssConfigs.enableTrackerRegistry()){
+            storageNodeInfo.setStoredObjects(storedObjects);
+        }
         registry.register(storageNodeInfo);
-
+        // 注册Prometheus Gauge
         registerPrometheusGauge();
 
         if(!OssConfigs.enableTrackerMessaging()){
             // 非全能Tracker模式下，订阅消息主题
             storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(objectIndexManager, blockManager));
             storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
+            StringJoiner idJoiner = new StringJoiner(";");
+            storedObjects.forEach(id->{
+                idJoiner.add(Long.toString(id));
+            });
+            // 通过消息队列发送storage保存的对象列表
+            storageNodeProducer.send(OssConstants.REPORT_TOPIC, NodeInfoCollector.getAddress(), idJoiner.toString());
         }
         // 提交定时汇报任务
-        Scheduler.scheduleAtFixedRate(()->{
-            try{
-                StorageNodeInfo nodeInfo = NodeInfoCollector.getStorageNodeInfo(port);
-                if(OssConfigs.enableTrackerRegistry()){
-                    Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
-                            .ifPresent(response->{
-                                storageTaskManager.addReplicaTasks(response.getReplicaTasks());
-                                storageTaskManager.addDeleteTask(response.getDeleteTasks());
-                            });
-                }else{
-                    registry.update(nodeInfo);
-                }
-                // 更新存储容量监控数据
-                GaugeManager.getGauge("storage_used").set(nodeInfo.getUsedSpace());
-                GaugeManager.getGauge("storage_free").set(nodeInfo.getSpace());
-            }catch (Exception e){
-                log.warn("update storage node info error ", e);
-            }
-        }, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
+        Scheduler.scheduleAtFixedRate(new StorageNodeHeartBeatTask(objectIndexManager, registry ,storageTaskManager, port, storageNodeProducer),
+                OssConfigs.ZOOKEEPER_SESSION_TIMEOUT,
+                OssConfigs.ZOOKEEPER_SESSION_TIMEOUT, TimeUnit.MILLISECONDS);
         // 没6小时尝试压缩block文件
         Scheduler.scheduleAtFixedMinutes(blockManager::compactBlocks, OssConfigs.blockCompactInterval(), OssConfigs.blockCompactInterval());
     }

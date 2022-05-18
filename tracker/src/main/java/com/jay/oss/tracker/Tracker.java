@@ -21,6 +21,7 @@ import com.jay.oss.common.remoting.TinyOssCommandFactory;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.serialize.ProtostuffSerializer;
 import com.jay.oss.common.util.Banner;
+import com.jay.oss.tracker.kafka.handler.StorageReportHandler;
 import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
@@ -105,8 +106,9 @@ public class Tracker extends AbstractLifeCycle {
             storageRegistry.init();
         }
         // 使用消息队列时需要订阅主题
-        if(OssConfigs.enableTrackerMessaging()){
+        if(!OssConfigs.enableTrackerMessaging()){
             trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
+            trackerConsumer.subscribeTopic(OssConstants.REPORT_TOPIC, new StorageReportHandler(objectTracker));
         }
     }
 

@@ -41,6 +41,7 @@ public class StorageTaskManager {
     private final ObjectIndexManager objectIndexManager;
 
     private static final int REPLICA_COPY_COUNT = 10;
+    private static final int MARK_DELETE_COUNT = 100;
 
     public StorageTaskManager(DoveClient storageClient, BlockManager blockManager, ObjectIndexManager objectIndexManager) {
         this.storageClient = storageClient;
@@ -118,18 +119,23 @@ public class StorageTaskManager {
     class DeleteTaskHandler implements Runnable{
         @Override
         public void run() {
-            DeleteTask task = deleteTasks.poll();
-            if(task != null){
-                long startTime = System.currentTimeMillis();
+            long startTime = System.currentTimeMillis();
+            int count = 0;
+            int i = 0;
+            DeleteTask task;
+            while(i++ < MARK_DELETE_COUNT && (task = deleteTasks.poll()) != null){
                 long objectId = task.getObjectId();
                 ObjectIndex index = objectIndexManager.getObjectIndex(objectId);
                 Block block;
                 if(index != null && (block = blockManager.getBlockById(index.getBlockId())) != null){
                     if(block.delete(objectId, index.getOffset())){
                         index.setRemoved(true);
-                        log.info("Object {} Marked deleted, time used: {}ms", objectId, (System.currentTimeMillis() - startTime));
+                        count++;
                     }
                 }
+            }
+            if(count > 0){
+                log.info("{} Objects Marked deleted, time used: {}ms",count, (System.currentTimeMillis() - startTime));
             }
         }
     }

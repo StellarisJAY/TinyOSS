@@ -13,6 +13,7 @@ import com.jay.oss.common.kafka.RecordProducer;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.NodeInfoCollector;
+import com.jay.oss.common.util.StringUtil;
 import com.jay.oss.storage.fs.Block;
 import com.jay.oss.storage.fs.BlockManager;
 import com.jay.oss.storage.fs.ObjectIndex;
@@ -21,6 +22,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -91,7 +94,11 @@ public class FileUploadProcessor extends AbstractProcessor {
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
                 sendResponse(context, response);
             } else{
-                sendUploadCompleteRecord(objectId);
+                data.skipBytes((int)size);
+                byte[] replicaLocationBytes = new byte[data.readableBytes()];
+                data.readBytes(replicaLocationBytes);
+                String[] locations = StringUtil.toString(replicaLocationBytes).split(";");
+                sendUploadCompleteRecord(objectId, Arrays.asList(locations));
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
                 sendResponse(context, response);
             }
@@ -104,10 +111,10 @@ public class FileUploadProcessor extends AbstractProcessor {
      * 向Tracker发送接收完成的消息，通知Tracker下发副本复制指令
      * @param objectId 对象ID
      */
-    private void sendUploadCompleteRecord(long objectId){
+    private void sendUploadCompleteRecord(long objectId, List<String> locations){
         if(OssConfigs.enableTrackerMessaging()){
             try{
-                StartCopyReplicaRequest request = new StartCopyReplicaRequest(objectId, NodeInfoCollector.getAddress());
+                StartCopyReplicaRequest request = new StartCopyReplicaRequest(objectId, NodeInfoCollector.getAddress(), locations);
                 RemotingCommand command = commandFactory.createRequest(request, TinyOssProtocol.UPLOAD_COMPLETE, StartCopyReplicaRequest.class);
                 RemotingCommand response = trackerClient.sendSync(OssConfigs.trackerServerUrl(), command, null);
                 if(!response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
@@ -117,7 +124,12 @@ public class FileUploadProcessor extends AbstractProcessor {
                 log.warn("Error when sending start copy replica for {} ", objectId, e);
             }
         }else{
+            // 通知Tracker上传完成
             storageNodeProducer.send(OssConstants.STORAGE_UPLOAD_COMPLETE, Long.toString(objectId), NodeInfoCollector.getAddress());
+            // 通知其他storage节点复制副本
+            for (String location : locations) {
+                storageNodeProducer.send(OssConstants.REPLICA_TOPIC + "_" + location.replace(":", "_"), Long.toString(objectId), NodeInfoCollector.getAddress());
+            }
         }
     }
 }

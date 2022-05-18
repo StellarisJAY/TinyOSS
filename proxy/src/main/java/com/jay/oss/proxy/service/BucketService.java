@@ -70,9 +70,9 @@ public class BucketService {
 
             Result result = new Result()
                     .message("Success")
-                    .putData("foss-AccessKey", accessKey)
-                    .putData("foss-SecretKey", secretKey)
-                    .putData("foss-AppId", appId);
+                    .putData("toss-AccessKey", accessKey)
+                    .putData("toss-SecretKey", secretKey)
+                    .putData("toss-AppId", appId);
             httpResponse = HttpUtil.okResponse(result);
         }catch (Exception e){
             log.warn("Put Bucket Error ", e);

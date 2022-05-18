@@ -8,11 +8,12 @@ import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.request.GetObjectRequest;
 import com.jay.oss.common.entity.request.LocateObjectRequest;
+import com.jay.oss.common.entity.response.LocateObjectResponse;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
+import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
-import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -20,8 +21,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * <p>
@@ -62,16 +65,14 @@ public class DownloadService {
             if(!code.equals(TinyOssProtocol.SUCCESS)){
                 return HttpUtil.bucketAclResponse(code);
             }
-            String respContent = StringUtil.toString(locateResponse.getContent());
-            String[] split = respContent.split(";");
-            int replicaCount = OssConfigs.replicaCount();
-            if(split.length <= replicaCount){
-                return HttpUtil.internalErrorResponse("Internal Server Error");
+            LocateObjectResponse response = SerializeUtil.deserialize(locateResponse.getContent(), LocateObjectResponse.class);
+            long objectId = response.getObjectId();
+            Set<String> urls = response.getLocations();
+            if(urls == null || urls.isEmpty()){
+                return HttpUtil.notFoundResponse("No Replica of this object found");
             }
-            long objectId = Long.parseLong(split[replicaCount]);
-            List<Url> urls = UrlUtil.parseUrls(split, replicaCount);
             // 尝试从url列表中下载object
-            return tryDownload(urls, objectId, rangeStart, rangeEnd, commandCode);
+            return tryDownload(new ArrayList<>(urls), objectId, rangeStart, rangeEnd, commandCode);
         }catch (Exception e){
             log.error("download service error: ", e);
             return new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -105,11 +106,12 @@ public class DownloadService {
      * @param code {@link CommandCode}
      * @return {@link FullHttpResponse}
      */
-    private FullHttpResponse tryDownload(List<Url> urls, long objectId, int start, int end, CommandCode code){
+    private FullHttpResponse tryDownload(List<String> urls, long objectId, int start, int end, CommandCode code){
         GetObjectRequest request = new GetObjectRequest(objectId, start, end);
         RemotingCommand command = client.getCommandFactory().createRequest(request, code, GetObjectRequest.class);
         Collections.shuffle(urls);
-        for (Url url : urls) {
+        for (String urlStr : urls) {
+            Url url = Url.parseString(urlStr);
             try{
                 // 发送下载请求
                 TinyOssCommand response = (TinyOssCommand)client.sendSync(url, command, null);

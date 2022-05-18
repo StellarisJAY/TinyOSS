@@ -127,11 +127,18 @@ public class BlockManager {
         return indexes;
     }
 
+    /**
+     * 压缩所有的blocks
+     */
     public void compactBlocks(){
         for (Map.Entry<Integer, Block> entry : blockMap.entrySet()) {
             Block block = entry.getValue();
+            // 压缩block
             Map<Long, ObjectIndex> updatedIndex = block.compact();
-            objectIndexManager.putIndexes(updatedIndex);
+            if(updatedIndex != null && !updatedIndex.isEmpty()){
+                // 更新index
+                objectIndexManager.putIndexes(updatedIndex);
+            }
         }
     }
 }

@@ -7,11 +7,12 @@ import com.jay.dove.transport.command.RemotingCommand;
 import com.jay.oss.common.acl.BucketAccessMode;
 import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.entity.request.BucketPutObjectRequest;
+import com.jay.oss.common.entity.response.PutObjectMetaResponse;
 import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.KeyUtil;
+import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.StringUtil;
-import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.proxy.entity.Result;
 import com.jay.oss.proxy.util.HttpUtil;
 import io.netty.buffer.ByteBuf;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.StringJoiner;
 
 /**
  * <p>
@@ -65,19 +67,11 @@ public class UploadService {
         if(!code.equals(TinyOssProtocol.SUCCESS)){
             return HttpUtil.errorResponse(code);
         }else {
-            String str = StringUtil.toString(bucketResponse.getContent());
-            String[] parts = str.split(";");
-            int replicaCount = OssConfigs.replicaCount();
-            if(parts.length >= replicaCount + 1){
-                long objectId = Long.parseLong(parts[replicaCount]);
-                List<Url> storages = UrlUtil.parseUrls(parts, replicaCount);
-                if(doUpload(storages, content, (int)size, objectId)){
-                    Result result = new Result().message("Success")
-                            .putData("versionId", parts.length > replicaCount + 1 ? parts[replicaCount + 1] : null);
-                    return HttpUtil.okResponse(result);
-                }else{
-                    return HttpUtil.internalErrorResponse("Failed to Upload Object");
-                }
+            PutObjectMetaResponse resp = SerializeUtil.deserialize(bucketResponse.getContent(), PutObjectMetaResponse.class);
+            if(doUpload(resp.getLocations(), content, (int)size, resp.getObjectId())){
+                Result result = new Result().message("Success")
+                        .putData("versionId", resp.getVersionId());
+                return HttpUtil.okResponse(result);
             }else{
                 return HttpUtil.internalErrorResponse("Failed to Upload Object");
             }
@@ -94,7 +88,7 @@ public class UploadService {
      * @param objectId 对象ID
      * @return 发送状态
      */
-    private boolean doUpload(List<Url> urls, ByteBuf content, int size, long objectId){
+    private boolean doUpload(List<String> urls, ByteBuf content, int size, long objectId){
         int successReplica = 0;
         // 需要写入成功的数量
         int writeCount = 1;
@@ -102,38 +96,31 @@ public class UploadService {
         buffer.writeLong(objectId);
         buffer.writeLong(size);
         buffer.writeBytes(content);
-        Queue<Url> urlQueue = new LinkedList<>(urls);
+        Queue<String> urlQueue = new LinkedList<>(urls);
         int urlCount = urlQueue.size();
         for(int i = 0; i < urlCount && successReplica < writeCount; i++){
-            Url url = urlQueue.poll();
-            try{
-                buffer.markReaderIndex();
-                buffer.retain();
-                RemotingCommand command = storageClient.getCommandFactory()
-                        .createRequest(buffer, TinyOssProtocol.UPLOAD_REQUEST);
-                RemotingCommand response = storageClient.sendSync(url, command, null);
-                buffer.resetReaderIndex();
-                buffer.release();
-                if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
-                    successReplica ++;
-                }
-            }catch (Exception e){
-                log.warn("upload to storage failed, ", e);
+            String urlStr = urlQueue.poll();
+            if(urlStr == null){
+                break;
             }
-        }
-        int i;
-        for(i = 0; i < urls.size() && successReplica < writeCount; i++){
-            Url url = urls.get(i);
+            Url url = Url.parseString(urlStr);
             try{
+                buffer.markWriterIndex();
+                StringJoiner joiner = new StringJoiner(";");
+                urlQueue.forEach(joiner::add);
+                buffer.writeBytes(StringUtil.getBytes(joiner.toString()));
                 buffer.markReaderIndex();
                 buffer.retain();
                 RemotingCommand command = storageClient.getCommandFactory()
                         .createRequest(buffer, TinyOssProtocol.UPLOAD_REQUEST);
                 RemotingCommand response = storageClient.sendSync(url, command, null);
                 buffer.resetReaderIndex();
+                buffer.resetWriterIndex();
                 buffer.release();
                 if(response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
                     successReplica ++;
+                }else{
+                    urlQueue.offer(urlStr);
                 }
             }catch (Exception e){
                 log.warn("upload to storage failed, ", e);

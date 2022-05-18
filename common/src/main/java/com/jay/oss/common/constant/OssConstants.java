@@ -21,6 +21,8 @@ public class OssConstants {
 
     public static final String STORAGE_UPLOAD_COMPLETE = "storage_upload_complete";
 
+    public static final String REPORT_TOPIC = "storage_report";
+
     /**
      * 消费间隔
      */

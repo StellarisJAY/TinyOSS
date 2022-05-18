@@ -127,5 +127,10 @@ public class SimpleRegistry implements Registry {
         });
     }
 
+    public boolean isStorageNodeAlive(String url){
+        StorageNodeInfo node = storageNodes.get(url);
+        return node != null && node.isAvailable();
+    }
+
 
 }

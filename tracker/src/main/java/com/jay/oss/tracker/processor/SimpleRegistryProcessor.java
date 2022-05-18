@@ -68,13 +68,15 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
      */
     private void processRegister(ChannelHandlerContext context, TinyOssCommand command){
         StorageNodeInfo storageNodeInfo = SerializeUtil.deserialize(command.getContent(), StorageNodeInfo.class);
-        // 从storage汇报的对象中筛选出被删除的对象，然后包装成删除任务
-        List<DeleteTask> deleteTasks = storageNodeInfo.getStoredObjects()
-                .stream()
-                .filter(objectTracker::isObjectDeleted).map(id -> new DeleteTask(0L, id))
-                .collect(Collectors.toList());
-        // 添加到删除任务队列
-        storageTaskManager.addDeleteTasks(storageNodeInfo.getUrl(), deleteTasks);
+        if(storageNodeInfo.getStoredObjects() != null){
+            // 从storage汇报的对象中筛选出被删除的对象，然后包装成删除任务
+            List<DeleteTask> deleteTasks = storageNodeInfo.getStoredObjects()
+                    .stream()
+                    .filter(objectTracker::isObjectDeleted).map(id -> new DeleteTask(0L, id))
+                    .collect(Collectors.toList());
+            // 添加到删除任务队列
+            storageTaskManager.addDeleteTasks(storageNodeInfo.getUrl(), deleteTasks);
+        }
         simpleRegistry.putStorageNode(storageNodeInfo);
         // 将channel和storageNode绑定，在连接断开后将节点从注册中心下线
         bindStorageNodeWithChannel(context.channel(), storageNodeInfo);
@@ -92,6 +94,9 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
     private void processHeartbeat(ChannelHandlerContext context, TinyOssCommand command){
         StorageNodeInfo storageNodeInfo = SerializeUtil.deserialize(command.getContent(), StorageNodeInfo.class);
         simpleRegistry.updateStorageNode(storageNodeInfo);
+        List<Long> storedObjects = storageNodeInfo.getStoredObjects();
+        // 记录objects副本位置
+        saveObjectReplicaLocations(storedObjects, storageNodeInfo.getUrl());
         // 绑定channel
         bindStorageNodeWithChannel(context.channel(), storageNodeInfo);
         // 从任务队列获取副本复制和删除任务
@@ -115,6 +120,19 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
         Attribute<String> attr = channel.attr(SimpleRegistry.STORAGE_NODE_ATTR);
         if(attr.get() == null){
             attr.set(storageNodeInfo.getUrl());
+        }
+    }
+
+    /**
+     * 保存object副本的位置信息
+     * @param storedObjects {@link List<Long>}
+     * @param location 地址
+     */
+    private void saveObjectReplicaLocations(List<Long> storedObjects, String location){
+        if(storedObjects != null && !storedObjects.isEmpty()){
+            for (Long objectId : storedObjects) {
+                objectTracker.addObjectReplicaLocation(objectId, location);
+            }
         }
     }
 }
