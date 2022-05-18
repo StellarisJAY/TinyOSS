@@ -106,7 +106,7 @@ public class Tracker extends AbstractLifeCycle {
             storageRegistry.init();
         }
         // 使用消息队列时需要订阅主题
-        if(OssConfigs.enableTrackerMessaging()){
+        if(!OssConfigs.enableTrackerMessaging()){
             trackerConsumer.subscribeTopic(OssConstants.STORAGE_UPLOAD_COMPLETE, new StorageUploadCompleteHandler(trackerProducer, objectTracker));
             trackerConsumer.subscribeTopic(OssConstants.REPORT_TOPIC, new StorageReportHandler(objectTracker));
         }
