@@ -62,7 +62,7 @@ public class ConfigsManager {
 
     public static int getInt(String name, int defaultValue){
         String s = get(name);
-        return s != null ? Integer.parseInt(s) : defaultValue;
+        return StringUtil.isNullOrEmpty(s) ? defaultValue : Integer.parseInt(s);
     }
 
     public static int getInt(String name){
@@ -72,5 +72,10 @@ public class ConfigsManager {
     public static boolean getBoolean(String name, boolean defaultValue){
         String s = get(name);
         return StringUtil.isNullOrEmpty(s) ? defaultValue : Boolean.parseBoolean(s);
+    }
+
+    public static long getLong(String name, long defaultValue) {
+        String s = get(name);
+        return StringUtil.isNullOrEmpty(s) ? defaultValue : Long.parseLong(s);
     }
 }
