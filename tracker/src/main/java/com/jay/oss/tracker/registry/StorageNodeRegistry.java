@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -42,5 +44,12 @@ public class StorageNodeRegistry {
     public List<StorageNodeInfo> selectUploadNode(String objectKey, long size, int replica) throws Exception {
         List<StorageNodeInfo> aliveNodes = registry.aliveNodes();
         return replicaSelector.select(aliveNodes, size, replica);
+    }
+
+    public List<StorageNodeInfo> balanceReplica(long size, int replicaCount, Set<String> excludedStorages) throws Exception {
+        List<StorageNodeInfo> candidates = registry.aliveNodes().stream()
+                .filter(node -> !excludedStorages.contains(node.getUrl()))
+                .collect(Collectors.toList());
+        return replicaSelector.select(candidates, size, replicaCount);
     }
 }
