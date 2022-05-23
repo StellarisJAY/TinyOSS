@@ -9,6 +9,7 @@ import com.jay.oss.common.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,16 +48,6 @@ public class ObjectTracker {
     }
 
     /**
-     * 定位object在哪些主机上
-     * @param objectKey objectKey
-     * @return Url String
-     */
-    public String locateObject(String objectKey){
-        ObjectMeta objectMeta = getObjectMeta(objectKey);
-        return objectMeta == null ? null : objectMeta.getLocations() + objectMeta.getObjectId();
-    }
-
-    /**
      * 读取object元数据
      * @param objectKey objectKey
      * @return {@link ObjectMeta}
@@ -67,11 +58,14 @@ public class ObjectTracker {
             if(object != null){
                 return object;
             }else{
-                byte[] serialized = metaStorage.get(objectKey);
-                if(serialized != null && serialized.length > 0){
-                    ObjectMeta meta = SerializeUtil.deserialize(serialized, ObjectMeta.class);
-                    cache.put(objectKey, meta);
-                    return meta;
+                String objectId = getObjectId(objectKey);
+                if (!StringUtil.isNullOrEmpty(objectId)) {
+                    byte[] serialized = metaStorage.get(objectId);
+                    if(serialized != null && serialized.length > 0){
+                        ObjectMeta meta = SerializeUtil.deserialize(serialized, ObjectMeta.class);
+                        cache.put(objectKey, meta);
+                        return meta;
+                    }
                 }
                 return null;
             }
@@ -81,41 +75,11 @@ public class ObjectTracker {
         }
     }
 
-    /**
-     * 保存object元数据
-     * @param meta {@link ObjectMeta}
-     * @return boolean 保存是否成功，如果是重复的key会导致返回false
-     */
-    public boolean putObjectMeta(String objectKey, ObjectMeta meta)  {
-        byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
-        return metaStorage.putIfAbsent(objectKey, serialized);
-    }
-
-    public boolean putObjectId(long objectId, String objectKey){
+    public ObjectMeta getObjectMetaById(Long objectId) {
         String id = Long.toString(objectId);
-        return metaStorage.putIfAbsent(id, StringUtil.getBytes(objectKey));
-    }
-
-    public ObjectMeta getMetaById(String objectId){
-        ObjectMeta meta = cache.getIfPresent(objectId);
-        if(meta != null){
-            return meta;
-        }
-        try{
-            byte[] objectKey = metaStorage.get(objectId);
-            if(objectKey != null){
-                return getObjectMeta(StringUtil.toString(objectKey));
-            }
-            return null;
-        }catch (Exception e){
-            return null;
-        }
-    }
-
-    public ObjectMeta deleteObjectMeta(String objectKey){
-        ObjectMeta meta = getObjectMeta(objectKey);
-        if(meta != null && metaStorage.delete(objectKey)){
-            return meta;
+        byte[] serialized = metaStorage.get(id);
+        if (serialized != null && serialized.length > 0) {
+            return SerializeUtil.deserialize(serialized, ObjectMeta.class);
         }
         return null;
     }
@@ -158,29 +122,6 @@ public class ObjectTracker {
             }
         }
         return false;
-    }
-
-    /**
-     * 获取object元数据
-     * @param objectKey objectKey
-     * @return {@link ObjectMeta}
-     */
-    public ObjectMeta getMeta(String objectKey){
-        ObjectMeta meta = cache.getIfPresent(objectKey);
-        if(meta != null){
-            return meta;
-        }
-        try{
-            String objectId = getObjectId(objectKey);
-            byte[] bytes = metaStorage.get(objectId);
-            if(bytes != null && bytes.length > 0){
-                meta = SerializeUtil.deserialize(bytes, ObjectMeta.class);
-                cache.put(objectKey, meta);
-            }
-            return meta;
-        }catch (Exception e){
-            return null;
-        }
     }
 
     /**
@@ -238,5 +179,9 @@ public class ObjectTracker {
      */
     public Set<String> getObjectReplicaLocations(long id){
         return objectLocations.get(id);
+    }
+
+    public Set<Long> listObjectIds() {
+        return objectLocations.keySet();
     }
 }
