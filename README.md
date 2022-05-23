@@ -1,19 +1,18 @@
 # TinyOSS 分布式对象存储系统
 
-![](https://images-1257369645.cos.ap-chengdu.myqcloud.com/TinyOSS/%E7%B3%BB%E7%BB%9F%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84.png)
 
 
+![](https://images-1257369645.cos.ap-chengdu.myqcloud.com/TinyOSS/%E5%85%A8%E8%83%BDTracker.png)
 
 ## 系统架构介绍
 
-采用中间控制节点架构，由中间服务器协调管理存储系统，系统默认的部署模式如上图所示。
+采用中间节点架构，由中间服务器协调管理存储系统，系统默认的部署模式如上图所示。
 
-- **Tracker**：中间控制节点，负责管理对象的元数据和存储桶权限等信息。
-- **Storage**：存储节点，存储对象数据。
-- **Proxy**：代理服务器，作为整个系统对外的接口。Proxy服务器是无状态的，可以通过Nginx做负载均衡。
-- **Zookeeper**：使用Zookeeper来管理Storage服务器，解除Tracker和Storage的耦合，避免Tracker管理大量的Storage服务器连接和心跳。
-- **MessageQueue**：Tracker和Storage之间有大量的消息通信，为了提高消息传递的稳定性和吞吐量，TinyOSS使用Kafka作消息队列。
-- **Prometheus**：监控服务，TinyOSS使用Prometheus来收集和保存存储服务器的运行指标，并在Proxy服务中提供了相关接口方便管理员用户访问。
+- **Tracker**：中间控制节点，负责管理对象的元数据和访问权限等信息。
+- **Storage**：存储节点，存储文件数据。
+- **Proxy**：代理服务器，作为整个系统对外的接口，对客户端提供HTTP接口，并屏蔽系统内部协议。Proxy服务器是无状态的，可横向扩展。
+- **Backup**：备份节点，备份Tracker元数据。目前未实现。
+- **Prometheus**：监控服务，TinyOSS使用Prometheus来收集和保存存储服务器的运行指标。
 
 ## Tracker服务
 
@@ -49,32 +48,9 @@ Bitcask的实现十分简单，同时它具有较好的单条记录写入和读�
 
 对于私有请求，用户需要通过SDK的Token工具，根据AccessKey和SecretKey生成访问Token，并在请求中携带Token。
 
-### Tracker缺陷
+### 心跳消息
 
-目前的Tracker是系统中唯一的单点，也就是整个系统最大的缺陷。为了避免单点的不可靠性，后续的更新会将Tracker联邦来达到高可用要求。
-
-### 全能Tracker部署
-
-上述的部署方案中，TinyOSS将分布式系统的服务注册发现、消息传递交给了Zookeeper和消息队列处理，这种方式能够减轻Tracker服务的压力，但是增加了部署的难度和成本。为了减少部署难度，TinyOSS还提供了一种全能Tracker的部署方式，也就是将服务注册发现和消息传递交还给Tracker处理。
-
-![](https://images-1257369645.cos.ap-chengdu.myqcloud.com/TinyOSS/%E5%85%A8%E8%83%BDTracker.png)
-
-全能Tracker与普通部署方式的区别如下：
-
-- 不使用Zookeeper负责服务注册发现，改用长连接和心跳实现。
-- 不使用消息队列在Tracker和Storage间传递消息，改为用心跳包传递消息。
-- Storage使用队列缓存消息，然后按照预定的速度消费。
-
-在配置文件中添加以下属性来开启全能Tracker
-
-```properties
-# 开启Tracker注册中心
-oss.tracker.enable-tracker-registry=true
-# 开启Tracker消息服务
-oss.tracker.enable-tracker-messaging=true
-```
-
-
+Tracker通过心跳与Storage交互，心跳消息包括Storage汇报保存的文件ID、Tracker命令Storage复制副本删除文件等。
 
 ## Storage服务
 
