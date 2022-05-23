@@ -26,6 +26,7 @@ import com.jay.oss.tracker.kafka.handler.StorageUploadCompleteHandler;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
 import com.jay.oss.tracker.remoting.TrackerCommandHandler;
+import com.jay.oss.tracker.replica.ReplicaBalancer;
 import com.jay.oss.tracker.replica.SpaceBalancedReplicaSelector;
 import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -53,6 +54,7 @@ public class Tracker extends AbstractLifeCycle {
     private final StorageTaskManager storageTaskManager;
     private final RecordProducer trackerProducer;
     private final RecordConsumer trackerConsumer;
+    private final ReplicaBalancer replicaBalancer;
     private final PrometheusServer prometheusServer;
 
     public Tracker(){
@@ -79,6 +81,8 @@ public class Tracker extends AbstractLifeCycle {
                 this.commandHandler = new TrackerCommandHandler(bucketManager, objectTracker, storageRegistry, trackerProducer,
                         null, storageTaskManager, commandFactory);
             }
+
+            this.replicaBalancer = new ReplicaBalancer(objectTracker, storageTaskManager, storageRegistry);
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
         }catch (Exception e){
@@ -100,7 +104,8 @@ public class Tracker extends AbstractLifeCycle {
         kvStorage.init();
         // 初始化远程注册中心客户端
         registry.init();
-
+        // 初始化副本平衡器
+        replicaBalancer.init();
         // 使用zookeeper注册中心时，需要初始化存储节点注册缓存
         if(!OssConfigs.enableTrackerRegistry()){
             storageRegistry.init();
@@ -119,7 +124,9 @@ public class Tracker extends AbstractLifeCycle {
         try{
             init();
             this.server.startup();
-            this.trackerConsumer.startup();
+            if(!OssConfigs.enableTrackerMessaging()){
+                this.trackerConsumer.startup();
+            }
             prometheusServer.startup();
             log.info("tracker started, time used: {}ms", (System.currentTimeMillis() - start));
         }catch (Exception e){
@@ -131,6 +138,10 @@ public class Tracker extends AbstractLifeCycle {
     public void shutdown() {
         super.shutdown();
         this.server.shutdown();
+        this.prometheusServer.shutdown();
+        if(!OssConfigs.enableTrackerMessaging()){
+            this.trackerConsumer.shutdown();
+        }
     }
 
     public static void main(String[] args) {

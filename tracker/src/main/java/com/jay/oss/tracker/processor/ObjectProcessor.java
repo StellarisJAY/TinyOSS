@@ -23,7 +23,6 @@ import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
-import javax.crypto.spec.PSource;
 import java.util.Set;
 
 /**
@@ -102,7 +101,6 @@ public class ObjectProcessor extends TrackerProcessor {
         }
         Set<String> locations = objectTracker.getObjectReplicaLocations(objectId);
         if(OssConfigs.enableTrackerMessaging()){
-//            String[] storages = meta.getLocations().split(";");
             DeleteTask task = new DeleteTask(0L, objectId);
             for (String location : locations) {
                 storageTaskManager.addDeleteTask(location, task);
@@ -143,24 +141,11 @@ public class ObjectProcessor extends TrackerProcessor {
         // 保存上传成功副本位置
         objectTracker.addObjectReplicaLocation(objectId, request.getSourceUrl());
         ReplicaTask task = new ReplicaTask(0, objectId, request.getSourceUrl());
+        // 通知其他storage服务复制副本
         for (String location : request.getTargetUrls()) {
             storageTaskManager.addReplicaTask(location, task);
         }
         return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
-//        ObjectMeta meta = objectTracker.getMetaById(Long.toString(objectId));
-//        if(meta != null){
-//            String[] locations = meta.getLocations().split(";");
-//            ReplicaTask replicaTask = new ReplicaTask(0, objectId, request.getSourceUrl());
-//            for (String location : locations) {
-//                if(!location.equals(request.getSourceUrl())){
-//                    storageTaskManager.addReplicaTask(location, replicaTask);
-//                }
-//            }
-//            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
-//        }
-//        else{
-//            return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
-//        }
     }
 
     /**

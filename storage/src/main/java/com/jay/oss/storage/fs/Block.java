@@ -384,12 +384,14 @@ public class Block {
                 }
                 indexBuffer.rewind();
             }
-            // 截断文件
-            fileChannel.truncate(writePosition);
-            log.info("Block {} compact finished, released space: {} KB, time used: {}ms", id, truncateLength/1024, (System.currentTimeMillis() - compactStartTime));
+            if(truncateLength > 0){
+                // 截断文件
+                fileChannel.truncate(writePosition);
+                log.info("Block {} compact finished, released space: {} KB, time used: {}ms", id, truncateLength/1024, (System.currentTimeMillis() - compactStartTime));
+            }
             return indexMap;
         } catch (Exception e) {
-            log.warn("Compact failed ", e);
+            log.warn("Compact Block {} failed: ", id, e);
             return null;
         }finally {
             if(readWriteLock.writeLock().isHeldByCurrentThread()){

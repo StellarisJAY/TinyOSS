@@ -21,10 +21,12 @@ import java.util.concurrent.Future;
  */
 @Slf4j
 public class RecordProducer {
-    private final KafkaProducer<String, String> producer;
+    private KafkaProducer<String, String> producer;
 
     public RecordProducer(){
-        this.producer = new KafkaProducer<>(getProperties(), new StringSerializer(), new StringSerializer());
+        if(!OssConfigs.enableTrackerMessaging()){
+            this.producer = new KafkaProducer<>(getProperties(), new StringSerializer(), new StringSerializer());
+        }
     }
 
     private Properties getProperties() {
