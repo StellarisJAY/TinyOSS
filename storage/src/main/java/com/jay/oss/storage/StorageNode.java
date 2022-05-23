@@ -153,7 +153,9 @@ public class StorageNode extends AbstractLifeCycle {
             // 启动storage服务器
             server.startup();
             // 启动消息订阅循环
-            storageNodeConsumer.startup();
+            if(!OssConfigs.enableTrackerMessaging()){
+                storageNodeConsumer.startup();
+            }
             // 启动Prometheus监控
             prometheusServer.startup();
             log.info("Storage Node started, time used: {} ms", (System.currentTimeMillis() - start));
@@ -166,7 +168,10 @@ public class StorageNode extends AbstractLifeCycle {
     public void shutdown() {
         super.shutdown();
         server.shutdown();
-        storageNodeConsumer.shutdown();
+        prometheusServer.shutdown();
+        if(!OssConfigs.enableTrackerMessaging()){
+            storageNodeConsumer.shutdown();
+        }
     }
 
     public static void main(String[] args) {
