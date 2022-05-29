@@ -383,6 +383,10 @@ public class Block {
                     break;
                 }
                 indexBuffer.rewind();
+                // 释放buffer，避免内存泄漏
+                if(contentBuffer.refCnt() > 0){
+                    contentBuffer.release(contentBuffer.refCnt());
+                }
             }
             if(truncateLength > 0){
                 // 截断文件
