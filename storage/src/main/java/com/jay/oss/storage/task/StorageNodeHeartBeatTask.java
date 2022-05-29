@@ -10,6 +10,7 @@ import com.jay.oss.common.util.NodeInfoCollector;
 import com.jay.oss.storage.fs.ObjectIndexManager;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.ConnectException;
 import java.util.List;
 import java.util.Optional;
 import java.util.StringJoiner;
@@ -46,11 +47,15 @@ public class StorageNodeHeartBeatTask implements Runnable{
             if(OssConfigs.enableTrackerRegistry() && OssConfigs.enableTrackerMessaging()){
                 // 心跳消息模式下，使用心跳将对象列表发送出去
                 nodeInfo.setStoredObjects(storedObjects);
-                Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
-                        .ifPresent(response->{
-                            storageTaskManager.addReplicaTasks(response.getReplicaTasks());
-                            storageTaskManager.addDeleteTask(response.getDeleteTasks());
-                        });
+                try{
+                    Optional.ofNullable(registry.trackerHeartBeat(nodeInfo))
+                            .ifPresent(response->{
+                                storageTaskManager.addReplicaTasks(response.getReplicaTasks());
+                                storageTaskManager.addDeleteTask(response.getDeleteTasks());
+                            });
+                }catch (ConnectException e){
+                    log.warn("Can't reach tracker server at: {}", OssConfigs.trackerServerUrl());
+                }
             }else{
                 // 使用zookeeper更新storage节点状态
                 registry.update(nodeInfo);
