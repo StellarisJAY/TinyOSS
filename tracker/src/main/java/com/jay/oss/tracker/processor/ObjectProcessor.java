@@ -106,8 +106,11 @@ public class ObjectProcessor extends TrackerProcessor {
                 storageTaskManager.addDeleteTask(location, task);
             }
         }else{
-            // 发送删除object消息，由Storage收到消息后异步删除object数据
-            trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC, Long.toString(objectId), Long.toString(objectId));
+            for (String location : locations) {
+                String topicSuffix = "_" + location.replace(":", "_");
+                // 发送删除object消息，由Storage收到消息后异步删除object数据
+                trackerProducer.send(OssConstants.DELETE_OBJECT_TOPIC + topicSuffix, Long.toString(objectId), Long.toString(objectId));
+            }
         }
         return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
     }
