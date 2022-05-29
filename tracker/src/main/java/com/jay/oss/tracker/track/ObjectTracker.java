@@ -38,6 +38,8 @@ public class ObjectTracker {
      * 对象位置缓存
      */
     private final Map<Long, Set<String>> objectLocations = new ConcurrentHashMap<>(256);
+
+    private final Map<String, List<Long>> storageObjects = new ConcurrentHashMap<>(256);
     /**
      * 元数据磁盘存储
      */
@@ -160,16 +162,15 @@ public class ObjectTracker {
         });
     }
 
+
     /**
-     * 删除object副本位置
-     * @param objectId objectID
-     * @param location 副本地址
+     * 记录一个storage服务汇报的所有文件列表
+     * @param location storage服务地址
+     * @param objects 对象id列表
      */
-    public void deleteObjectReplicaLocation(long objectId, String location){
-        objectLocations.computeIfPresent(objectId, (k,v)->{
-            v.remove(location);
-            return v;
-        });
+    public void addObjectReplicasLocation(String location, List<Long> objects) {
+        storageObjects.put(location, objects);
+        objects.forEach(id->addObjectReplicaLocation(id, location));
     }
 
     /**
@@ -183,5 +184,22 @@ public class ObjectTracker {
 
     public Set<Long> listObjectIds() {
         return objectLocations.keySet();
+    }
+
+
+    /**
+     * StorageNode下线，删除它保存的文件副本记录
+     * @param address storage地址
+     */
+    public void onStorageNodeOffline(String address) {
+        storageObjects.computeIfPresent(address, (k,v)->{
+            for (Long id : v) {
+                objectLocations.computeIfPresent(id, (k1,v1)->{
+                    v1.remove(address);
+                    return v1;
+                });
+            }
+            return v;
+        });
     }
 }

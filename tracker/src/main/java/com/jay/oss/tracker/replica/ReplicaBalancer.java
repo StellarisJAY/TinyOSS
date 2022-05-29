@@ -65,7 +65,7 @@ public class ReplicaBalancer {
                         ReplicaTask replicaTask = new ReplicaTask(0L, id, srcLocation);
                         targetStorages.forEach(node-> taskManager.addReplicaTask(node.getUrl(), replicaTask));
                     }catch (Exception e) {
-                        log.warn("Replica balance error ", e);
+                        log.warn("Re-balance replica task failed for: {}, no enough storage nodes", id);
                     }
                 }
             }
