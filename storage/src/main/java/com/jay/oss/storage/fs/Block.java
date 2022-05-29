@@ -383,10 +383,16 @@ public class Block {
                     break;
                 }
                 indexBuffer.rewind();
+                // 释放buffer，避免内存泄漏
+                if(contentBuffer.refCnt() > 0){
+                    contentBuffer.release(contentBuffer.refCnt());
+                }
             }
             if(truncateLength > 0){
                 // 截断文件
                 fileChannel.truncate(writePosition);
+                // 重置写入偏移
+                size.set(writePosition);
                 log.info("Block {} compact finished, released space: {} KB, time used: {}ms", id, truncateLength/1024, (System.currentTimeMillis() - compactStartTime));
             }
             return indexMap;

@@ -20,6 +20,7 @@ import io.netty.util.Attribute;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -72,7 +73,8 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
             // 从storage汇报的对象中筛选出被删除的对象，然后包装成删除任务
             List<DeleteTask> deleteTasks = storageNodeInfo.getStoredObjects()
                     .stream()
-                    .filter(objectTracker::isObjectDeleted).map(id -> new DeleteTask(0L, id))
+                    .filter(objectTracker::isObjectDeleted)
+                    .map(id -> new DeleteTask(0L, id))
                     .collect(Collectors.toList());
             // 添加到删除任务队列
             storageTaskManager.addDeleteTasks(storageNodeInfo.getUrl(), deleteTasks);
@@ -97,8 +99,14 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
             log.info("Storage node online: {}", storageNodeInfo.getUrl());
         }
         List<Long> storedObjects = storageNodeInfo.getStoredObjects();
-        // 记录objects副本位置
-        saveObjectReplicaLocations(storedObjects, storageNodeInfo.getUrl());
+        if(storedObjects != null && !storedObjects.isEmpty()){
+            Map<Boolean, List<Long>> objectMap = storedObjects.stream()
+                    .collect(Collectors.partitioningBy(objectTracker::isObjectDeleted));
+            // 发布删除任务
+            storageTaskManager.addDeleteTasks(objectMap.get(true), storageNodeInfo.getUrl());
+            // 保存没被删除对象的位置
+            saveObjectReplicaLocations(objectMap.get(false), storageNodeInfo.getUrl());
+        }
         // 绑定channel
         bindStorageNodeWithChannel(context.channel(), storageNodeInfo);
         // 从任务队列获取副本复制和删除任务

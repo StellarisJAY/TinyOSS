@@ -125,9 +125,10 @@ public class StorageNode extends AbstractLifeCycle {
         registerPrometheusGauge();
 
         if(!OssConfigs.enableTrackerMessaging()){
+            String topicSuffix = "_" + NodeInfoCollector.getAddress().replace(":", "_");
             // 非全能Tracker模式下，订阅消息主题
-            storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC, new DeleteHandler(objectIndexManager, blockManager));
-            storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + "_" + NodeInfoCollector.getAddress().replace(":", "_"), new ReplicaHandler(client, objectIndexManager, blockManager));
+            storageNodeConsumer.subscribeTopic(OssConstants.DELETE_OBJECT_TOPIC + topicSuffix, new DeleteHandler(objectIndexManager, blockManager));
+            storageNodeConsumer.subscribeTopic(OssConstants.REPLICA_TOPIC + topicSuffix, new ReplicaHandler(client, objectIndexManager, blockManager));
             StringJoiner idJoiner = new StringJoiner(";");
             storedObjects.forEach(id->{
                 idJoiner.add(Long.toString(id));

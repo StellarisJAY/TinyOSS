@@ -82,7 +82,7 @@ public class Tracker extends AbstractLifeCycle {
                         null, storageTaskManager, commandFactory);
             }
 
-            this.replicaBalancer = new ReplicaBalancer(objectTracker, storageTaskManager, storageRegistry);
+            this.replicaBalancer = new ReplicaBalancer(objectTracker, storageTaskManager, storageRegistry, trackerProducer);
             this.server = new DoveServer(new TinyOssCodec(), port, commandFactory);
             this.prometheusServer = new PrometheusServer();
         }catch (Exception e){
