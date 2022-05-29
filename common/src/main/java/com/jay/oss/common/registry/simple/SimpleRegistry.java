@@ -116,8 +116,13 @@ public class SimpleRegistry implements Registry {
         storageNodes.put(storageNodeInfo.getUrl(), storageNodeInfo);
     }
 
-    public void updateStorageNode(StorageNodeInfo storageNodeInfo){
-        storageNodes.put(storageNodeInfo.getUrl(), storageNodeInfo);
+    /**
+     * 更新storageNode信息，返回是否是新增节点
+     * @param storageNodeInfo {@link StorageNodeInfo}
+     * @return boolean 是否是新增节点
+     */
+    public boolean updateStorageNode(StorageNodeInfo storageNodeInfo){
+        return storageNodes.put(storageNodeInfo.getUrl(), storageNodeInfo) == null;
     }
 
     public void setStorageNodeOffline(String url){

@@ -35,8 +35,7 @@ public class StorageReportHandler implements RecordHandler {
                 // 从objects中过滤出被删除的对象，并向所有Storage节点发送删除消息
                 List<Long> ids = Arrays.stream(objectIds)
                         .map(Long::parseLong).collect(Collectors.toList());
-                // 记录对象副本位置
-                ids.forEach(id->objectTracker.addObjectReplicaLocation(id, address));
+                objectTracker.addObjectReplicasLocation(address, ids);
             }
         }
     }

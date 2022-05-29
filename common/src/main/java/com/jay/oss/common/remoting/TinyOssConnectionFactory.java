@@ -13,6 +13,6 @@ import com.jay.dove.transport.connection.ConnectEventHandler;
  */
 public class TinyOssConnectionFactory extends AbstractConnectionFactory {
     public TinyOssConnectionFactory() {
-        super(new TinyOssCodec(), TinyOssProtocol.PROTOCOL_CODE, new ConnectEventHandler());
+        super(new TinyOssCodec(), TinyOssProtocol.PROTOCOL_CODE);
     }
 }

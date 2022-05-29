@@ -28,11 +28,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class TrackerCommandHandler extends AbstractCommandHandler {
     private final SimpleRegistry simpleRegistry;
+    private final ObjectTracker objectTracker;
     public TrackerCommandHandler(BucketManager bucketManager, ObjectTracker objectTracker, StorageNodeRegistry storageRegistry,
                                  RecordProducer trackerProducer, SimpleRegistry simpleRegistry, StorageTaskManager storageTaskManager,
                                  CommandFactory commandFactory) {
         super(commandFactory);
         this.simpleRegistry = simpleRegistry;
+        this.objectTracker = objectTracker;
         BucketProcessor bucketProcessor = new BucketProcessor(bucketManager, commandFactory);
         ObjectProcessor objectProcessor = new ObjectProcessor(bucketManager, objectTracker, trackerProducer, commandFactory, storageTaskManager);
         PutObjectMetaProcessor putObjectMetaProcessor = new PutObjectMetaProcessor(commandFactory, bucketManager, storageRegistry, objectTracker);
@@ -62,6 +64,7 @@ public class TrackerCommandHandler extends AbstractCommandHandler {
         Attribute<String> attr = channelHandlerContext.channel().attr(SimpleRegistry.STORAGE_NODE_ATTR);
         if(attr.get() != null && simpleRegistry != null){
             simpleRegistry.setStorageNodeOffline(attr.get());
+            objectTracker.onStorageNodeOffline(attr.get());
             log.info("Storage node offline: {}", attr.get());
         }
     }

@@ -93,7 +93,9 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
      */
     private void processHeartbeat(ChannelHandlerContext context, TinyOssCommand command){
         StorageNodeInfo storageNodeInfo = SerializeUtil.deserialize(command.getContent(), StorageNodeInfo.class);
-        simpleRegistry.updateStorageNode(storageNodeInfo);
+        if(simpleRegistry.updateStorageNode(storageNodeInfo)){
+            log.info("Storage node online: {}", storageNodeInfo.getUrl());
+        }
         List<Long> storedObjects = storageNodeInfo.getStoredObjects();
         // 记录objects副本位置
         saveObjectReplicaLocations(storedObjects, storageNodeInfo.getUrl());
@@ -130,9 +132,7 @@ public class SimpleRegistryProcessor extends AbstractProcessor {
      */
     private void saveObjectReplicaLocations(List<Long> storedObjects, String location){
         if(storedObjects != null && !storedObjects.isEmpty()){
-            for (Long objectId : storedObjects) {
-                objectTracker.addObjectReplicaLocation(objectId, location);
-            }
+            objectTracker.addObjectReplicasLocation(location, storedObjects);
         }
     }
 }

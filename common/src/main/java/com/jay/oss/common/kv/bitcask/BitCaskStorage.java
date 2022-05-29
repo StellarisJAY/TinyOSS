@@ -315,9 +315,9 @@ public class BitCaskStorage implements KvStorage {
         if(!file.exists() && !file.createNewFile()){
             throw new RuntimeException("Generate Hint File failed");
         }
-        FileOutputStream outputStream = new FileOutputStream(file);
-        FileChannel channel = outputStream.getChannel();
-        try{
+        // 写入hint文件
+        try(FileOutputStream outputStream = new FileOutputStream(file);
+            FileChannel channel = outputStream.getChannel()){
             buffer.readBytes(channel, channel.size(), buffer.readableBytes());
         }catch (IOException e){
             log.warn("Generate Hint File Failed ", e);
