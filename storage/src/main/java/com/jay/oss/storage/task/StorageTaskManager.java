@@ -127,7 +127,7 @@ public class StorageTaskManager {
                 long objectId = task.getObjectId();
                 ObjectIndex index = objectIndexManager.getObjectIndex(objectId);
                 Block block;
-                if(index != null && (block = blockManager.getBlockById(index.getBlockId())) != null){
+                if(index != null && !index.isRemoved() && (block = blockManager.getBlockById(index.getBlockId())) != null){
                     if(block.delete(objectId, index.getOffset())){
                         index.setRemoved(true);
                         count++;

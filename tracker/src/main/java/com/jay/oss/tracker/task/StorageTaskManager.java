@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -33,8 +34,18 @@ public class StorageTaskManager {
     }
 
     public void addDeleteTasks(String storageNode, List<DeleteTask> tasks){
-        deleteTaskQueues.computeIfAbsent(storageNode, key->new LinkedBlockingQueue<>());
-        deleteTaskQueues.get(storageNode).addAll(tasks);
+        if(tasks != null && !tasks.isEmpty()){
+            deleteTaskQueues.computeIfAbsent(storageNode, key->new LinkedBlockingQueue<>());
+            deleteTaskQueues.get(storageNode).addAll(tasks);
+        }
+    }
+
+    public void addDeleteTasks(List<Long> objects, String storageNode) {
+        if(objects != null && !objects.isEmpty()){
+            deleteTaskQueues.putIfAbsent(storageNode, new LinkedBlockingQueue<>());
+            List<DeleteTask> tasks = objects.stream().map(id -> new DeleteTask(0, id)).collect(Collectors.toList());
+            addDeleteTasks(storageNode, tasks);
+        }
     }
 
     /**
