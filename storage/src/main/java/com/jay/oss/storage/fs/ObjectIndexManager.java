@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -36,6 +37,10 @@ public class ObjectIndexManager {
     }
 
     public List<Long> listObjectIds(){
-        return new ArrayList<>(indexCache.keySet());
+        // 返回没被标记删除的id
+        return indexCache.entrySet().stream()
+                .filter(entry -> !entry.getValue().isRemoved())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 }
