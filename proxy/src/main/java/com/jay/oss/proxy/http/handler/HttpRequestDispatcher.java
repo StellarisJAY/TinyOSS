@@ -28,6 +28,14 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
      * request 处理线程池
      */
     private final ExecutorService executor;
+
+    /**
+     * 存储桶名称路径，英文字母和数字组成，至少三个字符，第一个字符只能是英文字母。
+     */
+    private static final String BUCKET_OPT_PATTERN = "/[A-Z a-z][a-z A-Z 0-9][a-z A-Z 0-9][a-z A-Z 0-9]*";
+
+    private static final String OBJECT_OPT_PATTERN = BUCKET_OPT_PATTERN + "-[0-9]*/[A-Z a-z][a-z A-Z 0-9][a-z A-Z 0-9][a-z A-Z 0-9 .]*";
+
     public HttpRequestDispatcher(ExecutorService executor) {
         this.executor = executor;
     }
@@ -41,12 +49,18 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
             if(handler == null){
                 // handler不存在，BAD_REQUEST
                 response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.BAD_REQUEST);
+                ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
             }else{
                 OssHttpRequest httpRequest = new OssHttpRequest(request);
-                // 调用处理器方法
-                response = handler.handle(ctx, httpRequest);
+                // 业务线程池处理请求
+                Runnable runnable = ()->{
+                    // 调用处理器方法
+                    FullHttpResponse resp = handler.handle(ctx, httpRequest);
+                    ctx.channel().writeAndFlush(resp).addListener(ChannelFutureListener.CLOSE);
+                };
+                executor.execute(runnable);
             }
-            ctx.channel().writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+
         }
     }
 
@@ -55,18 +69,16 @@ public class HttpRequestDispatcher extends ChannelInboundHandlerAdapter {
         int idx = uri.indexOf("?");
         String path;
         if(idx != -1){
-            path = uri.substring(1, idx);
+            path = uri.substring(0, idx);
         }else{
-            path = uri.substring(1);
+            path = uri;
         }
-        HttpHeaders headers = request.headers();
-        if(!StringUtil.isNullOrEmpty(path)){
-            if(path.startsWith("admin")){
-                return HandlerMapping.getHandler("admin");
-            }else{
-                return HandlerMapping.getHandler("object");
-            }
+        if(path.matches(BUCKET_OPT_PATTERN)){
+            return HandlerMapping.getHandler("bucket");
+        }else if(path.matches(OBJECT_OPT_PATTERN)){
+            return HandlerMapping.getHandler("object");
+        }else{
+            return null;
         }
-        return HandlerMapping.getHandler("bucket");
     }
 }
