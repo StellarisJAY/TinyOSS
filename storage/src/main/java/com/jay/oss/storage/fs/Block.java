@@ -14,6 +14,7 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -73,6 +74,8 @@ public class Block {
     private static final int DELETE_MARK = -1;
 
     private static final long COMPACT_WAIT_TIME = 1000;
+
+    private AtomicBoolean needsCompact = new AtomicBoolean(false);
 
     public Block(int blockId){
         this.readWriteLock = new ReentrantReadWriteLock();
@@ -192,8 +195,10 @@ public class Block {
 
     private ObjectIndex fileChannelWrite(long objectId, ByteBuf src, int length){
         try{
+            // lock
             readWriteLock.writeLock().lock();
             int lengthWithIndex = length + INDEX_LENGTH;
+            // get offset
             int offset0 = size.getAndAdd(lengthWithIndex);
             ByteBuf header = Unpooled.buffer(INDEX_LENGTH);
             header.writeLong(objectId);
@@ -239,6 +244,7 @@ public class Block {
                 slice.position(slice.position() + 4);
                 slice.putInt(DELETE_MARK);
             }
+            needsCompact.set(true);
             return true;
         }catch (Exception e){
             log.warn("Delete object in block failed, objectId: {}, offset: {}",objectId, offset, e);
@@ -259,6 +265,7 @@ public class Block {
                 buffer.putInt(DELETE_MARK);
                 buffer.rewind();
                 fileChannel.write(buffer, offset);
+                needsCompact.set(true);
             }else{
                 return false;
             }
@@ -338,7 +345,7 @@ public class Block {
     public Map<Long, ObjectIndex> compact(){
         try{
             // 尝试加排他锁，如果竞争超时，则视为当前block繁忙，目前不进行压缩
-            if(!readWriteLock.writeLock().tryLock(COMPACT_WAIT_TIME, TimeUnit.MILLISECONDS)){
+            if(!readWriteLock.writeLock().tryLock(COMPACT_WAIT_TIME, TimeUnit.MILLISECONDS) && needsCompact.get()){
                 return null;
             }
             Map<Long, ObjectIndex> indexMap = new HashMap<>(16);
@@ -383,10 +390,7 @@ public class Block {
                     break;
                 }
                 indexBuffer.rewind();
-                // 释放buffer，避免内存泄漏
-                if(contentBuffer.refCnt() > 0){
-                    contentBuffer.release(contentBuffer.refCnt());
-                }
+
             }
             if(truncateLength > 0){
                 // 截断文件
@@ -395,6 +399,11 @@ public class Block {
                 size.set(writePosition);
                 log.info("Block {} compact finished, released space: {} KB, time used: {}ms", id, truncateLength/1024, (System.currentTimeMillis() - compactStartTime));
             }
+            // 释放buffer，避免内存泄漏
+            if(contentBuffer.refCnt() > 0){
+                contentBuffer.release(contentBuffer.refCnt());
+            }
+            needsCompact.set(false);
             return indexMap;
         } catch (Exception e) {
             log.warn("Compact Block {} failed: ", id, e);
