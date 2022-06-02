@@ -24,6 +24,9 @@ public class OssHttpRequest {
     private final String path;
     private final HttpHeaders headers;
 
+    private String bucket;
+    private String objectKey;
+
     public OssHttpRequest(FullHttpRequest originalRequest) {
         this.originalRequest = originalRequest;
         String uri = originalRequest.uri();
@@ -35,6 +38,13 @@ public class OssHttpRequest {
             path = uri.substring(1, i);
         }
         this.headers = originalRequest.headers();
+        String[] split = path.split("/");
+        if(split.length >= 1) {
+            this.bucket = split[0];
+        }
+        if(split.length >= 2) {
+            this.objectKey = split[1];
+        }
     }
 
     public String host(){
@@ -82,6 +92,10 @@ public class OssHttpRequest {
     }
 
     public String getBucket(){
-        return headers.get("Bucket");
+        return bucket;
+    }
+
+    public String getObjectKey() {
+        return objectKey;
     }
 }

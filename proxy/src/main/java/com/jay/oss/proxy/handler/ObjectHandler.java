@@ -41,7 +41,7 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
     public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
         String auth = request.authorization();
         String bucket = request.getBucket();
-        String key = request.getPath();
+        String key = request.getObjectKey();
         String md5 = request.contentMd5() == null ? "" : request.contentMd5();
         ByteBuf content = request.content();
         try{
@@ -54,9 +54,9 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
 
     @Override
     public FullHttpResponse handleGet(ChannelHandlerContext context, OssHttpRequest request)  {
-        String key = request.getPath();
-        String token = request.authorization();
         String bucket = request.getBucket();
+        String key = request.getObjectKey();
+        String token = request.authorization();
         String range = request.range();
         int startByte = 0;
         int endByte = -1;
@@ -84,9 +84,9 @@ public class ObjectHandler extends AbstractHttpRequestHandler {
 
     @Override
     public FullHttpResponse handleDelete(ChannelHandlerContext context, OssHttpRequest request)  {
-        String key = request.getPath();
-        String token = request.authorization();
         String bucket = request.getBucket();
+        String key = request.getObjectKey();
+        String token = request.authorization();
         return objectService.deleteObject(key, bucket,request.getParameter(HttpConstants.VERSION_ID), token);
     }
 

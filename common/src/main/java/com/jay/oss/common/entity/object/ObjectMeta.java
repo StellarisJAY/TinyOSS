@@ -21,13 +21,10 @@ import java.util.List;
 @Setter
 @ToString
 public class ObjectMeta implements Serializable {
-    private String objectKey;
     private long objectId;
     private String versionId;
     private Long size;
     private Long createTime;
     private String md5;
     private String fileName;
-
-    private String locations;
 }

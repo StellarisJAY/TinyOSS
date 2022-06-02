@@ -60,34 +60,25 @@ public class PutObjectMetaProcessor extends TrackerProcessor{
         }
         try{
             // 选择上传点
-            List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(objectKey, size, OssConfigs.replicaCount());
+            List<StorageNodeInfo> nodes = storageRegistry.selectUploadNode(size, OssConfigs.replicaCount());
             List<String> urls = nodes.stream().map(StorageNodeInfo::getUrl).collect(Collectors.toList());
+            // 创建元数据
             ObjectMeta meta = ObjectMeta.builder()
                     .objectId(objectIdGenerator.nextId()).fileName(request.getFilename())
-                    .md5(request.getMd5()).objectKey(request.getKey())
+                    .md5(request.getMd5())
                     .size(size).createTime(request.getCreateTime())
                     .versionId(versionId)
                     .build();
             // 保存元数据
             if(objectTracker.putMeta(objectKey, meta)){
-//                urls = urls + meta.getObjectId() + ";" +  versionId;
                 PutObjectMetaResponse putResp = new PutObjectMetaResponse(meta.getObjectId(), urls, versionId);
                 response = commandFactory.createResponse(command.getId(), putResp, PutObjectMetaResponse.class, TinyOssProtocol.SUCCESS);
             }else{
                 // object key 重复
                 response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
             }
-//            // 保存object位置，判断object是否已经存在
-//            if(objectTracker.putObjectMeta(objectKey, meta) && objectTracker.putObjectId(meta.getObjectId(), objectKey)){
-//                bucketManager.putObject(bucket, objectKey);
-//                urls = urls + meta.getObjectId() + ";" +  versionId;
-//                response = commandFactory.createResponse(command.getId(), urls, TinyOssProtocol.SUCCESS);
-//            }else{
-//                // object key 重复
-//                response =commandFactory.createResponse(command.getId(), "", TinyOssProtocol.DUPLICATE_OBJECT_KEY);
-//            }
         }catch (Exception e){
-            log.error("bucket put object error ", e);
+            log.warn("No enough storage node for: {} ", objectKey,  e);
             response = commandFactory
                     .createResponse(command.getId(), e.getMessage(), TinyOssProtocol.NO_ENOUGH_STORAGES);
         }

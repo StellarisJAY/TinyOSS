@@ -32,7 +32,6 @@ public class BucketHandler extends AbstractHttpRequestHandler {
     public FullHttpResponse handlePut(ChannelHandlerContext context, OssHttpRequest request)  {
         String bucket = request.getBucket();
         String acl = request.acl();
-
         if(StringUtil.isNullOrEmpty(acl)){
             acl = "private";
         }

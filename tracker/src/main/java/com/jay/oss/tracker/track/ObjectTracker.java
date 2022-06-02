@@ -116,7 +116,9 @@ public class ObjectTracker {
     public boolean putMeta(String objectKey, ObjectMeta meta){
         byte[] serialized = SerializeUtil.serialize(meta, ObjectMeta.class);
         String id = Long.toString(meta.getObjectId());
+        // 保存objectKey与objectId映射
         if(metaStorage.putIfAbsent(objectKey, StringUtil.getBytes(id))){
+            // 保存id与元数据映射
             if(metaStorage.put(id, serialized)){
                 return true;
             }else{
@@ -134,19 +136,10 @@ public class ObjectTracker {
     public Long deleteMeta(String objectKey){
         cache.invalidate(objectKey);
         String objectId = getObjectId(objectKey);
-        if(objectId != null && metaStorage.delete(objectId)){
+        if(objectId != null && metaStorage.delete(objectKey) && metaStorage.delete(objectId)){
             return Long.parseLong(objectId);
         }
         return null;
-    }
-
-    /**
-     * 定位object的replica在哪些存储服务器上
-     * @param objectId objectID
-     * @return {@link Set} {@link String} 存储服务地址
-     */
-    public Set<String> locateObject(Long objectId){
-        return objectLocations.get(objectId);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.jay.oss.proxy.http;
 import com.jay.dove.common.AbstractLifeCycle;
 import com.jay.dove.util.NamedThreadFactory;
 import com.jay.oss.common.config.OssConfigs;
+import com.jay.oss.common.util.ThreadPoolUtil;
 import com.jay.oss.proxy.http.handler.HttpRequestDispatcher;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -33,12 +34,8 @@ public class HttpServer extends AbstractLifeCycle {
     /**
      * 请求处理线程池，避免使用IO线程处理请求
      */
-    private final ExecutorService handlerExecutor =
-            new ThreadPoolExecutor(2 * Runtime.getRuntime().availableProcessors(),
-            2 * Runtime.getRuntime().availableProcessors(),
-            0, TimeUnit.MILLISECONDS,
-                    new LinkedBlockingQueue<>(),
-                    new NamedThreadFactory("handler-executor", true));
+    private final ExecutorService handlerExecutor = ThreadPoolUtil.newIoThreadPool("handler-executor-");
+
     private ServerBootstrap bootstrap;
     @Override
     public void startup() {
