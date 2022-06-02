@@ -68,6 +68,7 @@ public class UploadService {
             return HttpUtil.errorResponse(code);
         }else {
             PutObjectMetaResponse resp = SerializeUtil.deserialize(bucketResponse.getContent(), PutObjectMetaResponse.class);
+            // 向storage上传
             if(doUpload(resp.getLocations(), content, (int)size, resp.getObjectId())){
                 Result result = new Result().message("Success")
                         .putData("versionId", resp.getVersionId());
@@ -93,6 +94,7 @@ public class UploadService {
         // 需要写入成功的数量
         int writeCount = 1;
         ByteBuf buffer = Unpooled.buffer();
+        // 上传请求的数据部分包括ID、大小和实际数据
         buffer.writeLong(objectId);
         buffer.writeLong(size);
         buffer.writeBytes(content);
@@ -106,8 +108,10 @@ public class UploadService {
             Url url = Url.parseString(urlStr);
             try{
                 buffer.markWriterIndex();
+                // 携带其他目标服务器
                 StringJoiner joiner = new StringJoiner(";");
                 urlQueue.forEach(joiner::add);
+                // 上传请求写入备份服务器地址
                 buffer.writeBytes(StringUtil.getBytes(joiner.toString()));
                 buffer.markReaderIndex();
                 buffer.retain();

@@ -13,7 +13,6 @@ import com.jay.oss.tracker.task.StorageTaskManager;
 import com.jay.oss.tracker.track.ObjectTracker;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -53,9 +52,11 @@ public class ReplicaBalancer {
             2. 检测哪些文件的副本数量大于要求的副本数量，向多余的storage发布删除任务
          */
         Runnable task = ()->{
+            // 列出所有没被删除的对象
             Set<Long> objectIds = objectTracker.listObjectIds();
             int requiredReplicas = OssConfigs.replicaCount();
             for (Long id : objectIds) {
+                // 获取该对象的所有副本位置
                 Set<String> locations = objectTracker.getObjectReplicaLocations(id);
                 if (locations == null || locations.isEmpty()){
                     log.warn("No Replicas found for object: {}", id);
