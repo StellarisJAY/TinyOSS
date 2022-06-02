@@ -159,10 +159,10 @@ public class BitCaskStorage implements KvStorage {
      */
     @Override
     public boolean putIfAbsent(String key, byte[] value)  {
-        if(!indexCache.containsKey(key)){
+        if(!containsKey(key)){
             synchronized (activeChunkLock){
                 try{
-                    if(!indexCache.containsKey(key)){
+                    if(!containsKey(key)){
                         ensureActiveChunk(key, value);
                         byte[] keyBytes = StringUtil.getBytes(key);
                         int offset = activeChunk.writeMmap(keyBytes, value);
