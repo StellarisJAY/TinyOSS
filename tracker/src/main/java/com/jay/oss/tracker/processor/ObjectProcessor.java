@@ -128,7 +128,7 @@ public class ObjectProcessor extends TrackerProcessor {
         if(objectMeta == null){
             return commandFactory.createResponse(command.getId(), "", TinyOssProtocol.OBJECT_NOT_FOUND);
         }else{
-            byte[] content = SerializeUtil.serialize(getObjectVO(objectMeta), ObjectVO.class);
+            byte[] content = SerializeUtil.serialize(getObjectVO(objectKey,objectMeta), ObjectVO.class);
             return commandFactory.createResponse(command.getId(), content, TinyOssProtocol.SUCCESS);
         }
     }
@@ -153,12 +153,13 @@ public class ObjectProcessor extends TrackerProcessor {
 
     /**
      * object元数据转换成VO
+     * @param objectKey object key
      * @param meta {@link ObjectMeta}
      * @return {@link ObjectVO}
      */
-    private ObjectVO getObjectVO(ObjectMeta meta){
-        return ObjectVO.builder()
-                .objectKey(meta.getObjectKey()).fileName(meta.getFileName())
+    private ObjectVO getObjectVO(String objectKey, ObjectMeta meta){
+        return ObjectVO.builder().fileName(meta.getFileName())
+                .objectKey(objectKey)
                 .createTime(meta.getCreateTime()).md5(meta.getMd5())
                 .versionId(meta.getVersionId())
                 .size(meta.getSize())
