@@ -5,9 +5,10 @@ import com.jay.oss.common.registry.StorageNodeInfo;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.Enumeration;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>
@@ -21,10 +22,8 @@ public class NodeInfoCollector {
 
     private static String ip = null;
     private static String localAddress = null;
-    private static int port;
 
-    public static StorageNodeInfo getStorageNodeInfo(int port) throws Exception {
-        NodeInfoCollector.port = port;
+    public static StorageNodeInfo getStorageNodeInfo(int port) {
         String path = OssConfigs.dataPath();
         File dir = new File(path);
         long usedSpace = FileUtils.sizeOfDirectory(dir);
@@ -53,7 +52,7 @@ public class NodeInfoCollector {
                         for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
                             InetAddress inetAddress = enumIpAddr.nextElement();
                             if (!inetAddress.isLoopbackAddress()) {
-                                String ipaddress = inetAddress.getHostAddress().toString();
+                                String ipaddress = inetAddress.getHostAddress();
                                 if (!ipaddress.contains("::") && !ipaddress.contains("0:0:") && !ipaddress.contains("fe80")) {
                                     ip = ipaddress;
                                 }
