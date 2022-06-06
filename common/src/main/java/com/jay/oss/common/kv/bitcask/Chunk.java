@@ -30,6 +30,7 @@ public class Chunk {
     private final int chunkId;
     private int size;
     public static final int MAX_DATA_SIZE = 1024 * 1024 * 64;
+    private final RandomAccessFile rf;
     private final FileChannel activeChannel;
     private final MappedByteBuffer mappedByteBuffer;
     private static final AtomicInteger ID_PROVIDER = new AtomicInteger(0);
@@ -67,7 +68,7 @@ public class Chunk {
             int size = (int)file.length();
             RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
             FileChannel channel = randomAccessFile.getChannel();
-            return new Chunk(chunkId, size, channel);
+            return new Chunk(chunkId, size, randomAccessFile, channel);
         }
         return null;
     }
@@ -77,14 +78,15 @@ public class Chunk {
         String path = OssConfigs.dataPath() + BitCaskStorage.CHUNK_DIRECTORY + File.separator + (merge ? "merged_chunks" : "chunk_" + chunkId);
         File file = new File(path);
         ensureChunkFilePresent(file);
-        RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
-        this.activeChannel = randomAccessFile.getChannel();
+        this.rf = new RandomAccessFile(file, "rw");
+        this.activeChannel = rf.getChannel();
         this.mappedByteBuffer = merge ? null : activeChannel.map(FileChannel.MapMode.READ_WRITE, 0, MAX_DATA_SIZE);
         this.size = 0;
     }
 
-    private Chunk(int chunkId, int size, FileChannel channel) throws IOException {
+    private Chunk(int chunkId, int size, RandomAccessFile rf, FileChannel channel) throws IOException {
         this.chunkId = chunkId;
+        this.rf = rf;
         this.size = size;
         this.activeChannel = channel;
         this.mappedByteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, 0, size);
@@ -181,6 +183,7 @@ public class Chunk {
             ((DirectBuffer)mappedByteBuffer).cleaner().clean();
         }
         activeChannel.close();
+        rf.close();
     }
 
     @Override
