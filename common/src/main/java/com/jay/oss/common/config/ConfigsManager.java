@@ -22,7 +22,7 @@ public class ConfigsManager {
     private static Properties properties = new Properties();
 
     public static void loadConfigs(){
-        loadConfigs("fast-oss.conf");
+        loadConfigs("tiny-oss.conf");
     }
 
     public static void loadConfigs(String configFileName) {

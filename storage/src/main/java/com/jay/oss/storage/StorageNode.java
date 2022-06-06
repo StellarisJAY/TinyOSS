@@ -176,7 +176,7 @@ public class StorageNode extends AbstractLifeCycle {
     }
 
     public static void main(String[] args) {
-        StorageNode storageNode = new StorageNode("fast-oss.conf");
+        StorageNode storageNode = new StorageNode("tiny-oss.conf");
         storageNode.startup();
     }
 
