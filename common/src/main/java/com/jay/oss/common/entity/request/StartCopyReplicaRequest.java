@@ -18,6 +18,7 @@ import java.util.List;
 @Getter
 public class StartCopyReplicaRequest implements Serializable {
     private long objectId;
+    private int size;
     private String sourceUrl;
     private List<String> targetUrls;
 }

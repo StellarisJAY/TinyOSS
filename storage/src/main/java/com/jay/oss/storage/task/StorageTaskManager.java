@@ -40,8 +40,10 @@ public class StorageTaskManager {
     private final BlockManager blockManager;
     private final ObjectIndexManager objectIndexManager;
 
-    private static final int REPLICA_COPY_COUNT = 10;
+    private static final int REPLICA_COPY_COUNT = 100;
     private static final int MARK_DELETE_COUNT = 100;
+
+    private static final int MAX_REPLICA_COPY_COST = 1024 * 1024 * 50;
 
     public StorageTaskManager(DoveClient storageClient, BlockManager blockManager, ObjectIndexManager objectIndexManager) {
         this.storageClient = storageClient;
@@ -78,13 +80,18 @@ public class StorageTaskManager {
     class ReplicaTaskHandler implements Runnable{
         @Override
         public void run() {
-            for(int i = 0 ; i < REPLICA_COPY_COUNT; i++){
+            int cost = 0;
+            int taskCount = 0;
+            long startTime = System.currentTimeMillis();
+            while(cost < MAX_REPLICA_COPY_COST) {
                 ReplicaTask task = replicaTasks.poll();
                 if(task == null){
                     break;
                 }
                 try{
                     Url url = Url.parseString(task.getStorageUrl());
+                    cost += task.getSize();
+                    taskCount ++;
                     GetObjectRequest request = new GetObjectRequest(task.getObjectId(), 0, -1);
                     RemotingCommand command = storageClient.getCommandFactory().createRequest(request, TinyOssProtocol.DOWNLOAD_FULL, GetObjectRequest.class);
                     TinyOssCommand response = (TinyOssCommand)storageClient.sendSync(url, command, null);
@@ -93,6 +100,9 @@ public class StorageTaskManager {
                     log.warn("Failed to copy replica from : {}", task.getStorageUrl());
                     replicaTasks.offer(task);
                 }
+            }
+            if(cost > 0) {
+                log.info("Replica task done, copied: {} , size: {} bytes, time used: {}ms", taskCount, cost,  (System.currentTimeMillis() - startTime));
             }
         }
         /**

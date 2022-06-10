@@ -77,7 +77,7 @@ public class ReplicaBalancer {
                         // 分配存储服务器
                         List<StorageNodeInfo> targetStorages = storageNodeRegistry.balanceReplica(meta.getSize(), replicaCount, locations);
                         String srcLocation = (String)locations.toArray()[0];
-                        targetStorages.forEach(node-> sendReplicaTask(node.getUrl(), srcLocation, id));
+                        targetStorages.forEach(node-> sendReplicaTask(node.getUrl(), srcLocation, id, meta.getSize()));
                     }catch (Exception e) {
                         log.warn("Re-balance replica task failed for: {}, no enough storage nodes", id);
                     }
@@ -99,11 +99,11 @@ public class ReplicaBalancer {
      * @param srcLocation 副本位置
      * @param objectId 对象ID
      */
-    private void sendReplicaTask(String location, String srcLocation, long objectId) {
+    private void sendReplicaTask(String location, String srcLocation, long objectId, int size) {
         String topicSuffix = "_" + location.replace(":", "_");
         if(OssConfigs.enableTrackerMessaging()) {
             // 发布副本复制任务
-            ReplicaTask replicaTask = new ReplicaTask(0L, objectId, srcLocation);
+            ReplicaTask replicaTask = new ReplicaTask(0L, objectId, size, srcLocation);
             taskManager.addReplicaTask(location, replicaTask);
         }else{
             recordProducer.send(OssConstants.REPLICA_TOPIC + topicSuffix, Long.toString(objectId), srcLocation);
