@@ -6,7 +6,6 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * <p>
@@ -23,8 +22,8 @@ import java.util.List;
 public class ObjectMeta implements Serializable {
     private long objectId;
     private String versionId;
-    private Long size;
-    private Long createTime;
+    private int size;
+    private long createTime;
     private String md5;
     private String fileName;
 }

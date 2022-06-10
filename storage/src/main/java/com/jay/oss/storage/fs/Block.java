@@ -345,7 +345,7 @@ public class Block {
     public Map<Long, ObjectIndex> compact(){
         try{
             // 尝试加排他锁，如果竞争超时，则视为当前block繁忙，目前不进行压缩
-            if(!readWriteLock.writeLock().tryLock(COMPACT_WAIT_TIME, TimeUnit.MILLISECONDS) && needsCompact.get()){
+            if(!readWriteLock.writeLock().tryLock(COMPACT_WAIT_TIME, TimeUnit.MILLISECONDS) && !needsCompact.get()){
                 return null;
             }
             Map<Long, ObjectIndex> indexMap = new HashMap<>(16);

@@ -20,5 +20,6 @@ import java.io.Serializable;
 public class ReplicaTask implements Serializable {
     private long taskId;
     private long objectId;
+    private int size;
     private String storageUrl;
 }
