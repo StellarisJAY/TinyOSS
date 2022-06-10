@@ -22,7 +22,7 @@ public class BucketPutObjectRequest implements BucketAccessRequest {
     private String key;
     private String filename;
     private String bucket;
-    private long size;
+    private int size;
     private long createTime;
     private String md5;
     private String token;

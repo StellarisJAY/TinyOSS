@@ -4,11 +4,17 @@ import com.jay.oss.common.config.OssConfigs;
 import com.jay.oss.common.util.StringUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import sun.misc.Cleaner;
+import sun.misc.Unsafe;
 import sun.nio.ch.DirectBuffer;
+import sun.nio.ch.FileChannelImpl;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.ref.ReferenceQueue;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -178,9 +184,16 @@ public class Chunk {
      * 关闭文件channel
      * @throws IOException e
      */
+    @SuppressWarnings("deprecated")
     protected void closeChannel() throws IOException {
         if(mappedByteBuffer != null){
-            ((DirectBuffer)mappedByteBuffer).cleaner().clean();
+            try{
+                Method unmap = FileChannelImpl.class.getDeclaredMethod("unmap", MappedByteBuffer.class);
+                unmap.setAccessible(true);
+                unmap.invoke(activeChannel, mappedByteBuffer);
+            }catch (Exception e) {
+                throw new RuntimeException("Close mmap channel failed");
+            }
         }
         activeChannel.close();
         rf.close();

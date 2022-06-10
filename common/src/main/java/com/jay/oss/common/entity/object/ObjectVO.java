@@ -21,7 +21,7 @@ import java.io.Serializable;
 public class ObjectVO implements Serializable {
     private String objectKey;
     private String versionId;
-    private Long size;
+    private Integer size;
     private Long createTime;
     private String md5;
     private String fileName;

@@ -58,7 +58,7 @@ public class UploadService {
         if(StringUtil.isNullOrEmpty(key) || StringUtil.isNullOrEmpty(bucket) || content.readableBytes() == 0){
             return HttpUtil.badRequestResponse("Missing important parameters for Put Object");
         }
-        long size = content.readableBytes();
+        int size = content.readableBytes();
         String objectKey = KeyUtil.getObjectKey(key, bucket, null);
         // 向存储桶put object
         TinyOssCommand bucketResponse = bucketPutObject(bucket, objectKey, key, size, System.currentTimeMillis(), token, md5);
@@ -69,7 +69,7 @@ public class UploadService {
         }else {
             PutObjectMetaResponse resp = SerializeUtil.deserialize(bucketResponse.getContent(), PutObjectMetaResponse.class);
             // 向storage上传
-            if(doUpload(resp.getLocations(), content, (int)size, resp.getObjectId())){
+            if(doUpload(resp.getLocations(), content, size, resp.getObjectId())){
                 Result result = new Result().message("Success")
                         .putData("versionId", resp.getVersionId());
                 return HttpUtil.okResponse(result);
@@ -96,7 +96,7 @@ public class UploadService {
         ByteBuf buffer = Unpooled.buffer();
         // 上传请求的数据部分包括ID、大小和实际数据
         buffer.writeLong(objectId);
-        buffer.writeLong(size);
+        buffer.writeInt(size);
         buffer.writeBytes(content);
         Queue<String> urlQueue = new LinkedList<>(urls);
         int urlCount = urlQueue.size();
@@ -146,7 +146,7 @@ public class UploadService {
      * @return {@link TinyOssCommand}
      * @throws Exception e
      */
-    private TinyOssCommand bucketPutObject(String bucket, String objectKey, String filename, long size, long createTime, String token, String md5)throws Exception{
+    private TinyOssCommand bucketPutObject(String bucket, String objectKey, String filename, int size, long createTime, String token, String md5)throws Exception{
         // 获取tracker服务器地址
         String tracker = OssConfigs.trackerServerHost();
         Url url = Url.parseString(tracker);

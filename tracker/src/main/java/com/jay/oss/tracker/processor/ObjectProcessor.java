@@ -143,7 +143,7 @@ public class ObjectProcessor extends TrackerProcessor {
         long objectId = request.getObjectId();
         // 保存上传成功副本位置
         objectTracker.addObjectReplicaLocation(objectId, request.getSourceUrl());
-        ReplicaTask task = new ReplicaTask(0, objectId, request.getSourceUrl());
+        ReplicaTask task = new ReplicaTask(0, objectId, request.getSize(), request.getSourceUrl());
         // 通知其他storage服务复制副本
         for (String location : request.getTargetUrls()) {
             storageTaskManager.addReplicaTask(location, task);

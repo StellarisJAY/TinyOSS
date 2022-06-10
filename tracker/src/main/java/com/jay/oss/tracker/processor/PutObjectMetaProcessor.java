@@ -11,7 +11,6 @@ import com.jay.oss.common.remoting.TinyOssCommand;
 import com.jay.oss.common.remoting.TinyOssProtocol;
 import com.jay.oss.common.util.SerializeUtil;
 import com.jay.oss.common.util.SnowflakeIdGenerator;
-import com.jay.oss.common.util.UrlUtil;
 import com.jay.oss.tracker.meta.BucketManager;
 import com.jay.oss.tracker.registry.StorageNodeRegistry;
 import com.jay.oss.tracker.track.ObjectTracker;
@@ -49,7 +48,7 @@ public class PutObjectMetaProcessor extends TrackerProcessor{
         BucketPutObjectRequest request = SerializeUtil.deserialize(command.getContent(), BucketPutObjectRequest.class);
         String bucket = request.getBucket();
         String objectKey = request.getKey();
-        long size = request.getSize();
+        int size = request.getSize();
         RemotingCommand response;
         // 判断桶是否开启了版本控制
         String versionId = "";

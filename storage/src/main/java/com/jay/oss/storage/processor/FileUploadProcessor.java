@@ -75,15 +75,15 @@ public class FileUploadProcessor extends AbstractProcessor {
                 return;
             }
             long objectId = data.readLong();
-            long size = data.readLong();
+            int size = data.readInt();
             AtomicBoolean duplicateObject = new AtomicBoolean(true);
-        /*
-            computeIfAbsent 保证同一个key的meta只保存一次
-         */
+            /*
+                computeIfAbsent 保证同一个key的meta只保存一次
+            */
             objectIndexManager.computeIfAbsent(objectId, (id)->{
                 // 获取chunk文件
-                Block block = blockManager.getBlockBySize((int)size);
-                ObjectIndex index = block.write(id, data, (int) size);
+                Block block = blockManager.getBlockBySize(size);
+                ObjectIndex index = block.write(id, data, size);
                 duplicateObject.set(false);
                 blockManager.offerBlock(block);
                 return index;
@@ -94,11 +94,11 @@ public class FileUploadProcessor extends AbstractProcessor {
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.ERROR);
                 sendResponse(context, response);
             } else{
-                data.skipBytes((int)size);
+                data.skipBytes(size);
                 byte[] replicaLocationBytes = new byte[data.readableBytes()];
                 data.readBytes(replicaLocationBytes);
                 String[] locations = StringUtil.toString(replicaLocationBytes).split(";");
-                sendUploadCompleteRecord(objectId, Arrays.asList(locations));
+                sendUploadCompleteRecord(objectId, size, Arrays.asList(locations));
                 RemotingCommand response = commandFactory.createResponse(command.getId(), "", TinyOssProtocol.SUCCESS);
                 sendResponse(context, response);
             }
@@ -111,10 +111,10 @@ public class FileUploadProcessor extends AbstractProcessor {
      * 向Tracker发送接收完成的消息，通知Tracker下发副本复制指令
      * @param objectId 对象ID
      */
-    private void sendUploadCompleteRecord(long objectId, List<String> locations){
+    private void sendUploadCompleteRecord(long objectId, int size, List<String> locations){
         if(OssConfigs.enableTrackerMessaging()){
             try{
-                StartCopyReplicaRequest request = new StartCopyReplicaRequest(objectId, NodeInfoCollector.getAddress(), locations);
+                StartCopyReplicaRequest request = new StartCopyReplicaRequest(objectId, size, NodeInfoCollector.getAddress(), locations);
                 RemotingCommand command = commandFactory.createRequest(request, TinyOssProtocol.UPLOAD_COMPLETE, StartCopyReplicaRequest.class);
                 RemotingCommand response = trackerClient.sendSync(OssConfigs.trackerServerUrl(), command, null);
                 if(!response.getCommandCode().equals(TinyOssProtocol.SUCCESS)){
